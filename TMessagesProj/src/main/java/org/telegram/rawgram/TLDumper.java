@@ -115,7 +115,7 @@ public class TLDumper {
         return null;
     }
 
-    private static Field[] fieldsOf(Class<?> cls) {
+    static Field[] fieldsOf(Class<?> cls) {
         Field[] cached = fieldsCache.get(cls);
         if (cached != null) {
             return cached;

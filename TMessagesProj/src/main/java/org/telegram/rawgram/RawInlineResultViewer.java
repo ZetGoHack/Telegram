@@ -1,7 +1,10 @@
 package org.telegram.rawgram;
 
 import android.content.Context;
+import android.widget.TextView;
 import android.widget.Toast;
+
+import java.util.regex.Pattern;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.MessageObject;
@@ -88,6 +91,8 @@ public class RawInlineResultViewer {
                 }
             }), ConnectionsManager.RequestFlagFailOnServerErrors);
         });
+        final RerollSession reroll = new RerollSession(context, currentAccount, adapter, sheet, bot, current, response, resourcesProvider);
+        reroll.button = sheet.addAction("Reroll…", v -> reroll.toggle());
         if (onSend != null) {
             sheet.addAction("Send", v -> {
                 sheet.dismiss();
@@ -96,6 +101,128 @@ public class RawInlineResultViewer {
         }
         sheet.show();
         return sheet;
+    }
+
+    /** Repeats the inline query (bypassing the local cache) until a selected result matches. */
+    private static class RerollSession {
+        private final Context context;
+        private final int currentAccount;
+        private final MentionsAdapter adapter;
+        private final RawObjectSheet sheet;
+        private final TLRPC.User bot;
+        private final TLRPC.BotInlineResult[] current;
+        private final TLRPC.messages_BotResults[] response;
+        private final Theme.ResourcesProvider resourcesProvider;
+        TextView button;
+
+        private int runId;
+        private boolean running;
+        private RawReroll.Options options;
+        private Pattern pattern;
+        private int attempt;
+        private long lastQueryId;
+
+        RerollSession(Context context, int currentAccount, MentionsAdapter adapter, RawObjectSheet sheet, TLRPC.User bot,
+                      TLRPC.BotInlineResult[] current, TLRPC.messages_BotResults[] response, Theme.ResourcesProvider resourcesProvider) {
+            this.context = context;
+            this.currentAccount = currentAccount;
+            this.adapter = adapter;
+            this.sheet = sheet;
+            this.bot = bot;
+            this.current = current;
+            this.response = response;
+            this.resourcesProvider = resourcesProvider;
+        }
+
+        void toggle() {
+            if (running) {
+                stop("reroll остановлен на попытке " + attempt);
+                return;
+            }
+            TLRPC.TL_messages_getInlineBotResults probe = adapter != null ? adapter.rawgramBuildRequest("") : null;
+            if (probe == null) {
+                Toast.makeText(context, "Inline query is no longer active", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            final String key = RawReroll.queryKey(probe);
+            RawReroll.showDialog(context, RawReroll.load(key), resourcesProvider, opts -> {
+                RawReroll.save(key, opts);
+                options = opts;
+                pattern = RawReroll.compile(opts);
+                attempt = 0;
+                lastQueryId = response[0] != null ? response[0].query_id : 0;
+                running = true;
+                next(++runId);
+            });
+        }
+
+        private void stop(String status) {
+            running = false;
+            runId++;
+            button.setText("Reroll…");
+            if (status != null) {
+                sheet.setSubtitle(status);
+            }
+        }
+
+        private void next(final int id) {
+            if (id != runId || !running) {
+                return;
+            }
+            if (!sheet.isShowing()) {
+                running = false;
+                return;
+            }
+            TLRPC.TL_messages_getInlineBotResults req = adapter.rawgramBuildRequest("");
+            if (req == null) {
+                stop("reroll: inline query больше не активен");
+                return;
+            }
+            attempt++;
+            button.setText("Stop " + attempt + "/" + options.maxAttempts);
+            sheet.setSubtitle("reroll " + attempt + "/" + options.maxAttempts + " · ищу " + (options.regex ? "/" + options.pattern + "/" : "«" + options.pattern + "»") + " …");
+            ConnectionsManager.getInstance(currentAccount).sendRequest(req, (res, error) -> AndroidUtilities.runOnUIThread(() -> {
+                if (id != runId || !running) {
+                    return;
+                }
+                if (error != null) {
+                    stop(null);
+                    sheet.setObject("reroll: error " + error.code + " " + error.text + " на попытке " + attempt, error);
+                    return;
+                }
+                if (!(res instanceof TLRPC.messages_BotResults)) {
+                    stop(null);
+                    sheet.setObject("reroll: unexpected response на попытке " + attempt, res);
+                    return;
+                }
+                TLRPC.messages_BotResults botResults = (TLRPC.messages_BotResults) res;
+                response[0] = botResults;
+                boolean sameQueryId = botResults.query_id == lastQueryId;
+                lastQueryId = botResults.query_id;
+                for (TLRPC.BotInlineResult r : botResults.results) {
+                    r.query_id = botResults.query_id;
+                }
+                for (int index : RawReroll.parseIndices(options.indices, botResults.results.size())) {
+                    TLRPC.BotInlineResult r = botResults.results.get(index);
+                    if (RawReroll.matches(r, options, pattern)) {
+                        current[0] = r;
+                        stop(null);
+                        sheet.setObject("✓ совпадение в [" + index + "] на попытке " + attempt + " · " + describe(r), r);
+                        sheet.setPreview(buildPreview(currentAccount, r, bot));
+                        return;
+                    }
+                }
+                if (attempt >= options.maxAttempts) {
+                    stop(null);
+                    sheet.setObject("✗ не найдено за " + attempt + " попыток · последний ответ: " + botResults.results.size() + " results · cache_time " + botResults.cache_time, botResults);
+                    return;
+                }
+                if (sameQueryId) {
+                    sheet.setSubtitle("reroll " + attempt + "/" + options.maxAttempts + " · тот же query_id — возможно, сервер отдаёт кэш (cache_time " + botResults.cache_time + ")");
+                }
+                AndroidUtilities.runOnUIThread(() -> next(id), options.delayMs);
+            }), ConnectionsManager.RequestFlagFailOnServerErrors);
+        }
     }
 
     private static String describe(TLRPC.BotInlineResult result) {
