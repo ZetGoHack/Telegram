@@ -167,41 +167,7 @@ public class RawRerollController {
 
     /** Picks any chat and sends the result there with a raw messages.sendInlineBotResult. */
     public void sendToOtherChat(TLRPC.BotInlineResult result) {
-        org.telegram.ui.ActionBar.BaseFragment last = org.telegram.ui.LaunchActivity.getSafeLastFragment();
-        if (last == null) {
-            return;
-        }
-        android.os.Bundle args = new android.os.Bundle();
-        args.putBoolean("onlySelect", true);
-        args.putInt("dialogsType", org.telegram.ui.DialogsActivity.DIALOGS_TYPE_FORWARD);
-        org.telegram.ui.DialogsActivity picker = new org.telegram.ui.DialogsActivity(args);
-        picker.setDelegate((fragment, dids, message, param, notify, scheduleDate, scheduleRepeatPeriod, topicsFragment) -> {
-            fragment.finishFragment();
-            for (org.telegram.messenger.MessagesStorage.TopicKey key : dids) {
-                sendRaw(result, key.dialogId, notify);
-            }
-            return true;
-        });
-        last.presentFragment(picker);
-    }
-
-    private void sendRaw(TLRPC.BotInlineResult result, long dialogId, boolean notify) {
-        TLRPC.TL_messages_sendInlineBotResult req = new TLRPC.TL_messages_sendInlineBotResult();
-        req.peer = org.telegram.messenger.MessagesController.getInstance(currentAccount).getInputPeer(dialogId);
-        req.random_id = Utilities.random.nextLong();
-        req.query_id = result.query_id;
-        req.id = result.id;
-        req.silent = !notify;
-        ConnectionsManager.getInstance(currentAccount).sendRequest(req, (res, error) -> AndroidUtilities.runOnUIThread(() -> {
-            if (res instanceof TLRPC.Updates) {
-                org.telegram.messenger.MessagesController.getInstance(currentAccount).processUpdates((TLRPC.Updates) res, false);
-                RawNotify.show(R.drawable.msg_info, "Отправлено: " + (result.title != null ? result.title : result.id));
-            } else {
-                String text = error != null ? error.text : "unexpected " + TLDumper.typeName(res);
-                RawNotify.show(R.drawable.msg_warning, "Не отправлено: " + text
-                        + (text.contains("QUERY_ID_INVALID") || text.contains("RESULT_ID_INVALID") ? " — выдача устарела" : ""));
-            }
-        }));
+        RawSend.toOtherChat(currentAccount, result);
     }
 
     public void stop() {
@@ -303,10 +269,16 @@ public class RawRerollController {
         attempt++;
         changed();
         final long sent = SystemClock.elapsedRealtime();
-        ConnectionsManager.getInstance(currentAccount).sendRequest(req, (res, error) -> AndroidUtilities.runOnUIThread(() -> {
-            if (id != runId || state != STATE_RUNNING) {
+        attemptSentAt = sent;
+        awaitingAnswer = true;
+        final int attemptNumber = attempt;
+        final boolean[] answered = new boolean[1];
+        final int token = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (res, error) -> AndroidUtilities.runOnUIThread(() -> {
+            if (id != runId || state != STATE_RUNNING || answered[0] || attempt != attemptNumber) {
                 return;
             }
+            answered[0] = true;
+            awaitingAnswer = false;
             waitUntil = 0;
             Attempt a = new Attempt();
             a.number = attempt;
@@ -384,5 +356,35 @@ public class RawRerollController {
             changed();
             AndroidUtilities.runOnUIThread(() -> next(id), options.delayMs);
         }), ConnectionsManager.RequestFlagFailOnServerErrors);
+
+        // a bot that never answers must not hang the whole run: give up on this attempt and go on
+        if (options.timeoutSec <= 0) {
+            return;
+        }
+        AndroidUtilities.runOnUIThread(() -> {
+            if (id != runId || state != STATE_RUNNING || answered[0] || attempt != attemptNumber) {
+                return;
+            }
+            answered[0] = true;
+            awaitingAnswer = false;
+            ConnectionsManager.getInstance(currentAccount).cancelRequest(token, true);
+            Attempt a = new Attempt();
+            a.number = attemptNumber;
+            a.tookMs = SystemClock.elapsedRealtime() - sent;
+            a.receivedAt = SystemClock.elapsedRealtime();
+            a.error = "timeout: бот не ответил за " + options.timeoutSec + " с";
+            history.add(a);
+            if (attempt >= options.maxAttempts) {
+                finish(STATE_NOT_FOUND);
+                RawNotify.show(R.drawable.msg_info, "reroll: " + getPatternLabel() + " не найдено за " + attempt + " попыток");
+                return;
+            }
+            changed();
+            AndroidUtilities.runOnUIThread(() -> next(id), options.delayMs);
+        }, options.timeoutSec * 1000L);
     }
+
+    /** elapsedRealtime when the current attempt's request went out. */
+    long attemptSentAt;
+    boolean awaitingAnswer;
 }

@@ -114,12 +114,8 @@ public class RawInlineResultViewer {
             // the raw sheet folds away while reroll runs; its status lives in the bubble above the results
             sheet.addAction("Reroll…", v -> RawRerollController.showOptionsAndStart(context, currentAccount, adapter, onSend, resourcesProvider, host, sheet::dismiss));
         }
-        if (onSend != null) {
-            sheet.addAction("Send", v -> {
-                sheet.dismiss();
-                onSend.run(current[0]);
-            });
-        }
+        // asks where to: this chat (normal path) or any other chat (raw sendInlineBotResult)
+        sheet.addAction("Send…", v -> RawSend.ask(context, currentAccount, current[0], onSend, resourcesProvider, sheet::dismiss));
         sheet.show();
         return sheet;
     }

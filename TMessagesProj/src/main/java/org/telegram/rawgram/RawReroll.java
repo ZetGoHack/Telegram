@@ -46,6 +46,8 @@ public class RawReroll {
         public String indices = "";
         public int maxAttempts = 50;
         public int delayMs = 500;
+        /** Seconds to wait for one answer before giving up on the attempt; 0 = wait forever. */
+        public int timeoutSec = 60;
 
         JSONObject toJson() throws Exception {
             JSONObject o = new JSONObject();
@@ -58,6 +60,7 @@ public class RawReroll {
             o.put("indices", indices);
             o.put("maxAttempts", maxAttempts);
             o.put("delayMs", delayMs);
+            o.put("timeoutSec", timeoutSec);
             return o;
         }
 
@@ -72,6 +75,7 @@ public class RawReroll {
             opt.indices = o.optString("indices", "");
             opt.maxAttempts = o.optInt("maxAttempts", 50);
             opt.delayMs = o.optInt("delayMs", 500);
+            opt.timeoutSec = o.optInt("timeoutSec", 60);
             return opt;
         }
     }
@@ -254,6 +258,7 @@ public class RawReroll {
         EditText indicesField = field(context, layout, "Индексы результатов (пусто = все; 0 · -1 · 0,2 · 1:4 · ::2)", initial.indices, InputType.TYPE_CLASS_TEXT, resourcesProvider);
         EditText attemptsField = field(context, layout, "Максимум попыток", String.valueOf(initial.maxAttempts), InputType.TYPE_CLASS_NUMBER, resourcesProvider);
         EditText delayField = field(context, layout, "Задержка между попытками, мс", String.valueOf(initial.delayMs), InputType.TYPE_CLASS_NUMBER, resourcesProvider);
+        EditText timeoutField = field(context, layout, "Таймаут ответа бота, с (0 = ждать сколько угодно)", String.valueOf(initial.timeoutSec), InputType.TYPE_CLASS_NUMBER, resourcesProvider);
 
         ScrollView scrollView = new ScrollView(context);
         scrollView.addView(layout);
@@ -280,6 +285,7 @@ public class RawReroll {
                 o.indices = indicesField.getText().toString().trim();
                 o.maxAttempts = parseIntOr(attemptsField.getText().toString(), 50, 1, 10_000);
                 o.delayMs = parseIntOr(delayField.getText().toString(), 500, 0, 600_000);
+                o.timeoutSec = parseIntOr(timeoutField.getText().toString(), 60, 0, 3600);
                 String problem = validate(o);
                 if (problem != null) {
                     patternField.setError(problem);

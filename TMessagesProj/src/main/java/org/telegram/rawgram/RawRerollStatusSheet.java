@@ -147,8 +147,13 @@ public class RawRerollStatusSheet extends BottomSheet {
         switch (controller.state) {
             case RawRerollController.STATE_RUNNING:
                 int wait = controller.getWaitSecondsLeft();
+                long waiting = (android.os.SystemClock.elapsedRealtime() - controller.attemptSentAt) / 1000;
+                boolean awaiting = controller.awaitingAnswer && waiting >= 2;
                 stateView.setText(wait > 0
                         ? "⏳ FLOOD_WAIT: жду " + wait + " с, потом продолжу поиск " + controller.getPatternLabel()
+                        : awaiting
+                        ? "⟳ попытка " + controller.attempt + ": жду ответ бота " + waiting + " с"
+                            + (controller.options.timeoutSec > 0 ? " из " + controller.options.timeoutSec : "")
                         : "⟳ идёт поиск " + controller.getPatternLabel());
                 stateView.setTextColor(getThemedColor(Theme.key_featuredStickers_addButton));
                 break;
@@ -223,6 +228,9 @@ public class RawRerollStatusSheet extends BottomSheet {
 
     // ---- interactive history: one row per attempt, newest on top ----
 
+    private RawRerollController.Attempt expanded;
+    private int expandedSelection = -1;
+
     private void rebuildHistory() {
         int count = controller.history.size();
         if (count == historyRows.size() && (count > 0 || historyEmpty != null)) {
@@ -235,20 +243,160 @@ public class RawRerollStatusSheet extends BottomSheet {
         if (count == 0) {
             historyEmpty = row();
             historyEmpty.setText(controller.isRunning() ? "первая попытка…" : "попыток не было");
-            historyList.addView(historyEmpty);
+            historyList.addView(historyEmpty, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 0, 12, 0));
             return;
         }
         for (int i = count - 1; i >= 0; i--) {
             final RawRerollController.Attempt a = controller.history.get(i);
-            TextView row = row();
-            if (a.response != null) {
-                row.setBackground(Theme.getSelectorDrawable(false));
-                row.setOnClickListener(v -> showAttemptMenu(a));
+            LinearLayout card = new LinearLayout(getContext());
+            card.setOrientation(LinearLayout.VERTICAL);
+            TextView header = row();
+            card.addView(header, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+            boolean interactive = a.response != null;
+            card.setBackground(cardBackground(interactive, a == expanded));
+            if (interactive) {
+                header.setOnClickListener(v -> {
+                    if (expanded == a) {
+                        expanded = null;
+                    } else {
+                        expanded = a;
+                        expandedSelection = a.matchIndex >= 0 ? a.matchIndex : 0;
+                    }
+                    forceRebuildHistory();
+                });
+                if (a == expanded) {
+                    addExpandedControls(card, a);
+                }
             }
-            historyRows.add(row);
-            historyList.addView(row);
+            historyRows.add(header);
+            historyList.addView(card, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 0, 12, 6));
         }
         updateHistoryTexts();
+    }
+
+    private void forceRebuildHistory() {
+        historyRows.clear();
+        historyEmpty = null;
+        rebuildHistory();
+    }
+
+    private android.graphics.drawable.Drawable cardBackground(boolean interactive, boolean selected) {
+        int base = getThemedColor(Theme.key_dialogTextBlack);
+        int accent = getThemedColor(Theme.key_featuredStickers_addButton);
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setCornerRadius(AndroidUtilities.dp(10));
+        if (!interactive) {
+            bg.setColor(Theme.multAlpha(base, 0.03f));
+        } else if (selected) {
+            bg.setColor(Theme.multAlpha(accent, 0.08f));
+            bg.setStroke(AndroidUtilities.dp(1.5f), accent);
+        } else {
+            bg.setColor(Theme.multAlpha(base, 0.04f));
+            bg.setStroke(AndroidUtilities.dp(1), Theme.multAlpha(base, 0.18f));
+        }
+        return bg;
+    }
+
+    /** Expanded attempt: its results as chips (the match highlighted), then actions for the selected one. */
+    private void addExpandedControls(LinearLayout card, RawRerollController.Attempt a) {
+        final java.util.ArrayList<TLRPC.BotInlineResult> visible = visibleResults(a.response);
+        if (expandedSelection < 0 || expandedSelection >= visible.size()) {
+            expandedSelection = visible.isEmpty() ? -1 : 0;
+        }
+
+        LinearLayout results = chipRow(card);
+        for (int i = 0; i < visible.size(); i++) {
+            final int index = i;
+            boolean selected = i == expandedSelection;
+            TextView chip = smallChip("[" + i + "] " + ellipsize(title(visible.get(i)), 22) + (i == a.matchIndex ? " ✓" : ""), selected);
+            chip.setOnClickListener(v -> {
+                expandedSelection = index;
+                forceRebuildHistory();
+            });
+            results.addView(chip, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 30, 0, 0, 6, 0));
+        }
+
+        LinearLayout actionsRow = chipRow(card);
+        if (expandedSelection >= 0) {
+            final TLRPC.BotInlineResult result = visible.get(expandedSelection);
+            addActionChip(actionsRow, "Raw и превью", () -> {
+                dismiss();
+                RawInlineResultViewer.show(getContext(), controller.currentAccount, controller.adapter, result, controller.onSend, resourcesProvider, controller.host);
+            });
+            if (controller.onSend != null) {
+                addActionChip(actionsRow, "Отправить сюда", () -> {
+                    dismiss();
+                    controller.sendHere(result);
+                });
+            }
+            addActionChip(actionsRow, "В другой чат…", () -> {
+                dismiss();
+                controller.sendToOtherChat(result);
+            });
+        }
+        addActionChip(actionsRow, "Весь ответ", () -> {
+            dismiss();
+            new RawObjectSheet(getContext(), controller.currentAccount, "Ответ · попытка #" + a.number, a.response, resourcesProvider).show();
+        });
+
+        TextView hint = new TextView(getContext());
+        hint.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11);
+        hint.setTextColor(getThemedColor(Theme.key_dialogTextGray2));
+        hint.setText("Сколько живёт query_id, решает сервер: если он уже забыт, отправка вернёт QUERY_ID_INVALID.");
+        card.addView(hint, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 2, 12, 8));
+    }
+
+    private LinearLayout chipRow(LinearLayout card) {
+        HorizontalScrollView scroll = new HorizontalScrollView(getContext());
+        scroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout row = new LinearLayout(getContext());
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(10), 0);
+        scroll.addView(row);
+        card.addView(scroll, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, 6));
+        return row;
+    }
+
+    private TextView smallChip(String text, boolean selected) {
+        TextView chip = new TextView(getContext());
+        chip.setText(text);
+        chip.setGravity(Gravity.CENTER);
+        chip.setSingleLine(true);
+        chip.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        chip.setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(10), 0);
+        int base = getThemedColor(Theme.key_dialogTextBlack);
+        int accent = getThemedColor(Theme.key_featuredStickers_addButton);
+        if (selected) {
+            chip.setTextColor(getThemedColor(Theme.key_featuredStickers_buttonText));
+            chip.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(15), accent, Theme.multAlpha(accent, 0.8f)));
+        } else {
+            chip.setTextColor(base);
+            chip.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(15), Theme.multAlpha(base, 0.07f), Theme.multAlpha(base, 0.14f)));
+        }
+        return chip;
+    }
+
+    private void addActionChip(LinearLayout row, String text, Runnable onClick) {
+        TextView chip = new TextView(getContext());
+        chip.setText(text);
+        chip.setGravity(Gravity.CENTER);
+        chip.setSingleLine(true);
+        chip.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        chip.setTypeface(AndroidUtilities.bold());
+        chip.setPadding(AndroidUtilities.dp(12), 0, AndroidUtilities.dp(12), 0);
+        int accent = getThemedColor(Theme.key_featuredStickers_addButton);
+        chip.setTextColor(accent);
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setCornerRadius(AndroidUtilities.dp(16));
+        bg.setStroke(AndroidUtilities.dp(1.5f), Theme.multAlpha(accent, 0.6f));
+        bg.setColor(Theme.multAlpha(accent, 0.06f));
+        chip.setBackground(bg);
+        chip.setOnClickListener(v -> onClick.run());
+        row.addView(chip, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 32, 0, 0, 6, 0));
+    }
+
+    private static String ellipsize(String s, int max) {
+        return s.length() > max ? s.substring(0, max - 1) + "…" : s;
     }
 
     private TextView row() {
@@ -256,7 +404,7 @@ public class RawRerollStatusSheet extends BottomSheet {
         row.setTypeface(Typeface.MONOSPACE);
         row.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
         row.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
-        row.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(6), AndroidUtilities.dp(16), AndroidUtilities.dp(6));
+        row.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(8), AndroidUtilities.dp(12), AndroidUtilities.dp(8));
         return row;
     }
 
@@ -312,55 +460,6 @@ public class RawRerollStatusSheet extends BottomSheet {
             }
         }
         return visible;
-    }
-
-    private void showAttemptMenu(RawRerollController.Attempt a) {
-        final java.util.ArrayList<TLRPC.BotInlineResult> visible = visibleResults(a.response);
-        java.util.ArrayList<CharSequence> items = new java.util.ArrayList<>();
-        java.util.ArrayList<Runnable> actions = new java.util.ArrayList<>();
-        if (a.matchIndex >= 0 && a.matchIndex < visible.size()) {
-            TLRPC.BotInlineResult m = visible.get(a.matchIndex);
-            items.add("✓ Совпадение [" + a.matchIndex + "] · " + title(m));
-            actions.add(() -> showResultMenu(a, m, a.matchIndex));
-        }
-        items.add("Результаты ответа (" + visible.size() + ")…");
-        actions.add(() -> {
-            CharSequence[] names = new CharSequence[visible.size()];
-            for (int i = 0; i < visible.size(); i++) {
-                names[i] = "[" + i + "] " + title(visible.get(i));
-            }
-            new org.telegram.ui.ActionBar.AlertDialog.Builder(getContext(), resourcesProvider)
-                    .setTitle("Попытка #" + a.number)
-                    .setItems(names, (d, which) -> showResultMenu(a, visible.get(which), which))
-                    .show();
-        });
-        items.add("Весь ответ (raw)");
-        actions.add(() -> {
-            dismiss();
-            new RawObjectSheet(getContext(), controller.currentAccount, "Ответ · попытка #" + a.number, a.response, resourcesProvider).show();
-        });
-        new org.telegram.ui.ActionBar.AlertDialog.Builder(getContext(), resourcesProvider)
-                .setTitle("Попытка #" + a.number + " · " + age(a))
-                .setItems(items.toArray(new CharSequence[0]), (d, which) -> actions.get(which).run())
-                .show();
-    }
-
-    private void showResultMenu(RawRerollController.Attempt a, TLRPC.BotInlineResult result, int index) {
-        CharSequence[] items = {"Открыть raw и превью", "Отправить сюда", "Отправить в другой чат…"};
-        new org.telegram.ui.ActionBar.AlertDialog.Builder(getContext(), resourcesProvider)
-                .setTitle("[" + index + "] " + title(result))
-                .setMessage("Ответ получен " + age(a) + ". Сколько живёт query_id, решает сервер: если он уже забыт, отправка вернёт QUERY_ID_INVALID.")
-                .setItems(items, (d, which) -> {
-                    dismiss();
-                    if (which == 0) {
-                        RawInlineResultViewer.show(getContext(), controller.currentAccount, controller.adapter, result, controller.onSend, resourcesProvider, controller.host);
-                    } else if (which == 1) {
-                        controller.sendHere(result);
-                    } else {
-                        controller.sendToOtherChat(result);
-                    }
-                })
-                .show();
     }
 
     private static String title(TLRPC.BotInlineResult r) {
