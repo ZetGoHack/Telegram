@@ -147,6 +147,10 @@ android {
 
         multiDexEnabled true
 
+        // rawGram: API credentials come from local.properties or environment, never from the repo
+        buildConfigField "int", "RAWGRAM_API_ID", getSecret("RAWGRAM_API_ID", "0")
+        buildConfigField "String", "RAWGRAM_API_HASH", "\"" + getSecret("RAWGRAM_API_HASH", "") + "\""
+
         externalNativeBuild {
             cmake {
                 version '3.22.1'
@@ -249,6 +253,13 @@ def getProps(String propName) {
     } else {
         return "";
     }
+}
+def getSecret(String name, String fallback) {
+    def value = getProps(name)
+    if (value == null || value.toString().isEmpty()) {
+        value = System.getenv(name)
+    }
+    return (value == null || value.toString().isEmpty()) ? fallback : value.toString()
 }
 apply plugin: 'com.google.gms.google-services'
 
