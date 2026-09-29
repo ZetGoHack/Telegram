@@ -40,6 +40,15 @@ public class RawAnim {
         android.transition.Fade fadeIn = new android.transition.Fade(android.transition.Fade.IN);
         fadeIn.setDuration(180);
         fadeIn.setStartDelay(DURATION / 2);
+        if (appearing != null) {
+            // a delayed Fade leaves the view fully opaque until its animator starts, which shows as a blink:
+            // hide it right away and fade it in by hand once the rows have made room
+            fadeIn.excludeTarget(appearing, true);
+            appearing.animate().cancel();
+            appearing.setAlpha(0f);
+            appearing.animate().alpha(1f).setStartDelay(DURATION / 2).setDuration(180)
+                    .setInterpolator(CubicBezierInterpolator.EASE_OUT).start();
+        }
         set.addTransition(bounds).addTransition(fadeOut).addTransition(fadeIn);
         TransitionManager.beginDelayedTransition(rootOf(container), set);
     }
@@ -51,6 +60,79 @@ public class RawAnim {
             root = (ViewGroup) root.getParent();
         }
         return root;
+    }
+
+    /**
+     * Expands or collapses a block by animating its height and alpha from wherever it is now.
+     * Deterministic on every run (unlike layout transitions, which remember stale bounds of hidden views);
+     * the parents simply re-layout each frame, so everything below slides along.
+     */
+    public static void expand(View view, boolean show) {
+        if (view == null) {
+            return;
+        }
+        Object running = view.getTag(org.telegram.messenger.R.id.rawgram_expand_animator);
+        if (running instanceof android.animation.Animator) {
+            ((android.animation.Animator) running).cancel();
+        }
+        ViewGroup.LayoutParams lp = view.getLayoutParams();
+        int from = view.getVisibility() == View.VISIBLE ? view.getHeight() : 0;
+        int to = 0;
+        if (show) {
+            View parent = (View) view.getParent();
+            int width = parent != null ? parent.getWidth() - parent.getPaddingLeft() - parent.getPaddingRight() : view.getWidth();
+            if (lp instanceof ViewGroup.MarginLayoutParams) {
+                width -= ((ViewGroup.MarginLayoutParams) lp).leftMargin + ((ViewGroup.MarginLayoutParams) lp).rightMargin;
+            }
+            view.measure(View.MeasureSpec.makeMeasureSpec(Math.max(0, width), View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            to = view.getMeasuredHeight();
+            if (view.getVisibility() != View.VISIBLE) {
+                view.setAlpha(0f);
+            }
+            view.setVisibility(View.VISIBLE);
+        }
+        final int start = from;
+        final int end = to;
+        final float alphaFrom = view.getAlpha();
+        final float alphaTo = show ? 1f : 0f;
+        lp.height = start;
+        view.setLayoutParams(lp);
+        android.animation.ValueAnimator animator = android.animation.ValueAnimator.ofFloat(0f, 1f);
+        animator.setDuration(DURATION);
+        animator.setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT);
+        animator.addUpdateListener(a -> {
+            float t = (float) a.getAnimatedValue();
+            lp.height = (int) (start + (end - start) * t);
+            // content shows up in the second half of an expand, disappears in the first half of a collapse
+            float alphaT = show ? Math.max(0f, (t - 0.35f) / 0.65f) : Math.min(1f, t / 0.5f);
+            view.setAlpha(alphaFrom + (alphaTo - alphaFrom) * alphaT);
+            view.setLayoutParams(lp);
+        });
+        animator.addListener(new android.animation.AnimatorListenerAdapter() {
+            private boolean cancelled;
+
+            @Override
+            public void onAnimationCancel(android.animation.Animator animation) {
+                cancelled = true;
+            }
+
+            @Override
+            public void onAnimationEnd(android.animation.Animator animation) {
+                view.setTag(org.telegram.messenger.R.id.rawgram_expand_animator, null);
+                if (cancelled) {
+                    return;
+                }
+                lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                view.setLayoutParams(lp);
+                view.setAlpha(alphaTo);
+                if (!show) {
+                    view.setVisibility(View.GONE);
+                }
+            }
+        });
+        view.setTag(org.telegram.messenger.R.id.rawgram_expand_animator, animator);
+        animator.start();
     }
 
     /** Short fade out, swap, fade in: for content that changes in place (code block, preview). */

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- rawGram: tag slot for the running expand/collapse animator of a view -->
+    <item type="id" name="rawgram_expand_animator" />
+</resources>

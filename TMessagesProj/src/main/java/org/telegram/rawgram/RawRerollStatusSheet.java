@@ -286,9 +286,8 @@ public class RawRerollStatusSheet extends BottomSheet {
 
     /** Expands one card in place (collapsing the previous one) with an animated layout change. */
     private void toggle(RawRerollController.Attempt a) {
-        RawAnim.layout(historyList, expanded == a ? null : controlsOf.get(a));
         if (expanded != null && controlsOf.containsKey(expanded)) {
-            controlsOf.get(expanded).setVisibility(View.GONE);
+            RawAnim.expand(controlsOf.get(expanded), false);
             cards.get(expanded).setBackground(cardBackground(true, false));
         }
         if (expanded == a) {
@@ -300,20 +299,10 @@ public class RawRerollStatusSheet extends BottomSheet {
         LinearLayout controls = controlsOf.get(a);
         controls.removeAllViews();
         addExpandedControls(controls, a);
-        controls.setVisibility(View.VISIBLE);
+        RawAnim.expand(controls, true);
         cards.get(a).setBackground(cardBackground(true, true));
     }
 
-    /** Re-renders the expanded card's chips after another result was picked. */
-    private void refreshExpanded() {
-        if (expanded == null || !controlsOf.containsKey(expanded)) {
-            return;
-        }
-        RawAnim.layout(historyList);
-        LinearLayout controls = controlsOf.get(expanded);
-        controls.removeAllViews();
-        addExpandedControls(controls, expanded);
-    }
 
     private android.graphics.drawable.Drawable cardBackground(boolean interactive, boolean selected) {
         int base = getThemedColor(Theme.key_dialogTextBlack);
@@ -340,19 +329,47 @@ public class RawRerollStatusSheet extends BottomSheet {
         }
 
         LinearLayout results = chipRow(card);
+        final java.util.ArrayList<TextView> chips = new java.util.ArrayList<>();
+        final LinearLayout actionsRow = new LinearLayout(getContext());
         for (int i = 0; i < visible.size(); i++) {
             final int index = i;
             boolean selected = i == expandedSelection;
             TextView chip = smallChip("[" + i + "] " + ellipsize(title(visible.get(i)), 22) + (i == a.matchIndex ? " ✓" : ""), selected);
             chip.setOnClickListener(v -> {
+                if (expandedSelection == index) {
+                    return;
+                }
+                // restyle in place: the results row keeps its scroll position
                 expandedSelection = index;
-                refreshExpanded();
+                for (int c = 0; c < chips.size(); c++) {
+                    styleSmallChip(chips.get(c), c == index);
+                }
+                RawAnim.pop(chip);
+                fillActions(actionsRow, a, visible);
             });
+            chips.add(chip);
             results.addView(chip, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 30, 0, 0, 6, 0));
         }
 
-        LinearLayout actionsRow = chipRow(card);
-        if (expandedSelection >= 0) {
+        HorizontalScrollView actionsScroll = new HorizontalScrollView(getContext());
+        actionsScroll.setHorizontalScrollBarEnabled(false);
+        actionsRow.setOrientation(LinearLayout.HORIZONTAL);
+        actionsRow.setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(10), 0);
+        actionsScroll.addView(actionsRow);
+        card.addView(actionsScroll, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, 6));
+        fillActions(actionsRow, a, visible);
+
+        TextView hint = new TextView(getContext());
+        hint.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11);
+        hint.setTextColor(getThemedColor(Theme.key_dialogTextGray2));
+        hint.setText("Сколько живёт query_id, решает сервер: если он уже забыт, отправка вернёт QUERY_ID_INVALID.");
+        card.addView(hint, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 2, 12, 8));
+    }
+
+    /** Actions for the currently selected result of an expanded attempt. */
+    private void fillActions(LinearLayout actionsRow, RawRerollController.Attempt a, java.util.ArrayList<TLRPC.BotInlineResult> visible) {
+        actionsRow.removeAllViews();
+        if (expandedSelection >= 0 && expandedSelection < visible.size()) {
             final TLRPC.BotInlineResult result = visible.get(expandedSelection);
             addActionChip(actionsRow, "Raw и превью", () -> {
                 dismiss();
@@ -373,12 +390,6 @@ public class RawRerollStatusSheet extends BottomSheet {
             dismiss();
             new RawObjectSheet(getContext(), controller.currentAccount, "Ответ · попытка #" + a.number, a.response, resourcesProvider).show();
         });
-
-        TextView hint = new TextView(getContext());
-        hint.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11);
-        hint.setTextColor(getThemedColor(Theme.key_dialogTextGray2));
-        hint.setText("Сколько живёт query_id, решает сервер: если он уже забыт, отправка вернёт QUERY_ID_INVALID.");
-        card.addView(hint, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 2, 12, 8));
     }
 
     private LinearLayout chipRow(LinearLayout card) {
@@ -399,6 +410,11 @@ public class RawRerollStatusSheet extends BottomSheet {
         chip.setSingleLine(true);
         chip.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
         chip.setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(10), 0);
+        styleSmallChip(chip, selected);
+        return chip;
+    }
+
+    private void styleSmallChip(TextView chip, boolean selected) {
         int base = getThemedColor(Theme.key_dialogTextBlack);
         int accent = getThemedColor(Theme.key_featuredStickers_addButton);
         if (selected) {
@@ -408,7 +424,6 @@ public class RawRerollStatusSheet extends BottomSheet {
             chip.setTextColor(base);
             chip.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(15), Theme.multAlpha(base, 0.07f), Theme.multAlpha(base, 0.14f)));
         }
-        return chip;
     }
 
     private void addActionChip(LinearLayout row, String text, Runnable onClick) {
