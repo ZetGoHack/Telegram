@@ -227,6 +227,7 @@ import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.ActionBar.theme.ThemeKey;
 import org.telegram.ui.Adapters.FiltersView;
 import org.telegram.ui.Adapters.MentionsAdapter;
+import org.telegram.rawgram.RawInlineResultViewer;
 import org.telegram.ui.Adapters.MessagesSearchAdapter;
 import org.telegram.ui.Business.BusinessBotButton;
 import org.telegram.ui.Business.BusinessLinksActivity;
@@ -7472,7 +7473,25 @@ public class ChatActivity extends BaseFragment implements
             }
         });
         mentionContainer.getListView().setOnItemLongClickListener((view, position) -> {
-            if (getParentActivity() == null || !mentionContainer.getAdapter().isLongClickEnabled()) {
+            if (getParentActivity() == null) {
+                return false;
+            }
+            // rawGram: long press on an inline result opens the raw viewer with a rendered preview
+            if (position != 0 && !mentionContainer.getAdapter().isBannedInline() && !ContentPreviewViewer.getInstance().isVisible()) {
+                Object rawItem = mentionContainer.getAdapter().getItem(position - 1);
+                if (rawItem instanceof TLRPC.BotInlineResult) {
+                    Utilities.Callback<TLRPC.BotInlineResult> rawOnSend = null;
+                    if (chatMode != MODE_SCHEDULED && currentEncryptedChat == null && chatActivityEnterView != null && chatActivityEnterView.getFieldText() != null) {
+                        rawOnSend = rawResult -> AlertsCreator.ensurePaidMessageConfirmation(currentAccount, getDialogId(), 1, rawPrice -> sendBotInlineResult(rawResult, true, 0, rawPrice));
+                    }
+                    RawInlineResultViewer.show(getParentActivity(), currentAccount, mentionContainer.getAdapter(), (TLRPC.BotInlineResult) rawItem, rawOnSend, themeDelegate);
+                    try {
+                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                    } catch (Exception rawIgnore) {}
+                    return true;
+                }
+            }
+            if (!mentionContainer.getAdapter().isLongClickEnabled()) {
                 return false;
             }
             if (position == 0 || mentionContainer.getAdapter().isBannedInline()) {

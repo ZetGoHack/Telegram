@@ -117,6 +117,10 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
     private ArrayList<TLRPC.User> searchResultCommandsUsers;
     private ArrayList<Boolean> searchResultCommandsEphemeral;
     private ArrayList<TLRPC.BotInlineResult> searchResultBotContext;
+    // rawGram: last messages.botResults page and the results the client dropped from it
+    public TLRPC.messages_BotResults rawgramLastResponse;
+    public ArrayList<TLRPC.BotInlineResult> rawgramHiddenResults = new ArrayList<>();
+    public boolean rawgramLastFromCache;
     private long searchResultBotContextSwitchUserId;
     private TLRPC.TL_inlineBotSwitchPM searchResultBotContextSwitch;
     private TLRPC.TL_inlineBotWebView searchResultBotWebViewSwitch;
@@ -853,6 +857,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             }
             if (response instanceof TLRPC.TL_messages_botResults) {
                 TLRPC.TL_messages_botResults res = (TLRPC.TL_messages_botResults) response;
+                rawgramLastResponse = res;
+                rawgramLastFromCache = cache;
+                rawgramHiddenResults = new ArrayList<>();
                 if (!cache && res.cache_time != 0) {
                     messagesStorage.saveBotCache(key, res);
                 }
@@ -864,6 +871,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 for (int a = 0; a < res.results.size(); a++) {
                     TLRPC.BotInlineResult result = res.results.get(a);
                     if (!(result.document instanceof TLRPC.TL_document) && !(result.photo instanceof TLRPC.TL_photo) && !"game".equals(result.type) && result.content == null && result.send_message instanceof TLRPC.TL_botInlineMessageMediaAuto) {
+                        rawgramHiddenResults.add(result);
                         res.results.remove(a);
                         a--;
                     }
@@ -914,23 +922,36 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         if (cache) {
             messagesStorage.getBotCache(key, requestDelegate);
         } else {
-            TLRPC.TL_messages_getInlineBotResults req = new TLRPC.TL_messages_getInlineBotResults();
-            req.bot = MessagesController.getInstance(currentAccount).getInputUser(user);
-            req.query = query;
-            req.offset = offset;
-            if (user.bot_inline_geo && lastKnownLocation != null && lastKnownLocation.getLatitude() != -1000) {
-                req.flags |= 1;
-                req.geo_point = new TLRPC.TL_inputGeoPoint();
-                req.geo_point.lat = AndroidUtilities.fixLocationCoord(lastKnownLocation.getLatitude());
-                req.geo_point._long = AndroidUtilities.fixLocationCoord(lastKnownLocation.getLongitude());
-            }
-            if (DialogObject.isEncryptedDialog(dialog_id)) {
-                req.peer = new TLRPC.TL_inputPeerEmpty();
-            } else {
-                req.peer = MessagesController.getInstance(currentAccount).getInputPeer(dialog_id);
-            }
+            TLRPC.TL_messages_getInlineBotResults req = buildInlineBotResultsRequest(user, query, offset);
             contextQueryReqid = ConnectionsManager.getInstance(currentAccount).sendRequest(req, requestDelegate, ConnectionsManager.RequestFlagFailOnServerErrors);
         }
+    }
+
+    private TLRPC.TL_messages_getInlineBotResults buildInlineBotResultsRequest(TLRPC.User user, String query, String offset) {
+        TLRPC.TL_messages_getInlineBotResults req = new TLRPC.TL_messages_getInlineBotResults();
+        req.bot = MessagesController.getInstance(currentAccount).getInputUser(user);
+        req.query = query;
+        req.offset = offset;
+        if (user.bot_inline_geo && lastKnownLocation != null && lastKnownLocation.getLatitude() != -1000) {
+            req.flags |= 1;
+            req.geo_point = new TLRPC.TL_inputGeoPoint();
+            req.geo_point.lat = AndroidUtilities.fixLocationCoord(lastKnownLocation.getLatitude());
+            req.geo_point._long = AndroidUtilities.fixLocationCoord(lastKnownLocation.getLongitude());
+        }
+        if (DialogObject.isEncryptedDialog(dialog_id)) {
+            req.peer = new TLRPC.TL_inputPeerEmpty();
+        } else {
+            req.peer = MessagesController.getInstance(currentAccount).getInputPeer(dialog_id);
+        }
+        return req;
+    }
+
+    // rawGram: request for the currently active inline query, or null if none
+    public TLRPC.TL_messages_getInlineBotResults rawgramBuildRequest(String offset) {
+        if (foundContextBot == null || searchingContextQuery == null) {
+            return null;
+        }
+        return buildInlineBotResultsRequest(foundContextBot, searchingContextQuery, offset == null ? "" : offset);
     }
 
     // Sort by rating descending and remove duplicates by dialogId

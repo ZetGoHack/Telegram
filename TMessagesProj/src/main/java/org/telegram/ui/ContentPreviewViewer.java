@@ -53,6 +53,7 @@ import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.telegram.rawgram.RawDocumentViewer;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.DocumentObject;
@@ -782,6 +783,10 @@ public class ContentPreviewViewer {
                         }
                     }
                 }
+                // rawGram
+                items.add("Raw");
+                icons.add(R.drawable.msg_info);
+                actions.add(ACTION_RAWGRAM_RAW);
 
                 if (items.isEmpty()) {
                     return;
@@ -823,6 +828,8 @@ public class ContentPreviewViewer {
                             delegate.editSticker(currentDocument);
                         } else if (actions.get(which) == 8) {
                             delegate.deleteSticker(currentDocument);
+                        } else if (actions.get(which) == ACTION_RAWGRAM_RAW) {
+                            openRawViewer();
                         }
                         dismissPopupWindow();
                     }
@@ -1065,6 +1072,10 @@ public class ContentPreviewViewer {
                 } else {
                     canDelete = false;
                 }
+                // rawGram
+                items.add(0, "Raw");
+                icons.add(0, R.drawable.msg_info);
+                actions.add(0, ACTION_RAWGRAM_RAW);
                 if (items.isEmpty()) {
                     return;
                 }
@@ -1100,6 +1111,8 @@ public class ContentPreviewViewer {
                         AlertsCreator.createScheduleDatePickerDialog(parentActivity, stickerPreviewViewerDelegate.getDialogId(), (notify, scheduleDate, scheduleRepeatPeriod) -> stickerPreviewViewerDelegate.sendGif(document != null ? document : result, parent, notify, scheduleDate, scheduleRepeatPeriod), resourcesProvider);
                     } else if (actions.get(which) == 11) {
                         delegate.addCaptionToGif(currentDocument != null ? currentDocument : inlineResult, parentObject, true, 0, 0);
+                    } else if (actions.get(which) == ACTION_RAWGRAM_RAW) {
+                        openRawViewer();
                     }
                     dismissPopupWindow();
                 };
@@ -2404,6 +2417,25 @@ public class ContentPreviewViewer {
                 imageView.setImage(null, null, null, null, null, 0);
             }
         }
+    }
+
+    private static final int ACTION_RAWGRAM_RAW = 1000;
+
+    // rawGram: close the preview and show the raw TL of what was previewed
+    private void openRawViewer() {
+        final Activity activity = parentActivity;
+        final TLRPC.Document document = currentDocument;
+        final TLRPC.InputStickerSet stickerSet = currentStickerSet;
+        final TLRPC.BotInlineResult result = inlineResult;
+        final int account = currentAccount;
+        final Theme.ResourcesProvider provider = resourcesProvider;
+        if (activity == null) {
+            return;
+        }
+        AndroidUtilities.runOnUIThread(() -> {
+            close();
+            RawDocumentViewer.show(activity, account, document, stickerSet, result, provider);
+        }, 200);
     }
 
     private void dismissPopupWindow() {
