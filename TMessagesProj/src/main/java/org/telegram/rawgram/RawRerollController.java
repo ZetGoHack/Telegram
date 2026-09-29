@@ -43,7 +43,14 @@ public class RawRerollController {
         public int matchCount;
         public String matchTitle;
         public String error;
+        /** FLOOD_WAIT seconds when the server asked to slow down (the attempt is retried, not counted). */
+        public int floodWait;
+        /** The whole answer, kept so results from any attempt can be opened or sent later. */
+        public TLRPC.messages_BotResults response;
+        public long receivedAt;
     }
+
+    private static final Pattern FLOOD_WAIT = Pattern.compile("FLOOD(?:_PREMIUM)?_WAIT_(\\d+)");
 
     private static RawRerollController active;
 
@@ -75,6 +82,9 @@ public class RawRerollController {
 
     private int runId;
     private long lastQueryId;
+    /** elapsedRealtime until which the run waits out a FLOOD_WAIT, 0 when not waiting. */
+    long waitUntil;
+    int floodWaits;
     private final ArrayList<Runnable> listeners = new ArrayList<>();
 
     private RawRerollController(Context context, int currentAccount, MentionsAdapter adapter, Utilities.Callback<TLRPC.BotInlineResult> onSend,
@@ -122,6 +132,8 @@ public class RawRerollController {
         matchedIndex = -1;
         startTime = SystemClock.elapsedRealtime();
         finishTime = 0;
+        waitUntil = 0;
+        floodWaits = 0;
         lastQueryId = adapter.rawgramLastResponse != null ? adapter.rawgramLastResponse.query_id : 0;
         // a new reroll clears the highlight left by the previous one
         adapter.rawgramHighlightIds.clear();
@@ -133,6 +145,63 @@ public class RawRerollController {
 
     public boolean isRunning() {
         return state == STATE_RUNNING;
+    }
+
+    /** Seconds left of a FLOOD_WAIT pause, 0 when not waiting. */
+    public int getWaitSecondsLeft() {
+        if (state != STATE_RUNNING || waitUntil == 0) {
+            return 0;
+        }
+        long left = waitUntil - SystemClock.elapsedRealtime();
+        return left > 0 ? (int) Math.ceil(left / 1000.0) : 0;
+    }
+
+    /** Sends a result through the chat's normal path (same chat the query was made in). */
+    public void sendHere(TLRPC.BotInlineResult result) {
+        if (onSend != null) {
+            onSend.run(result);
+        } else {
+            RawNotify.show(R.drawable.msg_warning, "Отправка отсюда недоступна в этом чате");
+        }
+    }
+
+    /** Picks any chat and sends the result there with a raw messages.sendInlineBotResult. */
+    public void sendToOtherChat(TLRPC.BotInlineResult result) {
+        org.telegram.ui.ActionBar.BaseFragment last = org.telegram.ui.LaunchActivity.getSafeLastFragment();
+        if (last == null) {
+            return;
+        }
+        android.os.Bundle args = new android.os.Bundle();
+        args.putBoolean("onlySelect", true);
+        args.putInt("dialogsType", org.telegram.ui.DialogsActivity.DIALOGS_TYPE_FORWARD);
+        org.telegram.ui.DialogsActivity picker = new org.telegram.ui.DialogsActivity(args);
+        picker.setDelegate((fragment, dids, message, param, notify, scheduleDate, scheduleRepeatPeriod, topicsFragment) -> {
+            fragment.finishFragment();
+            for (org.telegram.messenger.MessagesStorage.TopicKey key : dids) {
+                sendRaw(result, key.dialogId, notify);
+            }
+            return true;
+        });
+        last.presentFragment(picker);
+    }
+
+    private void sendRaw(TLRPC.BotInlineResult result, long dialogId, boolean notify) {
+        TLRPC.TL_messages_sendInlineBotResult req = new TLRPC.TL_messages_sendInlineBotResult();
+        req.peer = org.telegram.messenger.MessagesController.getInstance(currentAccount).getInputPeer(dialogId);
+        req.random_id = Utilities.random.nextLong();
+        req.query_id = result.query_id;
+        req.id = result.id;
+        req.silent = !notify;
+        ConnectionsManager.getInstance(currentAccount).sendRequest(req, (res, error) -> AndroidUtilities.runOnUIThread(() -> {
+            if (res instanceof TLRPC.Updates) {
+                org.telegram.messenger.MessagesController.getInstance(currentAccount).processUpdates((TLRPC.Updates) res, false);
+                RawNotify.show(R.drawable.msg_info, "Отправлено: " + (result.title != null ? result.title : result.id));
+            } else {
+                String text = error != null ? error.text : "unexpected " + TLDumper.typeName(res);
+                RawNotify.show(R.drawable.msg_warning, "Не отправлено: " + text
+                        + (text.contains("QUERY_ID_INVALID") || text.contains("RESULT_ID_INVALID") ? " — выдача устарела" : ""));
+            }
+        }));
     }
 
     public void stop() {
@@ -238,10 +307,28 @@ public class RawRerollController {
             if (id != runId || state != STATE_RUNNING) {
                 return;
             }
+            waitUntil = 0;
             Attempt a = new Attempt();
             a.number = attempt;
             a.tookMs = SystemClock.elapsedRealtime() - sent;
+            a.receivedAt = SystemClock.elapsedRealtime();
             history.add(a);
+            java.util.regex.Matcher flood = error != null && error.text != null ? FLOOD_WAIT.matcher(error.text) : null;
+            if (flood != null && flood.find()) {
+                // the server asked to slow down: wait it out and retry the same attempt instead of giving up
+                a.error = error.text;
+                a.floodWait = Integer.parseInt(flood.group(1));
+                attempt--;
+                floodWaits++;
+                long waitMs = a.floodWait * 1000L + 500;
+                waitUntil = SystemClock.elapsedRealtime() + waitMs;
+                if (floodWaits == 1) {
+                    RawNotify.show(R.drawable.msg_info, "reroll: " + error.text + " — жду " + a.floodWait + " с и продолжаю");
+                }
+                changed();
+                AndroidUtilities.runOnUIThread(() -> next(id), waitMs);
+                return;
+            }
             if (error != null || !(res instanceof TLRPC.messages_BotResults)) {
                 a.error = error != null ? error.code + " " + error.text : "unexpected " + TLDumper.typeName(res);
                 finish(STATE_ERROR);
@@ -250,6 +337,7 @@ public class RawRerollController {
             }
             TLRPC.messages_BotResults botResults = (TLRPC.messages_BotResults) res;
             lastResponse = botResults;
+            a.response = botResults;
             a.results = botResults.results.size();
             a.queryId = botResults.query_id;
             a.sameQueryId = botResults.query_id == lastQueryId;
@@ -279,8 +367,9 @@ public class RawRerollController {
                     }
                 }
             }
+            // every answer goes straight into the regular inline list, so a long press shows the live result
+            adapter.rawgramApplyResults(botResults, matchedIds);
             if (a.matchIndex >= 0) {
-                adapter.rawgramApplyResults(botResults, matchedIds);
                 finish(STATE_MATCHED);
                 RawObjectSheet sheet = RawInlineResultViewer.show(context, currentAccount, adapter, matched, onSend, resourcesProvider, host);
                 sheet.setSubtitle("✓ совпадение в [" + matchedIndex + "]" + (a.matchCount > 1 ? " (+" + (a.matchCount - 1) + ")" : "")
@@ -288,7 +377,6 @@ public class RawRerollController {
                 return;
             }
             if (attempt >= options.maxAttempts) {
-                adapter.rawgramApplyResults(botResults, null);
                 finish(STATE_NOT_FOUND);
                 RawNotify.show(R.drawable.msg_info, "reroll: " + getPatternLabel() + " не найдено за " + attempt + " попыток");
                 return;

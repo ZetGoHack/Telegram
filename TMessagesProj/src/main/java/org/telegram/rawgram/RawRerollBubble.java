@@ -71,9 +71,18 @@ public class RawRerollBubble {
             canvas.drawArc(rect, 0, 360, false, ringPaint);
             ringPaint.setColor(0xFFFFFFFF);
             canvas.drawArc(rect, -90, Math.max(6, 360 * progress), false, ringPaint);
-            // two chasing arrows = "reroll"
-            float rotation = (t % 1400) / 1400f * 360f;
-            drawRerollArrows(canvas, cx, cy, AndroidUtilities.dp(8.5f), rotation);
+            int wait = controller.getWaitSecondsLeft();
+            if (wait > 0) {
+                // FLOOD_WAIT: show the seconds left instead of the arrows
+                badgeTextPaint.setColor(0xFFFFFFFF);
+                badgeTextPaint.setTextSize(AndroidUtilities.dp(12));
+                canvas.drawText(wait + "s", cx, cy - (badgeTextPaint.descent() + badgeTextPaint.ascent()) / 2, badgeTextPaint);
+                badgeTextPaint.setTextSize(AndroidUtilities.dp(10));
+            } else {
+                // two chasing arrows = "reroll"
+                float rotation = (t % 1400) / 1400f * 360f;
+                drawRerollArrows(canvas, cx, cy, AndroidUtilities.dp(8.5f), rotation);
+            }
             parent.invalidate();
         } else if (state == RawRerollController.STATE_MATCHED) {
             path.reset();

@@ -22,12 +22,12 @@ public class RawDocumentViewer {
                 : MessageObject.isGifDocument(document) ? "GIF" : "Document";
         RawObjectSheet sheet = new RawObjectSheet(context, currentAccount, kind, document, resourcesProvider);
         sheet.setSubtitle(TLDumper.typeName(document) + " · id " + document.id + " · dc " + document.dc_id + " · " + document.mime_type + " · " + document.size + " B");
-        sheet.addAction("Document", v -> sheet.setObject(TLDumper.typeName(document) + " · id " + document.id, document));
+        sheet.addObjectTab("Document", () -> sheet.setObject(TLDumper.typeName(document) + " · id " + document.id, document));
         if (stickerSet != null && !(stickerSet instanceof TLRPC.TL_inputStickerSetEmpty)) {
-            sheet.addAction("InputStickerSet", v -> sheet.setObject(TLDumper.typeName(stickerSet), stickerSet));
+            sheet.addObjectTab("InputStickerSet", () -> sheet.setObject(TLDumper.typeName(stickerSet), stickerSet));
             TLRPC.TL_messages_stickerSet set = MediaDataController.getInstance(currentAccount).getStickerSet(stickerSet, true);
             if (set != null) {
-                sheet.addAction("Sticker set", v -> sheet.setObject("messages.stickerSet · " + (set.set != null ? set.set.short_name : "") + " · " + set.documents.size() + " documents", set));
+                sheet.addObjectTab("Sticker set", () -> sheet.setObject("messages.stickerSet · " + (set.set != null ? set.set.short_name : "") + " · " + set.documents.size() + " documents", set));
             }
         }
         sheet.show();

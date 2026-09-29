@@ -11,6 +11,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.LayoutHelper;
@@ -24,15 +25,22 @@ public class RawRerollStatusSheet extends BottomSheet {
     private final TextView stateView;
     private final TextView statsView;
     private final TextView optionsView;
-    private final TextView historyView;
+    private final LinearLayout historyList;
+    private final java.util.ArrayList<TextView> historyRows = new java.util.ArrayList<>();
+    private TextView historyEmpty;
     private final LinearLayout actions;
     private final Runnable listener = this::update;
     private final Runnable ticker = new Runnable() {
         @Override
         public void run() {
-            if (isShowing() && controller.isRunning()) {
-                updateStats();
-                AndroidUtilities.runOnUIThread(this, 250);
+            if (isShowing()) {
+                // live clock, FLOOD_WAIT countdown and "N с назад" ages
+                if (controller.isRunning()) {
+                    updateState();
+                    updateStats();
+                }
+                updateHistoryTexts();
+                AndroidUtilities.runOnUIThread(this, controller.isRunning() ? 250 : 1000);
             }
         }
     };
@@ -92,13 +100,10 @@ public class RawRerollStatusSheet extends BottomSheet {
                 super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(max, MeasureSpec.AT_MOST));
             }
         };
-        historyView = new TextView(context);
-        historyView.setTypeface(Typeface.MONOSPACE);
-        historyView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
-        historyView.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
-        historyView.setTextIsSelectable(true);
-        historyView.setPadding(AndroidUtilities.dp(16), 0, AndroidUtilities.dp(16), AndroidUtilities.dp(12));
-        scrollView.addView(historyView, LayoutHelper.createScroll(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP));
+        historyList = new LinearLayout(context);
+        historyList.setOrientation(LinearLayout.VERTICAL);
+        historyList.setPadding(0, 0, 0, AndroidUtilities.dp(12));
+        scrollView.addView(historyList, LayoutHelper.createScroll(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP));
         root.addView(scrollView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
         setCustomView(root);
@@ -134,12 +139,17 @@ public class RawRerollStatusSheet extends BottomSheet {
     }
 
     private void update() {
-        if (!isShowing() && getWindow() == null) {
-            return;
-        }
+        updateState();
+        updateRest();
+    }
+
+    private void updateState() {
         switch (controller.state) {
             case RawRerollController.STATE_RUNNING:
-                stateView.setText("⟳ идёт поиск " + controller.getPatternLabel());
+                int wait = controller.getWaitSecondsLeft();
+                stateView.setText(wait > 0
+                        ? "⏳ FLOOD_WAIT: жду " + wait + " с, потом продолжу поиск " + controller.getPatternLabel()
+                        : "⟳ идёт поиск " + controller.getPatternLabel());
                 stateView.setTextColor(getThemedColor(Theme.key_featuredStickers_addButton));
                 break;
             case RawRerollController.STATE_MATCHED:
@@ -160,6 +170,9 @@ public class RawRerollStatusSheet extends BottomSheet {
                 stateView.setTextColor(getThemedColor(Theme.key_dialogTextGray2));
                 break;
         }
+    }
+
+    private void updateRest() {
         updateStats();
 
         RawReroll.Options o = controller.options;
@@ -173,6 +186,9 @@ public class RawRerollStatusSheet extends BottomSheet {
         sb.append(where);
         sb.append(" · индексы: ").append(o.indices.isEmpty() ? "все" : o.indices);
         sb.append(" · задержка ").append(o.delayMs).append(" мс");
+        if (controller.floodWaits > 0) {
+            sb.append(" · FLOOD_WAIT ×").append(controller.floodWaits);
+        }
         optionsView.setText(sb);
 
         actions.removeAllViews();
@@ -196,39 +212,159 @@ public class RawRerollStatusSheet extends BottomSheet {
             controller.dismiss();
         });
 
-        StringBuilder h = new StringBuilder();
-        if (controller.history.isEmpty()) {
-            h.append(controller.isRunning() ? "первая попытка…" : "попыток не было");
-        }
-        for (int i = controller.history.size() - 1; i >= 0; i--) {
-            RawRerollController.Attempt a = controller.history.get(i);
-            h.append(String.format(Locale.US, "#%-3d %5d ms  ", a.number, a.tookMs));
-            if (a.error != null) {
-                h.append("! ").append(a.error);
-            } else {
-                h.append(a.results).append(" res  ");
-                if (a.matchIndex >= 0) {
-                    h.append("✓ [").append(a.matchIndex).append("] ").append(a.matchTitle);
-                    if (a.matchCount > 1) {
-                        h.append(" (+").append(a.matchCount - 1).append(")");
-                    }
-                } else {
-                    h.append("✗");
-                }
-                h.append("  q…").append(tail(a.queryId));
-                if (a.sameQueryId) {
-                    h.append(" (тот же query_id — кэш сервера?)");
-                }
-            }
-            h.append('\n');
-        }
-        historyView.setText(h);
+        rebuildHistory();
     }
 
     private void updateStats() {
         long elapsed = controller.getElapsedMs();
         int max = controller.options != null ? controller.options.maxAttempts : 0;
         statsView.setText(String.format(Locale.US, "попытки: %d / %d · прошло %.1f с", controller.attempt, max, elapsed / 1000f));
+    }
+
+    // ---- interactive history: one row per attempt, newest on top ----
+
+    private void rebuildHistory() {
+        int count = controller.history.size();
+        if (count == historyRows.size() && (count > 0 || historyEmpty != null)) {
+            updateHistoryTexts();
+            return;
+        }
+        historyList.removeAllViews();
+        historyRows.clear();
+        historyEmpty = null;
+        if (count == 0) {
+            historyEmpty = row();
+            historyEmpty.setText(controller.isRunning() ? "первая попытка…" : "попыток не было");
+            historyList.addView(historyEmpty);
+            return;
+        }
+        for (int i = count - 1; i >= 0; i--) {
+            final RawRerollController.Attempt a = controller.history.get(i);
+            TextView row = row();
+            if (a.response != null) {
+                row.setBackground(Theme.getSelectorDrawable(false));
+                row.setOnClickListener(v -> showAttemptMenu(a));
+            }
+            historyRows.add(row);
+            historyList.addView(row);
+        }
+        updateHistoryTexts();
+    }
+
+    private TextView row() {
+        TextView row = new TextView(getContext());
+        row.setTypeface(Typeface.MONOSPACE);
+        row.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+        row.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
+        row.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(6), AndroidUtilities.dp(16), AndroidUtilities.dp(6));
+        return row;
+    }
+
+    private void updateHistoryTexts() {
+        int count = controller.history.size();
+        if (count != historyRows.size()) {
+            return;
+        }
+        for (int r = 0; r < historyRows.size(); r++) {
+            RawRerollController.Attempt a = controller.history.get(count - 1 - r);
+            historyRows.get(r).setText(describe(a));
+        }
+    }
+
+    private CharSequence describe(RawRerollController.Attempt a) {
+        StringBuilder h = new StringBuilder();
+        h.append(String.format(Locale.US, "#%-3d %5d ms  ", a.number, a.tookMs));
+        if (a.floodWait > 0) {
+            h.append("⏳ ").append(a.error).append(" — пауза ").append(a.floodWait).append(" с");
+        } else if (a.error != null) {
+            h.append("! ").append(a.error);
+        } else {
+            h.append(a.results).append(" res  ");
+            if (a.matchIndex >= 0) {
+                h.append("✓ [").append(a.matchIndex).append("] ").append(a.matchTitle);
+                if (a.matchCount > 1) {
+                    h.append(" (+").append(a.matchCount - 1).append(")");
+                }
+            } else {
+                h.append("✗");
+            }
+            h.append("  q…").append(tail(a.queryId));
+            if (a.sameQueryId) {
+                h.append(" (тот же query_id)");
+            }
+            h.append("\n      ").append(age(a)).append("  ›");
+        }
+        return h;
+    }
+
+    private static String age(RawRerollController.Attempt a) {
+        long seconds = (android.os.SystemClock.elapsedRealtime() - a.receivedAt) / 1000;
+        String ago = seconds < 60 ? seconds + " с назад" : (seconds / 60) + " мин назад";
+        int ttl = a.response != null ? a.response.cache_time : 0;
+        return ago + (ttl > 0 ? " · cache_time " + ttl + " с" + (seconds > ttl ? " (истёк)" : "") : "");
+    }
+
+    private java.util.ArrayList<TLRPC.BotInlineResult> visibleResults(TLRPC.messages_BotResults response) {
+        java.util.ArrayList<TLRPC.BotInlineResult> visible = new java.util.ArrayList<>();
+        for (TLRPC.BotInlineResult r : response.results) {
+            if (!org.telegram.ui.Adapters.MentionsAdapter.rawgramIsHiddenByClient(r)) {
+                visible.add(r);
+            }
+        }
+        return visible;
+    }
+
+    private void showAttemptMenu(RawRerollController.Attempt a) {
+        final java.util.ArrayList<TLRPC.BotInlineResult> visible = visibleResults(a.response);
+        java.util.ArrayList<CharSequence> items = new java.util.ArrayList<>();
+        java.util.ArrayList<Runnable> actions = new java.util.ArrayList<>();
+        if (a.matchIndex >= 0 && a.matchIndex < visible.size()) {
+            TLRPC.BotInlineResult m = visible.get(a.matchIndex);
+            items.add("✓ Совпадение [" + a.matchIndex + "] · " + title(m));
+            actions.add(() -> showResultMenu(a, m, a.matchIndex));
+        }
+        items.add("Результаты ответа (" + visible.size() + ")…");
+        actions.add(() -> {
+            CharSequence[] names = new CharSequence[visible.size()];
+            for (int i = 0; i < visible.size(); i++) {
+                names[i] = "[" + i + "] " + title(visible.get(i));
+            }
+            new org.telegram.ui.ActionBar.AlertDialog.Builder(getContext(), resourcesProvider)
+                    .setTitle("Попытка #" + a.number)
+                    .setItems(names, (d, which) -> showResultMenu(a, visible.get(which), which))
+                    .show();
+        });
+        items.add("Весь ответ (raw)");
+        actions.add(() -> {
+            dismiss();
+            new RawObjectSheet(getContext(), controller.currentAccount, "Ответ · попытка #" + a.number, a.response, resourcesProvider).show();
+        });
+        new org.telegram.ui.ActionBar.AlertDialog.Builder(getContext(), resourcesProvider)
+                .setTitle("Попытка #" + a.number + " · " + age(a))
+                .setItems(items.toArray(new CharSequence[0]), (d, which) -> actions.get(which).run())
+                .show();
+    }
+
+    private void showResultMenu(RawRerollController.Attempt a, TLRPC.BotInlineResult result, int index) {
+        CharSequence[] items = {"Открыть raw и превью", "Отправить сюда", "Отправить в другой чат…"};
+        new org.telegram.ui.ActionBar.AlertDialog.Builder(getContext(), resourcesProvider)
+                .setTitle("[" + index + "] " + title(result))
+                .setMessage("Ответ получен " + age(a) + ". Сколько живёт query_id, решает сервер: если он уже забыт, отправка вернёт QUERY_ID_INVALID.")
+                .setItems(items, (d, which) -> {
+                    dismiss();
+                    if (which == 0) {
+                        RawInlineResultViewer.show(getContext(), controller.currentAccount, controller.adapter, result, controller.onSend, resourcesProvider, controller.host);
+                    } else if (which == 1) {
+                        controller.sendHere(result);
+                    } else {
+                        controller.sendToOtherChat(result);
+                    }
+                })
+                .show();
+    }
+
+    private static String title(TLRPC.BotInlineResult r) {
+        return r.title != null && !r.title.isEmpty() ? r.title : String.valueOf(r.id);
     }
 
     private static String tail(long queryId) {

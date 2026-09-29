@@ -58,6 +58,15 @@ public class RawgramConfig {
         prefs().edit().putInt(KEY_STICKER_SCALE, stickerScale).apply();
     }
 
+    /** Last view chosen in the raw code block: JSON (true) or the flat field list (false). */
+    public static boolean isRawViewJson() {
+        return prefs().getBoolean("rawViewJson", false);
+    }
+
+    public static void setRawViewJson(boolean value) {
+        prefs().edit().putBoolean("rawViewJson", value).apply();
+    }
+
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }

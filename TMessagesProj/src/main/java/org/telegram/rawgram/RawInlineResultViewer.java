@@ -35,12 +35,12 @@ public class RawInlineResultViewer {
         sheet.setSubtitle(describe(result));
         sheet.setPreview(buildPreview(currentAccount, result, bot));
 
-        sheet.addAction("Result", v -> {
+        sheet.addObjectTab("Result", () -> {
             sheet.setObject(describe(current[0]), current[0]);
             sheet.setPreview(buildPreview(currentAccount, current[0], bot));
         });
-        sheet.addAction("send_message", v -> sheet.setObject("send_message: " + TLDumper.typeName(current[0].send_message), current[0].send_message));
-        sheet.addAction("Response", v -> {
+        sheet.addObjectTab("send_message", () -> sheet.setObject("send_message: " + TLDumper.typeName(current[0].send_message), current[0].send_message));
+        sheet.addObjectTab("Response", () -> {
             if (response[0] == null) {
                 RawNotify.show(sheet, R.drawable.msg_info, "Ответ ещё не получен");
                 return;
@@ -49,9 +49,9 @@ public class RawInlineResultViewer {
                     + (adapter != null && adapter.rawgramLastFromCache ? " · from local cache" : ""), response[0]);
         });
         if (adapter != null && !adapter.rawgramHiddenResults.isEmpty()) {
-            sheet.addAction("Hidden (" + adapter.rawgramHiddenResults.size() + ")", v -> sheet.setObject("results dropped by the client: media_auto without media", adapter.rawgramHiddenResults));
+            sheet.addObjectTab("Hidden (" + adapter.rawgramHiddenResults.size() + ")", () -> sheet.setObject("results dropped by the client: media_auto without media", adapter.rawgramHiddenResults));
         }
-        sheet.addAction("Request", v -> {
+        sheet.addObjectTab("Request", () -> {
             TLRPC.TL_messages_getInlineBotResults req = adapter != null ? adapter.rawgramBuildRequest("") : null;
             if (req == null) {
                 RawNotify.show(sheet, R.drawable.msg_warning, "Inline-запрос уже не активен");
@@ -78,6 +78,8 @@ public class RawInlineResultViewer {
                     return;
                 }
                 TLRPC.messages_BotResults botResults = (TLRPC.messages_BotResults) res;
+                // position of the shown result in the list the user saw, used when the bot mints new ids every time
+                int position = visibleIndexOf(response[0], current[0]);
                 response[0] = botResults;
                 TLRPC.BotInlineResult fresh = null;
                 for (TLRPC.BotInlineResult r : botResults.results) {
@@ -88,11 +90,22 @@ public class RawInlineResultViewer {
                 }
                 // the inline list shows what the bot answered just now; old reroll highlight goes away
                 adapter.rawgramApplyResults(botResults, null);
+                String note = "";
+                if (fresh == null && position >= 0) {
+                    java.util.ArrayList<TLRPC.BotInlineResult> visible = visibleResults(botResults);
+                    if (position < visible.size()) {
+                        fresh = visible.get(position);
+                        note = " · id сменился, взят результат с той же позиции [" + position + "]";
+                    }
+                }
                 if (fresh != null) {
                     current[0] = fresh;
-                    sheet.setObject(describe(fresh) + " · refreshed in " + took + " ms", fresh);
+                    sheet.setTitleText(fresh.title != null && !fresh.title.isEmpty() ? fresh.title : "Inline result");
+                    sheet.setObject(describe(fresh) + " · refreshed in " + took + " ms" + note, fresh);
                     sheet.setPreview(buildPreview(currentAccount, fresh, bot));
+                    sheet.selectTab(0);
                 } else {
+                    sheet.selectTab(2);
                     sheet.setObject("result id " + current[0].id + " is gone · " + botResults.results.size() + " results · " + took + " ms", botResults);
                 }
             }), ConnectionsManager.RequestFlagFailOnServerErrors);
@@ -109,6 +122,29 @@ public class RawInlineResultViewer {
         }
         sheet.show();
         return sheet;
+    }
+
+    static java.util.ArrayList<TLRPC.BotInlineResult> visibleResults(TLRPC.messages_BotResults response) {
+        java.util.ArrayList<TLRPC.BotInlineResult> visible = new java.util.ArrayList<>();
+        if (response != null) {
+            for (TLRPC.BotInlineResult r : response.results) {
+                if (!MentionsAdapter.rawgramIsHiddenByClient(r)) {
+                    visible.add(r);
+                }
+            }
+        }
+        return visible;
+    }
+
+    private static int visibleIndexOf(TLRPC.messages_BotResults response, TLRPC.BotInlineResult result) {
+        java.util.ArrayList<TLRPC.BotInlineResult> visible = visibleResults(response);
+        for (int i = 0; i < visible.size(); i++) {
+            TLRPC.BotInlineResult r = visible.get(i);
+            if (r == result || r.id != null && r.id.equals(result.id)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static String describe(TLRPC.BotInlineResult result) {
