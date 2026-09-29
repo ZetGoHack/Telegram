@@ -209,6 +209,8 @@ public class RawObjectSheet extends BottomSheet {
             previewContainer.addView(previewCell, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         }
         previewCell.setMessageObject(messageObject, null, false, false, false);
+        previewCell.requestLayout();
+        previewCell.invalidate();
         previewContainer.setVisibility(View.VISIBLE);
     }
 }

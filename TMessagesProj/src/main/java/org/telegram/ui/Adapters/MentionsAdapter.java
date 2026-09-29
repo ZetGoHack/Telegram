@@ -487,6 +487,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         inlineMediaEnabled = true;
         searchingContextUsername = null;
         searchingContextQuery = null;
+        org.telegram.rawgram.RawRerollController.onInlineQueryChanged(this, null);
         noUserName = false;
         observersGroup.removeAllObservers();
     }
@@ -711,6 +712,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             inlineMediaEnabled = true;
             searchingContextUsername = null;
             searchingContextQuery = null;
+            org.telegram.rawgram.RawRerollController.onInlineQueryChanged(this, null);
             locationProvider.stop();
             noUserName = false;
             if (delegate != null) {
@@ -726,6 +728,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 contextQueryReqid = 0;
             }
             searchingContextQuery = null;
+            org.telegram.rawgram.RawRerollController.onInlineQueryChanged(this, null);
             if (delegate != null) {
                 delegate.onContextSearch(false);
             }
@@ -742,6 +745,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         final MessagesController messagesController = MessagesController.getInstance(currentAccount);
         final MessagesStorage messagesStorage = MessagesStorage.getInstance(currentAccount);
         searchingContextQuery = query;
+        org.telegram.rawgram.RawRerollController.onInlineQueryChanged(this, query);
         contextQueryRunnable = new Runnable() {
             @Override
             public void run() {
@@ -840,6 +844,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         }
         if (query == null || user == null) {
             searchingContextQuery = null;
+            org.telegram.rawgram.RawRerollController.onInlineQueryChanged(this, null);
             return;
         }
         if (user.bot_inline_geo && lastKnownLocation == null) {

@@ -331,6 +331,7 @@ public class MentionsContainerView extends FrameLayout implements NotificationCe
             canvas.clipPath(clipPath);
             super.dispatchDraw(canvas);
             canvas.restore();
+            drawRawgramBubble(canvas);
             return;
         }
 
@@ -381,6 +382,68 @@ public class MentionsContainerView extends FrameLayout implements NotificationCe
         canvas.clipRect(rect);
         super.dispatchDraw(canvas);
         canvas.restore();
+        drawRawgramBubble(canvas);
+    }
+
+    // rawGram: reroll status bubble floating above the inline results
+    private org.telegram.rawgram.RawRerollController rawgramReroll;
+    private org.telegram.rawgram.RawRerollBubble rawgramBubble;
+    private Runnable rawgramBubbleClick;
+    private boolean rawgramBubbleTouch;
+
+    public void rawgramSetBubble(org.telegram.rawgram.RawRerollController controller, Runnable onClick) {
+        rawgramReroll = controller;
+        rawgramBubbleClick = onClick;
+        if (controller != null && rawgramBubble == null) {
+            rawgramBubble = new org.telegram.rawgram.RawRerollBubble();
+        }
+        invalidate();
+    }
+
+    private void drawRawgramBubble(Canvas canvas) {
+        if (rawgramReroll == null || rawgramBubble == null || !adapter.isBotContext()) {
+            return;
+        }
+        float size = dp(org.telegram.rawgram.RawRerollBubble.SIZE_DP);
+        float cx = getMeasuredWidth() - dp(14) - size / 2;
+        float cy;
+        if (isReversed()) {
+            float bottom = backgroundDrawable != null ? clipBounds.bottom : containerBottom;
+            cy = Math.min(getMeasuredHeight() - size / 2 - dp(4), bottom + dp(10) + size / 2);
+        } else {
+            float top = backgroundDrawable != null ? clipBounds.top : containerTop;
+            cy = Math.max(size / 2 + dp(4), top - dp(10) - size / 2);
+        }
+        rawgramBubble.draw(canvas, this, cx, cy, rawgramReroll,
+                getThemedColor(Theme.key_featuredStickers_addButton),
+                getThemedColor(Theme.key_chat_messagePanelBackground),
+                getThemedColor(Theme.key_featuredStickers_addButton));
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (rawgramReroll != null && rawgramBubble != null && adapter.isBotContext()) {
+            boolean inside = rawgramBubble.bounds.contains(ev.getX(), ev.getY());
+            int action = ev.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN && inside) {
+                rawgramBubbleTouch = true;
+                rawgramBubble.setPressed(true);
+                invalidate();
+                return true;
+            }
+            if (rawgramBubbleTouch) {
+                if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                    rawgramBubbleTouch = false;
+                    rawgramBubble.setPressed(false);
+                    invalidate();
+                    if (action == MotionEvent.ACTION_UP && inside && rawgramBubbleClick != null) {
+                        rawgramBubbleClick.run();
+                    }
+                }
+                return true;
+            }
+        }
+        return super.dispatchTouchEvent(ev);
     }
 
     public void drawRoundRect(Canvas canvas, Rect rectTmp, float r) {

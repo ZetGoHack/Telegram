@@ -229,6 +229,8 @@ import org.telegram.ui.Adapters.FiltersView;
 import org.telegram.ui.Adapters.MentionsAdapter;
 import org.telegram.rawgram.RawInlineResultViewer;
 import org.telegram.rawgram.RawgramConfig;
+import org.telegram.rawgram.RawRerollController;
+import org.telegram.rawgram.RawRerollStatusSheet;
 import org.telegram.ui.Adapters.MessagesSearchAdapter;
 import org.telegram.ui.Business.BusinessBotButton;
 import org.telegram.ui.Business.BusinessLinksActivity;
@@ -3352,10 +3354,32 @@ public class ChatActivity extends BaseFragment implements
         }
     }
 
+    // rawGram: keeps the reroll spinner in the input and the status bubble above the inline results in sync
+    private RawRerollController.Host rawgramRerollHost;
+
+    private RawRerollController.Host getRawgramRerollHost() {
+        if (rawgramRerollHost == null) {
+            rawgramRerollHost = () -> {
+                RawRerollController reroll = RawRerollController.getActive();
+                if (chatActivityEnterView != null) {
+                    chatActivityEnterView.rawgramSetAuto(reroll != null && reroll.isRunning(), reroll != null ? reroll::stop : null);
+                }
+                if (mentionContainer != null) {
+                    mentionContainer.rawgramSetBubble(reroll, reroll == null ? null : () -> {
+                        if (getParentActivity() != null) {
+                            new RawRerollStatusSheet(getParentActivity(), reroll, themeDelegate).show();
+                        }
+                    });
+                }
+            };
+        }
+        return rawgramRerollHost;
+    }
+
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
-        RawInlineResultViewer.stopActiveReroll();
+        RawRerollController.dismissActive();
         if (messageMetricsView != null) {
             messageMetricsView.finish();
         }
@@ -7487,11 +7511,7 @@ public class ChatActivity extends BaseFragment implements
                     if (chatMode != MODE_SCHEDULED && currentEncryptedChat == null && chatActivityEnterView != null && chatActivityEnterView.getFieldText() != null) {
                         rawOnSend = rawResult -> AlertsCreator.ensurePaidMessageConfirmation(currentAccount, getDialogId(), 1, rawPrice -> sendBotInlineResult(rawResult, true, 0, rawPrice));
                     }
-                    RawInlineResultViewer.show(getParentActivity(), currentAccount, mentionContainer.getAdapter(), (TLRPC.BotInlineResult) rawItem, rawOnSend, themeDelegate, (rawRunning, rawStop) -> {
-                        if (chatActivityEnterView != null) {
-                            chatActivityEnterView.rawgramSetAuto(rawRunning, rawStop);
-                        }
-                    });
+                    RawInlineResultViewer.show(getParentActivity(), currentAccount, mentionContainer.getAdapter(), (TLRPC.BotInlineResult) rawItem, rawOnSend, themeDelegate, getRawgramRerollHost());
                     try {
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
                     } catch (Exception rawIgnore) {}

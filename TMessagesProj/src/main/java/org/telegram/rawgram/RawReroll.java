@@ -38,6 +38,7 @@ public class RawReroll {
     public static class Options {
         public String pattern = "";
         public boolean regex;
+        public boolean caseSensitive;
         public boolean inText = true;
         public boolean inButtons = true;
         public boolean inJson;
@@ -50,6 +51,7 @@ public class RawReroll {
             JSONObject o = new JSONObject();
             o.put("pattern", pattern);
             o.put("regex", regex);
+            o.put("caseSensitive", caseSensitive);
             o.put("inText", inText);
             o.put("inButtons", inButtons);
             o.put("inJson", inJson);
@@ -63,6 +65,7 @@ public class RawReroll {
             Options opt = new Options();
             opt.pattern = o.optString("pattern", "");
             opt.regex = o.optBoolean("regex", false);
+            opt.caseSensitive = o.optBoolean("caseSensitive", false);
             opt.inText = o.optBoolean("inText", true);
             opt.inButtons = o.optBoolean("inButtons", true);
             opt.inJson = o.optBoolean("inJson", false);
@@ -169,10 +172,11 @@ public class RawReroll {
     // ---- matching ----
 
     public static Pattern compile(Options options) {
+        int flags = options.caseSensitive ? 0 : Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE;
         if (options.regex) {
-            return Pattern.compile(options.pattern, Pattern.DOTALL);
+            return Pattern.compile(options.pattern, flags | Pattern.DOTALL);
         }
-        return Pattern.compile(Pattern.quote(options.pattern));
+        return Pattern.compile(Pattern.quote(options.pattern), flags);
     }
 
     public static boolean matches(TLRPC.BotInlineResult result, Options options, Pattern pattern) {
@@ -243,6 +247,7 @@ public class RawReroll {
 
         EditText patternField = field(context, layout, "Искать (подстрока или regex)", initial.pattern, InputType.TYPE_CLASS_TEXT, resourcesProvider);
         TextCheckCell regexCell = check(context, layout, "Regex", initial.regex, resourcesProvider);
+        TextCheckCell caseCell = check(context, layout, "Учитывать регистр", initial.caseSensitive, resourcesProvider);
         TextCheckCell textCell = check(context, layout, "В тексте (title, description, message)", initial.inText, resourcesProvider);
         TextCheckCell buttonsCell = check(context, layout, "В кнопках (текст, url, callback data)", initial.inButtons, resourcesProvider);
         TextCheckCell jsonCell = check(context, layout, "Во всём JSON результата", initial.inJson, resourcesProvider);
@@ -268,6 +273,7 @@ public class RawReroll {
                 Options o = new Options();
                 o.pattern = patternField.getText().toString();
                 o.regex = regexCell.isChecked();
+                o.caseSensitive = caseCell.isChecked();
                 o.inText = textCell.isChecked();
                 o.inButtons = buttonsCell.isChecked();
                 o.inJson = jsonCell.isChecked();
