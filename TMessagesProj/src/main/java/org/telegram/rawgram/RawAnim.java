@@ -1,6 +1,5 @@
 package org.telegram.rawgram;
 
-import android.transition.AutoTransition;
 import android.transition.TransitionManager;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,14 +13,35 @@ public class RawAnim {
 
     /** Animates the next layout change of the container (expand/collapse, rows appearing). */
     public static void layout(ViewGroup container) {
+        layout(container, null);
+    }
+
+    /**
+     * @param appearing a view that goes from GONE to VISIBLE: it keeps the bounds it had when it was hidden,
+     *                  so it (and its children) must only fade in, never slide from that stale spot
+     */
+    public static void layout(ViewGroup container, View appearing) {
         if (container == null) {
             return;
         }
-        AutoTransition transition = new AutoTransition();
-        transition.setDuration(DURATION);
-        transition.setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT);
-        transition.setOrdering(AutoTransition.ORDERING_TOGETHER);
-        TransitionManager.beginDelayedTransition(rootOf(container), transition);
+        // rows move first; appearing content fades in once there is room for it,
+        // disappearing content fades out quickly so it never overlaps what slides in
+        android.transition.TransitionSet set = new android.transition.TransitionSet();
+        set.setOrdering(android.transition.TransitionSet.ORDERING_TOGETHER);
+        android.transition.ChangeBounds bounds = new android.transition.ChangeBounds();
+        bounds.setDuration(DURATION);
+        bounds.setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT);
+        if (appearing != null) {
+            bounds.excludeTarget(appearing, true);
+            bounds.excludeChildren(appearing, true);
+        }
+        android.transition.Fade fadeOut = new android.transition.Fade(android.transition.Fade.OUT);
+        fadeOut.setDuration(90);
+        android.transition.Fade fadeIn = new android.transition.Fade(android.transition.Fade.IN);
+        fadeIn.setDuration(180);
+        fadeIn.setStartDelay(DURATION / 2);
+        set.addTransition(bounds).addTransition(fadeOut).addTransition(fadeIn);
+        TransitionManager.beginDelayedTransition(rootOf(container), set);
     }
 
     /** Scroll views and sheets resize with their content: animate from the topmost ViewGroup. */

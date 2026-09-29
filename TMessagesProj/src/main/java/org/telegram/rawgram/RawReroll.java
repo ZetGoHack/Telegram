@@ -472,7 +472,7 @@ public class RawReroll {
 
         private void toggleExpanded() {
             expanded = !expanded;
-            RawAnim.layout(parent);
+            RawAnim.layout(parent, expanded ? items : null);
             items.setVisibility(expanded ? View.VISIBLE : View.GONE);
             arrow.animate().rotation(expanded ? 180 : 0).setDuration(240)
                     .setInterpolator(org.telegram.ui.Components.CubicBezierInterpolator.EASE_OUT_QUINT).start();

@@ -286,7 +286,7 @@ public class RawRerollStatusSheet extends BottomSheet {
 
     /** Expands one card in place (collapsing the previous one) with an animated layout change. */
     private void toggle(RawRerollController.Attempt a) {
-        RawAnim.layout(historyList);
+        RawAnim.layout(historyList, expanded == a ? null : controlsOf.get(a));
         if (expanded != null && controlsOf.containsKey(expanded)) {
             controlsOf.get(expanded).setVisibility(View.GONE);
             cards.get(expanded).setBackground(cardBackground(true, false));
