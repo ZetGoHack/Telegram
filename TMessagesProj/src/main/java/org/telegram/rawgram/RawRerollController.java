@@ -229,9 +229,29 @@ public class RawRerollController {
 
     /** Any change of the inline query text ends a run bound to the old query. */
     public static void onInlineQueryChanged(MentionsAdapter adapter, String query) {
-        if (active != null && active.adapter == adapter && (query == null || !query.equals(active.query))) {
-            active.dismiss();
+        if (active == null || active.adapter != adapter) {
+            return;
         }
+        boolean same = query != null && query.equals(active.query);
+        if (!same && !active.detached) {
+            // another query (or the field was cleared): pause and hide, but keep the run and its history
+            if (active.state == STATE_RUNNING) {
+                active.finish(STATE_STOPPED);
+            }
+            active.detached = true;
+            active.changed();
+        } else if (same && active.detached) {
+            // the same query is back: show the bubble and history again
+            active.detached = false;
+            active.changed();
+        }
+    }
+
+    /** Hidden while the inline query differs from the one this run was made for. */
+    boolean detached;
+
+    public boolean isDetached() {
+        return detached;
     }
 
     /** The chat is closing. */

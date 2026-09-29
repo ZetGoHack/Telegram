@@ -6219,19 +6219,38 @@ public class ChatActivityEnterView extends FrameLayout implements
         if (cancelBotButton == null) {
             return;
         }
+        boolean wasRunning = rawgramAutoStop != null;
         if (running) {
             if (rawgramAutoDrawable == null) {
                 rawgramAutoDrawable = new org.telegram.rawgram.RawAutoDrawable();
             }
             rawgramAutoDrawable.setColor(getThemedColor(Theme.key_featuredStickers_addButton));
             rawgramAutoStop = onStop;
-            cancelBotButton.setImageDrawable(rawgramAutoDrawable);
+            if (!wasRunning) {
+                rawgramSwapCancelIcon(rawgramAutoDrawable);
+            }
             cancelBotButton.setContentDescription("Stop auto reroll");
         } else {
             rawgramAutoStop = null;
-            cancelBotButton.setImageDrawable(progressDrawable);
+            if (wasRunning) {
+                rawgramSwapCancelIcon(progressDrawable);
+            }
             cancelBotButton.setContentDescription(getString("Cancel", R.string.Cancel));
         }
+    }
+
+    // rawGram: shrink-fade the current icon, swap, grow the new one back
+    private void rawgramSwapCancelIcon(android.graphics.drawable.Drawable icon) {
+        if (cancelBotButton.getVisibility() != VISIBLE || cancelBotButton.getAlpha() < 0.99f) {
+            cancelBotButton.setImageDrawable(icon);
+            return;
+        }
+        cancelBotButton.animate().cancel();
+        cancelBotButton.animate().scaleX(0.5f).scaleY(0.5f).alpha(0f).setDuration(120).withEndAction(() -> {
+            cancelBotButton.setImageDrawable(icon);
+            cancelBotButton.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(260)
+                    .setInterpolator(CubicBezierInterpolator.EASE_OUT_BACK).start();
+        }).start();
     }
 
     public void showContextProgress(boolean show) {

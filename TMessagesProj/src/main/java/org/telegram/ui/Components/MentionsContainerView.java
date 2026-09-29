@@ -391,17 +391,28 @@ public class MentionsContainerView extends FrameLayout implements NotificationCe
     private Runnable rawgramBubbleClick;
     private boolean rawgramBubbleTouch;
 
+    // appear/disappear: the last controller is kept while the bubble fades out
+    private final AnimatedFloat rawgramBubbleAppear = new AnimatedFloat(this, 0, 320, CubicBezierInterpolator.EASE_OUT_QUINT);
+    private org.telegram.rawgram.RawRerollController rawgramLastReroll;
+
     public void rawgramSetBubble(org.telegram.rawgram.RawRerollController controller, Runnable onClick) {
         rawgramReroll = controller;
         rawgramBubbleClick = onClick;
-        if (controller != null && rawgramBubble == null) {
-            rawgramBubble = new org.telegram.rawgram.RawRerollBubble();
+        if (controller != null) {
+            rawgramLastReroll = controller;
+            if (rawgramBubble == null) {
+                rawgramBubble = new org.telegram.rawgram.RawRerollBubble();
+            }
         }
         invalidate();
     }
 
     private void drawRawgramBubble(Canvas canvas) {
-        if (rawgramReroll == null || rawgramBubble == null || !adapter.isBotContext()) {
+        float appear = rawgramBubbleAppear.set(rawgramReroll != null && adapter.isBotContext() ? 1f : 0f);
+        if (rawgramBubble == null || rawgramLastReroll == null || appear <= 0.01f) {
+            if (appear <= 0.01f && rawgramReroll == null) {
+                rawgramLastReroll = null;
+            }
             return;
         }
         float size = dp(org.telegram.rawgram.RawRerollBubble.SIZE_DP);
@@ -414,10 +425,15 @@ public class MentionsContainerView extends FrameLayout implements NotificationCe
             float top = backgroundDrawable != null ? clipBounds.top : containerTop;
             cy = Math.max(size / 2 + dp(4), top - dp(10) - size / 2);
         }
-        rawgramBubble.draw(canvas, this, cx, cy, rawgramReroll,
+        canvas.save();
+        canvas.scale(0.4f + 0.6f * appear, 0.4f + 0.6f * appear, cx, cy);
+        canvas.saveLayerAlpha(cx - size, cy - size, cx + size, cy + size, (int) (255 * appear), Canvas.ALL_SAVE_FLAG);
+        rawgramBubble.draw(canvas, this, cx, cy, rawgramLastReroll,
                 getThemedColor(Theme.key_featuredStickers_addButton),
                 getThemedColor(Theme.key_chat_messagePanelBackground),
                 getThemedColor(Theme.key_featuredStickers_addButton));
+        canvas.restore();
+        canvas.restore();
     }
 
     @Override

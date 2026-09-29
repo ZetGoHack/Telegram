@@ -5,6 +5,7 @@ import android.graphics.Typeface;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.View;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -249,6 +250,11 @@ public class RawRerollStatusSheet extends BottomSheet {
             historyList.addView(historyEmpty, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 0, 12, 0));
             return;
         }
+        if (historyList.isAttachedToWindow()) {
+            RawAnim.layout(historyList);
+        }
+        cards.clear();
+        controlsOf.clear();
         for (int i = count - 1; i >= 0; i--) {
             final RawRerollController.Attempt a = controller.history.get(i);
             LinearLayout card = new LinearLayout(getContext());
@@ -258,18 +264,16 @@ public class RawRerollStatusSheet extends BottomSheet {
             boolean interactive = a.response != null;
             card.setBackground(cardBackground(interactive, a == expanded));
             if (interactive) {
-                header.setOnClickListener(v -> {
-                    if (expanded == a) {
-                        expanded = null;
-                    } else {
-                        expanded = a;
-                        expandedSelection = a.matchIndex >= 0 ? a.matchIndex : 0;
-                    }
-                    forceRebuildHistory();
-                });
+                LinearLayout controls = new LinearLayout(getContext());
+                controls.setOrientation(LinearLayout.VERTICAL);
+                controls.setVisibility(a == expanded ? View.VISIBLE : View.GONE);
+                card.addView(controls, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+                controlsOf.put(a, controls);
+                cards.put(a, card);
                 if (a == expanded) {
-                    addExpandedControls(card, a);
+                    addExpandedControls(controls, a);
                 }
+                header.setOnClickListener(v -> toggle(a));
             }
             historyRows.add(header);
             historyList.addView(card, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 0, 12, 6));
@@ -277,10 +281,38 @@ public class RawRerollStatusSheet extends BottomSheet {
         updateHistoryTexts();
     }
 
-    private void forceRebuildHistory() {
-        historyRows.clear();
-        historyEmpty = null;
-        rebuildHistory();
+    private final java.util.HashMap<RawRerollController.Attempt, LinearLayout> cards = new java.util.HashMap<>();
+    private final java.util.HashMap<RawRerollController.Attempt, LinearLayout> controlsOf = new java.util.HashMap<>();
+
+    /** Expands one card in place (collapsing the previous one) with an animated layout change. */
+    private void toggle(RawRerollController.Attempt a) {
+        RawAnim.layout(historyList);
+        if (expanded != null && controlsOf.containsKey(expanded)) {
+            controlsOf.get(expanded).setVisibility(View.GONE);
+            cards.get(expanded).setBackground(cardBackground(true, false));
+        }
+        if (expanded == a) {
+            expanded = null;
+            return;
+        }
+        expanded = a;
+        expandedSelection = a.matchIndex >= 0 ? a.matchIndex : 0;
+        LinearLayout controls = controlsOf.get(a);
+        controls.removeAllViews();
+        addExpandedControls(controls, a);
+        controls.setVisibility(View.VISIBLE);
+        cards.get(a).setBackground(cardBackground(true, true));
+    }
+
+    /** Re-renders the expanded card's chips after another result was picked. */
+    private void refreshExpanded() {
+        if (expanded == null || !controlsOf.containsKey(expanded)) {
+            return;
+        }
+        RawAnim.layout(historyList);
+        LinearLayout controls = controlsOf.get(expanded);
+        controls.removeAllViews();
+        addExpandedControls(controls, expanded);
     }
 
     private android.graphics.drawable.Drawable cardBackground(boolean interactive, boolean selected) {
@@ -314,7 +346,7 @@ public class RawRerollStatusSheet extends BottomSheet {
             TextView chip = smallChip("[" + i + "] " + ellipsize(title(visible.get(i)), 22) + (i == a.matchIndex ? " ✓" : ""), selected);
             chip.setOnClickListener(v -> {
                 expandedSelection = index;
-                forceRebuildHistory();
+                refreshExpanded();
             });
             results.addView(chip, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 30, 0, 0, 6, 0));
         }

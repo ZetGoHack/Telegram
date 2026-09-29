@@ -395,7 +395,10 @@ public class RawReroll {
         private final org.telegram.ui.Components.CheckBox2[] boxes;
         private boolean expanded;
 
+        private final LinearLayout parent;
+
         CheckGroup(Context context, LinearLayout parent, String title, Theme.ResourcesProvider rp, String[] names, boolean[] checked) {
+            this.parent = parent;
             int textColor = Theme.getColor(Theme.key_dialogTextBlack, rp);
 
             android.widget.FrameLayout header = new android.widget.FrameLayout(context);
@@ -469,6 +472,7 @@ public class RawReroll {
 
         private void toggleExpanded() {
             expanded = !expanded;
+            RawAnim.layout(parent);
             items.setVisibility(expanded ? View.VISIBLE : View.GONE);
             arrow.animate().rotation(expanded ? 180 : 0).setDuration(240)
                     .setInterpolator(org.telegram.ui.Components.CubicBezierInterpolator.EASE_OUT_QUINT).start();

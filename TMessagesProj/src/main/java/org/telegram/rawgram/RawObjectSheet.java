@@ -135,10 +135,7 @@ public class RawObjectSheet extends BottomSheet {
         int accent = getThemedColor(Theme.key_featuredStickers_addButton);
         viewToggle.setTextColor(accent);
         viewToggle.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(12), Theme.multAlpha(accent, 0.12f), Theme.multAlpha(accent, 0.24f)));
-        viewToggle.setOnClickListener(v -> {
-            setShowJson(!showJson);
-            RawgramConfig.setRawViewJson(showJson);
-        });
+        viewToggle.setOnClickListener(v -> toggleView());
         headerRight.addView(viewToggle, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 26));
 
         ImageView copyButton = new ImageView(context);
@@ -234,6 +231,7 @@ public class RawObjectSheet extends BottomSheet {
         for (TextView tab : tabs) {
             styleTab(tab, tab == selected);
         }
+        RawAnim.pop(selected);
     }
 
     public void selectTab(int index) {
@@ -283,9 +281,11 @@ public class RawObjectSheet extends BottomSheet {
         }
         this.json = json;
         this.fields = fields;
-        typeLabel.setText(TLDumper.typeName(object));
         setSubtitle(subtitle != null ? subtitle : TLDumper.typeName(object));
-        setShowJson(showJson);
+        RawAnim.crossfade(bodyView, () -> {
+            typeLabel.setText(TLDumper.typeName(object));
+            setShowJson(showJson);
+        });
     }
 
     private void setShowJson(boolean value) {
@@ -306,6 +306,13 @@ public class RawObjectSheet extends BottomSheet {
         }
     }
 
+    private void toggleView() {
+        boolean json = !showJson;
+        RawgramConfig.setRawViewJson(json);
+        RawAnim.pop(viewToggle);
+        RawAnim.crossfade(bodyView, () -> setShowJson(json));
+    }
+
     private void copy() {
         String text = showJson ? json : fields;
         if (text == null) {
@@ -318,7 +325,17 @@ public class RawObjectSheet extends BottomSheet {
     /** Renders the message exactly like a chat cell would; null hides the preview. */
     public void setPreview(MessageObject messageObject) {
         if (messageObject == null) {
+            RawAnim.layout(previewContainer);
             previewContainer.setVisibility(View.GONE);
+            return;
+        }
+        if (previewCell != null && previewContainer.getVisibility() == View.VISIBLE) {
+            // an update of the shown message: resize smoothly and fade the new content in
+            RawAnim.layout(previewContainer);
+            previewCell.setAlpha(0f);
+            previewCell.setMessageObject(messageObject, null, false, false, false);
+            previewCell.requestLayout();
+            previewCell.animate().alpha(1f).setDuration(RawAnim.DURATION).start();
             return;
         }
         if (previewCell == null) {

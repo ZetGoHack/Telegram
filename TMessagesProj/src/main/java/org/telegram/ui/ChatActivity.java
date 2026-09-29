@@ -3360,7 +3360,8 @@ public class ChatActivity extends BaseFragment implements
     private RawRerollController.Host getRawgramRerollHost() {
         if (rawgramRerollHost == null) {
             rawgramRerollHost = () -> {
-                RawRerollController reroll = RawRerollController.getActive();
+                RawRerollController active = RawRerollController.getActive();
+                RawRerollController reroll = active != null && !active.isDetached() ? active : null;
                 if (chatActivityEnterView != null) {
                     chatActivityEnterView.rawgramSetAuto(reroll != null && reroll.isRunning(), reroll != null ? reroll::stop : null);
                 }
@@ -7509,7 +7510,7 @@ public class ChatActivity extends BaseFragment implements
                 if (rawItem instanceof TLRPC.BotInlineResult) {
                     Utilities.Callback<TLRPC.BotInlineResult> rawOnSend = null;
                     if (chatMode != MODE_SCHEDULED && currentEncryptedChat == null && chatActivityEnterView != null && chatActivityEnterView.getFieldText() != null) {
-                        rawOnSend = rawResult -> AlertsCreator.ensurePaidMessageConfirmation(currentAccount, getDialogId(), 1, rawPrice -> sendBotInlineResult(rawResult, true, 0, rawPrice));
+                        rawOnSend = rawResult -> AlertsCreator.ensurePaidMessageConfirmation(currentAccount, getDialogId(), 1, rawPrice -> sendBotInlineResult(rawResult, true, 0, rawPrice, true));
                     }
                     RawInlineResultViewer.show(getParentActivity(), currentAccount, mentionContainer.getAdapter(), (TLRPC.BotInlineResult) rawItem, rawOnSend, themeDelegate, getRawgramRerollHost());
                     try {
@@ -12438,6 +12439,11 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void sendBotInlineResult(TLRPC.BotInlineResult result, boolean notify, int scheduleDate, long stars) {
+        sendBotInlineResult(result, notify, scheduleDate, stars, false);
+    }
+
+    // rawGram: keepInlineQuery leaves "@bot query" in the field, so the results and the reroll survive a send
+    private void sendBotInlineResult(TLRPC.BotInlineResult result, boolean notify, int scheduleDate, long stars, boolean keepInlineQuery) {
         if (mentionContainer == null) {
             return;
         }
@@ -12448,7 +12454,9 @@ public class ChatActivity extends BaseFragment implements
         params.put("bot", "" + uid);
         params.put("bot_name", mentionContainer.getAdapter().getContextBotName());
         SendMessagesHelper.prepareSendingBotContextResult(this, getAccountInstance(), result, params, dialog_id, replyingMessageObject, getThreadMessage(), null, replyingQuote, notify, scheduleDate, 0, getMessageChatSendParams(), stars, getSendMonoForumPeerId());
-        chatActivityEnterView.setFieldText("");
+        if (!keepInlineQuery) {
+            chatActivityEnterView.setFieldText("");
+        }
         hideFieldPanel(false);
         getMediaDataController().increaseInlineRating(uid);
     }
