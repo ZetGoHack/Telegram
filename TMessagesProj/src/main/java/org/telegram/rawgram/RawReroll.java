@@ -39,9 +39,22 @@ public class RawReroll {
         public String pattern = "";
         public boolean regex;
         public boolean caseSensitive;
-        public boolean inText = true;
-        public boolean inButtons = true;
+        // where to look: text group, buttons group, whole JSON
+        public boolean inTitle = true;
+        public boolean inDescription = true;
+        public boolean inMessage = true;
+        public boolean inButtonText = true;
+        public boolean inButtonUrl = true;
+        public boolean inButtonData = true;
         public boolean inJson;
+
+        public boolean anyText() {
+            return inTitle || inDescription || inMessage;
+        }
+
+        public boolean anyButtons() {
+            return inButtonText || inButtonUrl || inButtonData;
+        }
         /** Python-style index spec: "" = all, "0", "-1", "0,2", "1:4", "::2", "-3:". */
         public String indices = "";
         public int maxAttempts = 50;
@@ -54,8 +67,12 @@ public class RawReroll {
             o.put("pattern", pattern);
             o.put("regex", regex);
             o.put("caseSensitive", caseSensitive);
-            o.put("inText", inText);
-            o.put("inButtons", inButtons);
+            o.put("inTitle", inTitle);
+            o.put("inDescription", inDescription);
+            o.put("inMessage", inMessage);
+            o.put("inButtonText", inButtonText);
+            o.put("inButtonUrl", inButtonUrl);
+            o.put("inButtonData", inButtonData);
             o.put("inJson", inJson);
             o.put("indices", indices);
             o.put("maxAttempts", maxAttempts);
@@ -69,8 +86,15 @@ public class RawReroll {
             opt.pattern = o.optString("pattern", "");
             opt.regex = o.optBoolean("regex", false);
             opt.caseSensitive = o.optBoolean("caseSensitive", false);
-            opt.inText = o.optBoolean("inText", true);
-            opt.inButtons = o.optBoolean("inButtons", true);
+            // older saves only had the two group flags
+            boolean text = o.optBoolean("inText", true);
+            boolean buttons = o.optBoolean("inButtons", true);
+            opt.inTitle = o.optBoolean("inTitle", text);
+            opt.inDescription = o.optBoolean("inDescription", text);
+            opt.inMessage = o.optBoolean("inMessage", text);
+            opt.inButtonText = o.optBoolean("inButtonText", buttons);
+            opt.inButtonUrl = o.optBoolean("inButtonUrl", buttons);
+            opt.inButtonData = o.optBoolean("inButtonData", buttons);
             opt.inJson = o.optBoolean("inJson", false);
             opt.indices = o.optString("indices", "");
             opt.maxAttempts = o.optInt("maxAttempts", 50);
@@ -185,15 +209,17 @@ public class RawReroll {
 
     public static boolean matches(TLRPC.BotInlineResult result, Options options, Pattern pattern) {
         ArrayList<String> haystack = new ArrayList<>();
-        if (options.inText) {
+        if (options.inTitle) {
             add(haystack, result.title);
-            add(haystack, result.description);
-            if (result.send_message != null) {
-                add(haystack, result.send_message.message);
-            }
         }
-        if (options.inButtons && result.send_message != null && result.send_message.reply_markup != null) {
-            collectStrings(result.send_message.reply_markup, haystack, new IdentityHashMap<>(), 0);
+        if (options.inDescription) {
+            add(haystack, result.description);
+        }
+        if (options.inMessage && result.send_message != null) {
+            add(haystack, result.send_message.message);
+        }
+        if (options.anyButtons() && result.send_message != null && result.send_message.reply_markup != null) {
+            collectStrings(result.send_message.reply_markup, null, options, haystack, new IdentityHashMap<>(), 0);
         }
         if (options.inJson) {
             haystack.add(TLDumper.toJson(result));
@@ -212,17 +238,21 @@ public class RawReroll {
         }
     }
 
-    /** Every string (and UTF-8 decoded byte[], e.g. callback data) inside a TL object. */
-    private static void collectStrings(Object value, List<String> out, IdentityHashMap<Object, Boolean> seen, int depth) {
+    /**
+     * Strings of a keyboard, split by kind: field "text" = button caption, "url" = link,
+     * anything else (callback data, switch query, …, byte[] decoded as UTF-8) = data.
+     */
+    private static void collectStrings(Object value, String fieldName, Options options, List<String> out, IdentityHashMap<Object, Boolean> seen, int depth) {
         if (value == null || depth > 16) {
             return;
         }
-        if (value instanceof String) {
-            add(out, (String) value);
-            return;
-        }
-        if (value instanceof byte[]) {
-            add(out, new String((byte[]) value, StandardCharsets.UTF_8));
+        if (value instanceof String || value instanceof byte[]) {
+            boolean wanted = "text".equals(fieldName) ? options.inButtonText
+                    : "url".equals(fieldName) ? options.inButtonUrl
+                    : options.inButtonData;
+            if (wanted) {
+                add(out, value instanceof String ? (String) value : new String((byte[]) value, StandardCharsets.UTF_8));
+            }
             return;
         }
         if (seen.containsKey(value)) {
@@ -231,12 +261,12 @@ public class RawReroll {
         seen.put(value, true);
         if (value instanceof List) {
             for (Object item : (List<?>) value) {
-                collectStrings(item, out, seen, depth + 1);
+                collectStrings(item, fieldName, options, out, seen, depth + 1);
             }
         } else if (value instanceof TLObject) {
             for (Field field : TLDumper.fieldsOf(value.getClass())) {
                 try {
-                    collectStrings(field.get(value), out, seen, depth + 1);
+                    collectStrings(field.get(value), field.getName(), options, out, seen, depth + 1);
                 } catch (Throwable ignore) {
                 }
             }
@@ -252,8 +282,12 @@ public class RawReroll {
         EditText patternField = field(context, layout, "Искать (подстрока или regex)", initial.pattern, InputType.TYPE_CLASS_TEXT, resourcesProvider);
         TextCheckCell regexCell = check(context, layout, "Regex", initial.regex, resourcesProvider);
         TextCheckCell caseCell = check(context, layout, "Учитывать регистр", initial.caseSensitive, resourcesProvider);
-        TextCheckCell textCell = check(context, layout, "В тексте (title, description, message)", initial.inText, resourcesProvider);
-        TextCheckCell buttonsCell = check(context, layout, "В кнопках (текст, url, callback data)", initial.inButtons, resourcesProvider);
+        CheckGroup textGroup = new CheckGroup(context, layout, "В тексте", resourcesProvider,
+                new String[]{"title", "description", "message"},
+                new boolean[]{initial.inTitle, initial.inDescription, initial.inMessage});
+        CheckGroup buttonsGroup = new CheckGroup(context, layout, "В кнопках", resourcesProvider,
+                new String[]{"текст кнопки", "url", "callback data и прочее"},
+                new boolean[]{initial.inButtonText, initial.inButtonUrl, initial.inButtonData});
         TextCheckCell jsonCell = check(context, layout, "Во всём JSON результата", initial.inJson, resourcesProvider);
         EditText indicesField = field(context, layout, "Индексы результатов (пусто = все; 0 · -1 · 0,2 · 1:4 · ::2)", initial.indices, InputType.TYPE_CLASS_TEXT, resourcesProvider);
         EditText attemptsField = field(context, layout, "Максимум попыток", String.valueOf(initial.maxAttempts), InputType.TYPE_CLASS_NUMBER, resourcesProvider);
@@ -279,8 +313,12 @@ public class RawReroll {
                 o.pattern = patternField.getText().toString();
                 o.regex = regexCell.isChecked();
                 o.caseSensitive = caseCell.isChecked();
-                o.inText = textCell.isChecked();
-                o.inButtons = buttonsCell.isChecked();
+                o.inTitle = textGroup.isChecked(0);
+                o.inDescription = textGroup.isChecked(1);
+                o.inMessage = textGroup.isChecked(2);
+                o.inButtonText = buttonsGroup.isChecked(0);
+                o.inButtonUrl = buttonsGroup.isChecked(1);
+                o.inButtonData = buttonsGroup.isChecked(2);
                 o.inJson = jsonCell.isChecked();
                 o.indices = indicesField.getText().toString().trim();
                 o.maxAttempts = parseIntOr(attemptsField.getText().toString(), 50, 1, 10_000);
@@ -303,7 +341,7 @@ public class RawReroll {
         if (o.pattern.isEmpty()) {
             return "Пустой шаблон";
         }
-        if (!o.inText && !o.inButtons && !o.inJson) {
+        if (!o.anyText() && !o.anyButtons() && !o.inJson) {
             return "Выбери, где искать";
         }
         try {
@@ -343,6 +381,113 @@ public class RawReroll {
         editText.setHintTextColor(Theme.getColor(Theme.key_dialogTextHint, resourcesProvider));
         parent.addView(editText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 20, 0, 20, 0));
         return editText;
+    }
+
+    /**
+     * Power Saving style group: a row with the title, an "n/m" counter, an expand arrow and a switch
+     * for the whole group; the arrow reveals one checkbox per item.
+     */
+    private static class CheckGroup {
+        private final org.telegram.ui.Components.Switch groupSwitch;
+        private final org.telegram.ui.Components.AnimatedTextView counter;
+        private final android.widget.ImageView arrow;
+        private final LinearLayout items;
+        private final org.telegram.ui.Components.CheckBox2[] boxes;
+        private boolean expanded;
+
+        CheckGroup(Context context, LinearLayout parent, String title, Theme.ResourcesProvider rp, String[] names, boolean[] checked) {
+            int textColor = Theme.getColor(Theme.key_dialogTextBlack, rp);
+
+            android.widget.FrameLayout header = new android.widget.FrameLayout(context);
+            header.setBackground(Theme.getSelectorDrawable(false));
+            parent.addView(header, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 50));
+
+            LinearLayout titleRow = new LinearLayout(context);
+            titleRow.setOrientation(LinearLayout.HORIZONTAL);
+            titleRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            TextView titleView = new TextView(context);
+            titleView.setText(title);
+            titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+            titleView.setTextColor(textColor);
+            titleRow.addView(titleView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
+            counter = new org.telegram.ui.Components.AnimatedTextView(context, false, true, true);
+            counter.setAnimationProperties(.35f, 0, 200, org.telegram.ui.Components.CubicBezierInterpolator.EASE_OUT_QUINT);
+            counter.setTypeface(AndroidUtilities.bold());
+            counter.setTextSize(AndroidUtilities.dp(14));
+            counter.setTextColor(textColor);
+            titleRow.addView(counter, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 20, 0, android.view.Gravity.CENTER_VERTICAL, 6, 0, 0, 0));
+            arrow = new android.widget.ImageView(context);
+            arrow.setImageResource(org.telegram.messenger.R.drawable.arrow_more);
+            arrow.setColorFilter(new android.graphics.PorterDuffColorFilter(textColor, android.graphics.PorterDuff.Mode.MULTIPLY));
+            titleRow.addView(arrow, LayoutHelper.createLinear(16, 16, 0, android.view.Gravity.CENTER_VERTICAL, 2, 0, 0, 0));
+            header.addView(titleRow, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT, android.view.Gravity.LEFT | android.view.Gravity.CENTER_VERTICAL, 22, 0, 70, 0));
+
+            groupSwitch = new org.telegram.ui.Components.Switch(context, rp);
+            groupSwitch.setColors(Theme.key_switchTrack, Theme.key_switchTrackChecked, Theme.key_windowBackgroundWhite, Theme.key_windowBackgroundWhite);
+            header.addView(groupSwitch, LayoutHelper.createFrame(37, 40, android.view.Gravity.RIGHT | android.view.Gravity.CENTER_VERTICAL, 0, 0, 22, 0));
+
+            items = new LinearLayout(context);
+            items.setOrientation(LinearLayout.VERTICAL);
+            items.setVisibility(View.GONE);
+            parent.addView(items, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+            boxes = new org.telegram.ui.Components.CheckBox2[names.length];
+            for (int i = 0; i < names.length; i++) {
+                final int index = i;
+                android.widget.FrameLayout row = new android.widget.FrameLayout(context);
+                row.setBackground(Theme.getSelectorDrawable(false));
+                org.telegram.ui.Components.CheckBox2 box = new org.telegram.ui.Components.CheckBox2(context, 21, rp);
+                box.setColor(Theme.key_radioBackgroundChecked, Theme.key_checkboxDisabled, Theme.key_checkboxCheck);
+                box.setDrawUnchecked(true);
+                box.setDrawBackgroundAsArc(10);
+                box.setChecked(checked[i], false);
+                boxes[i] = box;
+                row.addView(box, LayoutHelper.createFrame(21, 21, android.view.Gravity.LEFT | android.view.Gravity.CENTER_VERTICAL, 42, 0, 0, 0));
+                TextView name = new TextView(context);
+                name.setText(names[i]);
+                name.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
+                name.setTextColor(textColor);
+                row.addView(name, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, android.view.Gravity.LEFT | android.view.Gravity.CENTER_VERTICAL, 78, 0, 22, 0));
+                row.setOnClickListener(v -> {
+                    boxes[index].setChecked(!boxes[index].isChecked(), true);
+                    sync(true);
+                });
+                items.addView(row, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 44));
+            }
+
+            titleRow.setOnClickListener(v -> toggleExpanded());
+            header.setOnClickListener(v -> toggleExpanded());
+            groupSwitch.setOnClickListener(v -> {
+                boolean on = !groupSwitch.isChecked();
+                for (org.telegram.ui.Components.CheckBox2 box : boxes) {
+                    box.setChecked(on, true);
+                }
+                sync(true);
+            });
+            sync(false);
+        }
+
+        private void toggleExpanded() {
+            expanded = !expanded;
+            items.setVisibility(expanded ? View.VISIBLE : View.GONE);
+            arrow.animate().rotation(expanded ? 180 : 0).setDuration(240)
+                    .setInterpolator(org.telegram.ui.Components.CubicBezierInterpolator.EASE_OUT_QUINT).start();
+        }
+
+        private void sync(boolean animated) {
+            int on = 0;
+            for (org.telegram.ui.Components.CheckBox2 box : boxes) {
+                if (box.isChecked()) {
+                    on++;
+                }
+            }
+            counter.setText(on + "/" + boxes.length, animated);
+            groupSwitch.setChecked(on > 0, animated);
+        }
+
+        boolean isChecked(int index) {
+            return boxes[index].isChecked();
+        }
     }
 
     private static TextCheckCell check(Context context, LinearLayout parent, String text, boolean checked, Theme.ResourcesProvider resourcesProvider) {

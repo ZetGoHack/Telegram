@@ -185,8 +185,11 @@ public class RawRerollStatusSheet extends BottomSheet {
         sb.append(o.regex ? "regex" : "подстрока").append(o.caseSensitive ? " · с учётом регистра" : " · без учёта регистра");
         sb.append(" · где: ");
         StringBuilder where = new StringBuilder();
-        if (o.inText) where.append("текст");
-        if (o.inButtons) where.append(where.length() > 0 ? ", " : "").append("кнопки");
+        String[] names = {"title", "description", "message", "текст кнопок", "url", "data кнопок"};
+        boolean[] on = {o.inTitle, o.inDescription, o.inMessage, o.inButtonText, o.inButtonUrl, o.inButtonData};
+        for (int i = 0; i < names.length; i++) {
+            if (on[i]) where.append(where.length() > 0 ? ", " : "").append(names[i]);
+        }
         if (o.inJson) where.append(where.length() > 0 ? ", " : "").append("JSON");
         sb.append(where);
         sb.append(" · индексы: ").append(o.indices.isEmpty() ? "все" : o.indices);
