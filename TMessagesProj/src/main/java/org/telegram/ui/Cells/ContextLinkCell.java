@@ -858,6 +858,40 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
             Theme.chat_contextResult_shadowUnderSwitchDrawable.setBounds(0, 0, getMeasuredWidth(), AndroidUtilities.dp(3));
             Theme.chat_contextResult_shadowUnderSwitchDrawable.draw(canvas);
         }
+        drawRawgramHighlight(canvas);
+    }
+
+    // rawGram: accent highlight for results matched by reroll
+    private boolean rawgramHighlight;
+    private Paint rawgramHighlightFill;
+    private Paint rawgramHighlightStroke;
+    private final android.graphics.RectF rawgramHighlightRect = new android.graphics.RectF();
+
+    public void setRawgramHighlight(boolean value) {
+        if (rawgramHighlight != value) {
+            rawgramHighlight = value;
+            invalidate();
+        }
+    }
+
+    private void drawRawgramHighlight(Canvas canvas) {
+        if (!rawgramHighlight) {
+            return;
+        }
+        int accent = Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider);
+        if (rawgramHighlightFill == null) {
+            rawgramHighlightFill = new Paint(Paint.ANTI_ALIAS_FLAG);
+            rawgramHighlightStroke = new Paint(Paint.ANTI_ALIAS_FLAG);
+            rawgramHighlightStroke.setStyle(Paint.Style.STROKE);
+            rawgramHighlightStroke.setStrokeWidth(AndroidUtilities.dp(2));
+        }
+        rawgramHighlightFill.setColor(Theme.multAlpha(accent, 0.14f));
+        rawgramHighlightStroke.setColor(accent);
+        float inset = AndroidUtilities.dp(2);
+        rawgramHighlightRect.set(inset, inset, getMeasuredWidth() - inset, getMeasuredHeight() - inset);
+        float r = AndroidUtilities.dp(mediaWebpage ? 6 : 10);
+        canvas.drawRoundRect(rawgramHighlightRect, r, r, rawgramHighlightFill);
+        canvas.drawRoundRect(rawgramHighlightRect, r, r, rawgramHighlightStroke);
     }
 
     private int getIconForCurrentState() {

@@ -3355,6 +3355,7 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
+        RawInlineResultViewer.stopActiveReroll();
         if (messageMetricsView != null) {
             messageMetricsView.finish();
         }
@@ -7486,7 +7487,11 @@ public class ChatActivity extends BaseFragment implements
                     if (chatMode != MODE_SCHEDULED && currentEncryptedChat == null && chatActivityEnterView != null && chatActivityEnterView.getFieldText() != null) {
                         rawOnSend = rawResult -> AlertsCreator.ensurePaidMessageConfirmation(currentAccount, getDialogId(), 1, rawPrice -> sendBotInlineResult(rawResult, true, 0, rawPrice));
                     }
-                    RawInlineResultViewer.show(getParentActivity(), currentAccount, mentionContainer.getAdapter(), (TLRPC.BotInlineResult) rawItem, rawOnSend, themeDelegate);
+                    RawInlineResultViewer.show(getParentActivity(), currentAccount, mentionContainer.getAdapter(), (TLRPC.BotInlineResult) rawItem, rawOnSend, themeDelegate, (rawRunning, rawStop) -> {
+                        if (chatActivityEnterView != null) {
+                            chatActivityEnterView.rawgramSetAuto(rawRunning, rawStop);
+                        }
+                    });
                     try {
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
                     } catch (Exception rawIgnore) {}

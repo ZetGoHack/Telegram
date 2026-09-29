@@ -11,7 +11,7 @@ import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.Toast;
+import org.telegram.messenger.R;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.MessageObject;
@@ -84,6 +84,7 @@ public class RawObjectSheet extends BottomSheet {
         tabs.addView(fieldsTab, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 32, 0, 0, 8, 0));
         tabs.addView(jsonTab, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 32, 0, 0, 8, 0));
         TextView copyChip = createChip(context, "Copy");
+        styleChip(copyChip, false);
         copyChip.setOnClickListener(v -> copy());
         tabs.addView(copyChip, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 32));
         root.addView(tabs, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 16, 10, 16, 6));
@@ -192,7 +193,7 @@ public class RawObjectSheet extends BottomSheet {
             return;
         }
         AndroidUtilities.addToClipboard(text);
-        Toast.makeText(getContext(), showJson ? "JSON copied" : "Fields copied", Toast.LENGTH_SHORT).show();
+        RawNotify.show(this, R.drawable.msg_copy, showJson ? "JSON скопирован" : "Поля скопированы");
     }
 
     /** Renders the message exactly like a chat cell would; null hides the preview. */

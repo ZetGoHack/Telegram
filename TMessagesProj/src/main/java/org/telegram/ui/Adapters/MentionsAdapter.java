@@ -121,6 +121,8 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
     public TLRPC.messages_BotResults rawgramLastResponse;
     public ArrayList<TLRPC.BotInlineResult> rawgramHiddenResults = new ArrayList<>();
     public boolean rawgramLastFromCache;
+    // rawGram: result ids matched by reroll, drawn with an accent highlight
+    public java.util.HashSet<String> rawgramHighlightIds = new java.util.HashSet<>();
     private long searchResultBotContextSwitchUserId;
     private TLRPC.TL_inlineBotSwitchPM searchResultBotContextSwitch;
     private TLRPC.TL_inlineBotWebView searchResultBotWebViewSwitch;
@@ -860,6 +862,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 rawgramLastResponse = res;
                 rawgramLastFromCache = cache;
                 rawgramHiddenResults = new ArrayList<>();
+                if (offset.length() == 0) {
+                    rawgramHighlightIds.clear();
+                }
                 if (!cache && res.cache_time != 0) {
                     messagesStorage.saveBotCache(key, res);
                 }
@@ -944,6 +949,39 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             req.peer = MessagesController.getInstance(currentAccount).getInputPeer(dialog_id);
         }
         return req;
+    }
+
+    // rawGram: result the client silently drops from the list (media_auto without any media)
+    public static boolean rawgramIsHiddenByClient(TLRPC.BotInlineResult result) {
+        return !(result.document instanceof TLRPC.TL_document) && !(result.photo instanceof TLRPC.TL_photo) && !"game".equals(result.type) && result.content == null && result.send_message instanceof TLRPC.TL_botInlineMessageMediaAuto;
+    }
+
+    // rawGram: show a response fetched by reroll in the results list and highlight the matches
+    public void rawgramApplyResults(TLRPC.messages_BotResults res, java.util.Set<String> highlightIds) {
+        if (foundContextBot == null || searchingContextQuery == null) {
+            return;
+        }
+        ArrayList<TLRPC.BotInlineResult> visible = new ArrayList<>();
+        ArrayList<TLRPC.BotInlineResult> hidden = new ArrayList<>();
+        for (TLRPC.BotInlineResult result : res.results) {
+            result.query_id = res.query_id;
+            (rawgramIsHiddenByClient(result) ? hidden : visible).add(result);
+        }
+        rawgramLastResponse = res;
+        rawgramLastFromCache = false;
+        rawgramHiddenResults = hidden;
+        rawgramHighlightIds.clear();
+        if (highlightIds != null) {
+            rawgramHighlightIds.addAll(highlightIds);
+        }
+        searchResultBotContext = visible;
+        contextMedia = res.gallery;
+        nextQueryOffset = res.next_offset;
+        searchResultBotWebViewSwitch = res.switch_webview;
+        if (res.switch_pm != null) {
+            searchResultBotContextSwitch = res.switch_pm;
+        }
+        notifyDataSetChanged();
     }
 
     // rawGram: request for the currently active inline query, or null if none
@@ -2029,6 +2067,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 }
                 if (position >= 0 && position < searchResultBotContext.size()) {
                     ((ContextLinkCell) holder.itemView).setLink(searchResultBotContext.get(position), foundContextBot, contextMedia, position != searchResultBotContext.size() - 1, hasTop && position == 0, "gif".equals(searchingContextUsername));
+                    ((ContextLinkCell) holder.itemView).setRawgramHighlight(rawgramHighlightIds.contains(searchResultBotContext.get(position).id));
                 }
             }
         } else if (type == 6) {

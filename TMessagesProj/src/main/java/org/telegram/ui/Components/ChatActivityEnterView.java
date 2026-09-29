@@ -3469,6 +3469,11 @@ public class ChatActivityEnterView extends FrameLayout implements
         cancelBotButton.setBackgroundDrawable(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector)));
         sendButtonContainer.addView(cancelBotButton, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT, Gravity.RIGHT | Gravity.BOTTOM));
         cancelBotButton.setOnClickListener(view -> {
+            if (rawgramAutoStop != null) {
+                // rawGram: the button is the reroll "auto" spinner right now, tap stops it
+                rawgramAutoStop.run();
+                return;
+            }
             String text = messageEditText != null ? messageEditText.getText().toString() : "";
             int idx = text.indexOf(' ');
             if (idx == -1 || idx == text.length() - 1) {
@@ -6204,6 +6209,29 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
         recordingAudioVideo = false;
         updateRecordInterface(RECORD_STATE_CANCEL, true);
+    }
+
+    // rawGram: reroll "auto" spinner in place of the inline cancel button
+    private org.telegram.rawgram.RawAutoDrawable rawgramAutoDrawable;
+    private Runnable rawgramAutoStop;
+
+    public void rawgramSetAuto(boolean running, Runnable onStop) {
+        if (cancelBotButton == null) {
+            return;
+        }
+        if (running) {
+            if (rawgramAutoDrawable == null) {
+                rawgramAutoDrawable = new org.telegram.rawgram.RawAutoDrawable();
+            }
+            rawgramAutoDrawable.setColor(getThemedColor(Theme.key_featuredStickers_addButton));
+            rawgramAutoStop = onStop;
+            cancelBotButton.setImageDrawable(rawgramAutoDrawable);
+            cancelBotButton.setContentDescription("Stop auto reroll");
+        } else {
+            rawgramAutoStop = null;
+            cancelBotButton.setImageDrawable(progressDrawable);
+            cancelBotButton.setContentDescription(getString("Cancel", R.string.Cancel));
+        }
     }
 
     public void showContextProgress(boolean show) {
