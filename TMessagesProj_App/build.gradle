@@ -21,6 +21,20 @@ dependencies {
     implementation files('../TMessagesProj/libs/libgsaverification-client.aar')
 }
 
+def rawgramSecret(String name) {
+    def propsFile = rootProject.file('local.properties')
+    if (propsFile.exists()) {
+        def props = new Properties()
+        propsFile.withInputStream { props.load(it) }
+        def value = props.getProperty(name)
+        if (value != null && !value.isEmpty()) {
+            return value
+        }
+    }
+    def env = System.getenv(name)
+    return (env != null && !env.isEmpty()) ? env : null
+}
+
 android {
     compileSdkVersion 36
     buildToolsVersion '36.0.0'
@@ -56,10 +70,19 @@ android {
         }
 
         release {
-            storeFile file("../TMessagesProj/config/release.keystore")
-            storePassword RELEASE_STORE_PASSWORD
-            keyAlias RELEASE_KEY_ALIAS
-            keyPassword RELEASE_KEY_PASSWORD
+            // rawGram: own release key from local.properties / environment, public test key as fallback
+            def ownKeystore = rawgramSecret("RAWGRAM_KEYSTORE")
+            if (ownKeystore != null && file(ownKeystore).exists()) {
+                storeFile file(ownKeystore)
+                storePassword rawgramSecret("RAWGRAM_KEYSTORE_PASSWORD")
+                keyAlias rawgramSecret("RAWGRAM_KEY_ALIAS")
+                keyPassword rawgramSecret("RAWGRAM_KEY_PASSWORD")
+            } else {
+                storeFile file("../TMessagesProj/config/release.keystore")
+                storePassword RELEASE_STORE_PASSWORD
+                keyAlias RELEASE_KEY_ALIAS
+                keyPassword RELEASE_KEY_PASSWORD
+            }
         }
     }
 
