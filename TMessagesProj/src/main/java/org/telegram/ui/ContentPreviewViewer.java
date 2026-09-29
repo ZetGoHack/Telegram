@@ -54,6 +54,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.rawgram.RawDocumentViewer;
+import org.telegram.rawgram.RawgramConfig;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.DocumentObject;
@@ -1663,7 +1664,7 @@ public class ContentPreviewViewer {
                         }
                     }
                 };
-                AndroidUtilities.runOnUIThread(openPreviewRunnable, 200);
+                AndroidUtilities.runOnUIThread(openPreviewRunnable, RawgramConfig.getLongPressDelay());
                 return true;
             }
         }

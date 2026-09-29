@@ -228,6 +228,7 @@ import org.telegram.ui.ActionBar.theme.ThemeKey;
 import org.telegram.ui.Adapters.FiltersView;
 import org.telegram.ui.Adapters.MentionsAdapter;
 import org.telegram.rawgram.RawInlineResultViewer;
+import org.telegram.rawgram.RawgramConfig;
 import org.telegram.ui.Adapters.MessagesSearchAdapter;
 import org.telegram.ui.Business.BusinessBotButton;
 import org.telegram.ui.Business.BusinessLinksActivity;
@@ -7477,7 +7478,8 @@ public class ChatActivity extends BaseFragment implements
                 return false;
             }
             // rawGram: long press on an inline result opens the raw viewer with a rendered preview
-            if (position != 0 && !mentionContainer.getAdapter().isBannedInline() && !ContentPreviewViewer.getInstance().isVisible()) {
+            boolean rawPreviewHandled = view instanceof ContextLinkCell && (((ContextLinkCell) view).isSticker() || ((ContextLinkCell) view).isGif());
+            if (position != 0 && !rawPreviewHandled && !mentionContainer.getAdapter().isBannedInline() && !ContentPreviewViewer.getInstance().isVisible()) {
                 Object rawItem = mentionContainer.getAdapter().getItem(position - 1);
                 if (rawItem instanceof TLRPC.BotInlineResult) {
                     Utilities.Callback<TLRPC.BotInlineResult> rawOnSend = null;
@@ -7528,7 +7530,7 @@ public class ChatActivity extends BaseFragment implements
                 }
             }
             return false;
-        });
+        }, RawgramConfig.getLongPressDelay());
 
         if (!isInsideContainer) {
             fragmentLocationContextViewWrapper = new FrameLayout(context);
