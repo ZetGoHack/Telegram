@@ -1,0 +1,5 @@
+# rawGram: bundled assets and raw resources are read byte-for-byte at runtime
+# (theme files are split on '\n', a trailing '\r' turns every color into 0),
+# so never let git convert their line endings on Windows checkouts.
+TMessagesProj/src/main/assets/** -text
+TMessagesProj/src/main/res/raw/** -text
