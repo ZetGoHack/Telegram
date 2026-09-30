@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.MediaDataController;
+import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
@@ -63,7 +64,13 @@ public class RawgramSettingsActivity extends BaseFragment {
     private static final int ROW_STICKER_SLIDER = 11;
     private static final int ROW_STICKER_PREVIEW = 12;
     private static final int ROW_STICKER_INFO = 13;
-    private static final int ROW_COUNT = 14;
+    private static final int ROW_RECENT_HEADER = 14;
+    private static final int ROW_RECENT_SLIDER = 15;
+    private static final int ROW_RECENT_INFO = 16;
+    private static final int ROW_TOOLS_HEADER = 17;
+    private static final int ROW_SERVER_CONFIG = 18;
+    private static final int ROW_TOOLS_INFO = 19;
+    private static final int ROW_COUNT = 20;
 
     private RecyclerListView listView;
     private ListAdapter adapter;
@@ -111,6 +118,8 @@ public class RawgramSettingsActivity extends BaseFragment {
                             adapter.notifyItemChanged(ROW_ID_FORMAT);
                         })
                         .show();
+            } else if (position == ROW_SERVER_CONFIG) {
+                RawServerConfig.show(getParentActivity(), currentAccount, getResourceProvider());
             }
         });
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
@@ -142,14 +151,18 @@ public class RawgramSettingsActivity extends BaseFragment {
                 case ROW_HIDE_KEYBOARD:
                     return TYPE_CHECK;
                 case ROW_ID_FORMAT:
+                case ROW_SERVER_CONFIG:
                     return TYPE_VALUE;
                 case ROW_DATA_HEADER:
                 case ROW_CHAT_HEADER:
                 case ROW_PRESS_HEADER:
                 case ROW_STICKER_HEADER:
+                case ROW_RECENT_HEADER:
+                case ROW_TOOLS_HEADER:
                     return TYPE_HEADER;
                 case ROW_PRESS_SLIDER:
                 case ROW_STICKER_SLIDER:
+                case ROW_RECENT_SLIDER:
                     return TYPE_SLIDER;
                 case ROW_STICKER_PREVIEW:
                     return TYPE_PREVIEW;
@@ -185,7 +198,9 @@ public class RawgramSettingsActivity extends BaseFragment {
                 case TYPE_HEADER:
                     ((HeaderCell) holder.itemView).setText(position == ROW_DATA_HEADER ? "Данные"
                             : position == ROW_CHAT_HEADER ? "Чат"
-                            : position == ROW_PRESS_HEADER ? "Задержка зажатия" : "Размер стикеров");
+                            : position == ROW_PRESS_HEADER ? "Задержка зажатия"
+                            : position == ROW_RECENT_HEADER ? "Недавние стикеры"
+                            : position == ROW_TOOLS_HEADER ? "Инструменты" : "Размер стикеров");
                     break;
                 case TYPE_CHECK:
                     if (position == ROW_HIDE_KEYBOARD) {
@@ -195,6 +210,10 @@ public class RawgramSettingsActivity extends BaseFragment {
                     }
                     break;
                 case TYPE_VALUE: {
+                    if (position == ROW_SERVER_CONFIG) {
+                        ((TextSettingsCell) holder.itemView).setText("Конфиг сервера (raw)", false);
+                        break;
+                    }
                     int format = RawgramConfig.getIdFormat();
                     String value = format == RawgramConfig.ID_OFF ? "Выкл" : format == RawgramConfig.ID_MTPROTO ? "MTProto" : "Bot API";
                     ((TextSettingsCell) holder.itemView).setTextAndValue("ID в профилях", value, false);
@@ -205,6 +224,12 @@ public class RawgramSettingsActivity extends BaseFragment {
                     if (position == ROW_PRESS_SLIDER) {
                         cell.bind(RawgramConfig.LONG_PRESS_MIN, RawgramConfig.LONG_PRESS_MAX, RawgramConfig.LONG_PRESS_STEP,
                                 RawgramConfig.getLongPressDelay(), " мс", RawgramConfig::setLongPressDelay);
+                    } else if (position == ROW_RECENT_SLIDER) {
+                        int server = MessagesController.getInstance(currentAccount).maxRecentStickersCount;
+                        int value = Math.max(RawgramConfig.RECENT_STICKERS_MIN, Math.min(RawgramConfig.RECENT_STICKERS_MAX,
+                                RawgramConfig.recentStickersLimit(server)));
+                        cell.bind(RawgramConfig.RECENT_STICKERS_MIN, RawgramConfig.RECENT_STICKERS_MAX, RawgramConfig.RECENT_STICKERS_STEP,
+                                value, "", RawgramConfig::setRecentStickersLimit);
                     } else {
                         cell.bind(RawgramConfig.STICKER_SCALE_MIN, RawgramConfig.STICKER_SCALE_MAX, RawgramConfig.STICKER_SCALE_STEP,
                                 RawgramConfig.getStickerScalePercent(), "%", value -> {
@@ -226,6 +251,14 @@ public class RawgramSettingsActivity extends BaseFragment {
                     } else if (position == ROW_PRESS_INFO) {
                         cell.setText("Сколько держать палец, чтобы открыть raw-просмотр инлайн-результата или превью стикера / GIF. "
                                 + "Системная задержка на этом устройстве: " + ViewConfiguration.getLongPressTimeout() + " мс.");
+                    } else if (position == ROW_TOOLS_INFO) {
+                        cell.setText("Свежие help.getConfig и help.getAppConfig этого аккаунта: все лимиты сервера "
+                                + "(недавние стикеры, избранное, подписи, папки…), DC и флаги клиента.");
+                    } else if (position == ROW_RECENT_INFO) {
+                        cell.setText("Сколько последних стикеров хранить. Сервер помнит только "
+                                + MessagesController.getInstance(currentAccount).maxRecentStickersCount
+                                + " — остальные rawGram держит на этом устройстве и не теряет при синхронизации. "
+                                + "Новый лимит начинает действовать со следующего отправленного стикера.");
                     } else {
                         cell.setText("Размер стикеров в чатах относительно стандартного размера Telegram.");
                     }

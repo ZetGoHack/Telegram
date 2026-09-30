@@ -1018,6 +1018,9 @@ public class MediaDataController extends BaseController {
                 });
             }
             maxCount = getMessagesController().maxRecentStickersCount;
+            if (type == TYPE_IMAGE) {
+                maxCount = org.telegram.rawgram.RawgramConfig.recentStickersLimit(maxCount);
+            }
         }
         if (recentStickers[type].size() > maxCount || remove) {
             TLRPC.Document old = remove ? document : recentStickers[type].remove(recentStickers[type].size() - 1);
@@ -2058,6 +2061,9 @@ public class MediaDataController extends BaseController {
                             arrayList = res.stickers;
                         }
                     }
+                    if (type == TYPE_IMAGE && arrayList != null) {
+                        arrayList = rawgramKeepLocalRecents(arrayList);
+                    }
                     processLoadedRecentDocuments(type, arrayList, false, 0, true);
                 });
             }
@@ -2078,6 +2084,39 @@ public class MediaDataController extends BaseController {
         return result;
     }
 
+    /**
+     * rawGram: the server keeps only stickers_recent_limit recents, so a sync would cut a longer local list;
+     * keep the server's order and append the local ones it no longer has, up to the user's limit.
+     */
+    private ArrayList<TLRPC.Document> rawgramKeepLocalRecents(ArrayList<TLRPC.Document> fromServer) {
+        int limit = org.telegram.rawgram.RawgramConfig.recentStickersLimit(getMessagesController().maxRecentStickersCount);
+        if (fromServer.size() >= limit) {
+            return fromServer;
+        }
+        ArrayList<TLRPC.Document> local;
+        try {
+            // called from the network thread while the UI thread may be changing the list
+            local = new ArrayList<>(recentStickers[TYPE_IMAGE]);
+        } catch (Exception e) {
+            return fromServer;
+        }
+        ArrayList<TLRPC.Document> merged = new ArrayList<>(fromServer);
+        LongSparseArray<Boolean> ids = new LongSparseArray<>();
+        for (TLRPC.Document d : fromServer) {
+            ids.put(d.id, true);
+        }
+        for (TLRPC.Document d : local) {
+            if (merged.size() >= limit) {
+                break;
+            }
+            if (d != null && ids.get(d.id) == null) {
+                ids.put(d.id, true);
+                merged.add(d);
+            }
+        }
+        return merged;
+    }
+
     protected void processLoadedRecentDocuments(int type, ArrayList<TLRPC.Document> documents, boolean gif, int date, boolean replace) {
         if (documents != null) {
             getMessagesStorage().getStorageQueue().postRunnable(() -> {
@@ -2093,6 +2132,9 @@ public class MediaDataController extends BaseController {
                             maxCount = getMessagesController().maxFaveStickersCount;
                         } else {
                             maxCount = getMessagesController().maxRecentStickersCount;
+                            if (type == TYPE_IMAGE) {
+                                maxCount = org.telegram.rawgram.RawgramConfig.recentStickersLimit(maxCount);
+                            }
                         }
                     }
                     database.beginTransaction();

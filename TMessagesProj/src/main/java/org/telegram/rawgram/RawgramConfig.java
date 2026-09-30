@@ -58,6 +58,35 @@ public class RawgramConfig {
         prefs().edit().putInt(KEY_STICKER_SCALE, stickerScale).apply();
     }
 
+    // ---- recent stickers: how many are kept locally (0 = the server's stickers_recent_limit) ----
+
+    public static final int RECENT_STICKERS_MIN = 20;
+    public static final int RECENT_STICKERS_MAX = 200;
+    public static final int RECENT_STICKERS_STEP = 10;
+
+    private static int recentStickersLimit = -1;
+
+    public static int getRecentStickersLimit() {
+        if (recentStickersLimit < 0) {
+            if (org.telegram.messenger.ApplicationLoader.applicationContext == null) {
+                return 0;
+            }
+            recentStickersLimit = prefs().getInt("recentStickersLimit", 0);
+        }
+        return recentStickersLimit;
+    }
+
+    public static void setRecentStickersLimit(int value) {
+        recentStickersLimit = clamp(value, RECENT_STICKERS_MIN, RECENT_STICKERS_MAX);
+        prefs().edit().putInt("recentStickersLimit", recentStickersLimit).apply();
+    }
+
+    /** The limit to apply: the user's choice, or the server's one if nothing was chosen. */
+    public static int recentStickersLimit(int serverLimit) {
+        int limit = getRecentStickersLimit();
+        return limit > 0 ? limit : serverLimit;
+    }
+
     /** Last view chosen in the raw code block: JSON (true) or the flat field list (false). */
     public static boolean isRawViewJson() {
         return prefs().getBoolean("rawViewJson", false);
