@@ -130,15 +130,18 @@ public class RawMessageDetails {
         // protected content (no forwarding/saving in this chat, self-destructing media) is not copied out
         boolean protectedContent = message.messageOwner.noforwards || message.needDrawBluredPreview()
                 || MessagesController.getInstance(currentAccount).isPeerNoForwards(message.getDialogId());
-        if (hasMediaFile(message) && !protectedContent) {
+        // only images: Android apps paste images from the clipboard, videos and files they ignore
+        if (isImage(message) && !protectedContent) {
             ActionBarMenuSubItem copy = new ActionBarMenuSubItem(context, false, false, rp);
             copy.setTextAndIcon("Скопировать медиа", R.drawable.msg_copy);
             copy.setOnClickListener(v -> copyMedia(context, currentAccount, message, onClose));
             root.addView(copy, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         }
-        if (canSaveToGallery(message) && !protectedContent) {
+        if (hasMediaFile(message) && !protectedContent) {
+            int saveType = saveType(message);
             ActionBarMenuSubItem save = new ActionBarMenuSubItem(context, false, false, rp);
-            save.setTextAndIcon("Сохранить в галерею", R.drawable.msg_gallery);
+            save.setTextAndIcon(saveType == 2 ? "Сохранить в загрузки" : saveType == 3 ? "Сохранить в музыку" : "Сохранить в галерею",
+                    saveType >= 2 ? R.drawable.msg_download : R.drawable.msg_gallery);
             save.setOnClickListener(v -> saveToGallery(env, onClose));
             root.addView(save, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         }
@@ -526,9 +529,25 @@ public class RawMessageDetails {
         return message.isVideo() || message.isGif() || message.isRoundVideo() || message.isVideoSticker();
     }
 
-    private static boolean canSaveToGallery(MessageObject message) {
-        // animated (Lottie .tgs) stickers aren't images a gallery can show
-        return message.isPhoto() || isVideoLike(message) || message.isSticker() && !message.isAnimatedSticker();
+    private static String mime(MessageObject message) {
+        TLRPC.Document doc = document(MessageObject.getMedia(message.messageOwner));
+        return doc != null && doc.mime_type != null ? doc.mime_type.toLowerCase(Locale.ROOT) : "";
+    }
+
+    private static boolean isImage(MessageObject message) {
+        TLRPC.MessageMedia media = MessageObject.getMedia(message.messageOwner);
+        boolean photo = media instanceof TLRPC.TL_messageMediaPhoto && media.photo != null
+                || media instanceof TLRPC.TL_messageMediaWebPage && media.webpage != null && media.webpage.photo != null && media.webpage.document == null;
+        return photo || mime(message).startsWith("image/");
+    }
+
+    /** MediaController.saveFile type: 0 pictures, 1 movies, 2 downloads, 3 music (Telegram's own folders). */
+    private static int saveType(MessageObject message) {
+        String mime = mime(message);
+        if (isImage(message)) return 0;
+        if (isVideoLike(message) || mime.startsWith("video/")) return 1;
+        if (message.isMusic() || message.isVoice() || mime.startsWith("audio/")) return 3;
+        return 2;
     }
 
     private static String galleryPath(int account, MessageObject message) {
@@ -562,13 +581,16 @@ public class RawMessageDetails {
             activity.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
             return;
         }
+        final int saveType = saveType(message);
         final BulletinFactory.FileType type = message.isLivePhoto() ? BulletinFactory.FileType.LIVEPHOTO
-                : isVideoLike(message) ? BulletinFactory.FileType.VIDEO : BulletinFactory.FileType.PHOTO;
+                : saveType == 0 ? BulletinFactory.FileType.PHOTO
+                : saveType == 1 ? (message.isGif() ? BulletinFactory.FileType.GIF : BulletinFactory.FileType.VIDEO)
+                : saveType == 3 ? BulletinFactory.FileType.AUDIO : BulletinFactory.FileType.UNKNOWN;
         Utilities.Callback<Uri> onSaved = uri -> {
             if (BulletinFactory.canShowBulletin(env.fragment)) {
                 BulletinFactory.of(env.fragment).createDownloadBulletin(type, env.rp).show();
             } else {
-                RawNotify.show(R.drawable.msg_gallery, "Сохранено в галерею");
+                RawNotify.show(R.drawable.msg_gallery, saveType >= 2 ? "Сохранено" : "Сохранено в галерею");
             }
         };
         if (message.isLivePhoto()) {
@@ -585,7 +607,17 @@ public class RawMessageDetails {
                 }
             }
         }
-        MediaController.saveFile(path, activity, isVideoLike(message) ? 1 : 0, null, null, onSaved);
+        String name = null;
+        String mime = null;
+        if (saveType >= 2) {
+            TLRPC.Document doc = document(MessageObject.getMedia(message.messageOwner));
+            name = doc != null ? FileLoader.getDocumentFileName(doc) : null;
+            if (TextUtils.isEmpty(name)) {
+                name = new File(path).getName();
+            }
+            mime = doc != null ? doc.mime_type : null;
+        }
+        MediaController.saveFile(path, activity, saveType, name, mime, onSaved);
     }
 
     // ---- formatting ----
