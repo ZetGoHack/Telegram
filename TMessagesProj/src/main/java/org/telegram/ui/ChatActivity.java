@@ -46814,7 +46814,7 @@ public class ChatActivity extends BaseFragment implements
 
     private void rawgramUpdateStashButton(boolean animated) {
         if (sideControlsButtonsLayout != null) {
-            sideControlsButtonsLayout.showButton(ChatActivitySideControlsButtonsLayout.BUTTON_RAWGRAM_STASH, org.telegram.rawgram.RawInlineStash.has(), animated);
+            sideControlsButtonsLayout.showButton(ChatActivitySideControlsButtonsLayout.BUTTON_RAWGRAM_STASH, org.telegram.rawgram.RawInlineStash.has(currentAccount), animated);
         }
     }
 
@@ -46832,7 +46832,7 @@ public class ChatActivity extends BaseFragment implements
         rawgramHiding = true;
         // 1. the stash button comes in first, above the results
         sideControlsButtonsLayout.setTranslationZ(dp(2));
-        org.telegram.rawgram.RawInlineStash.save(entry);
+        org.telegram.rawgram.RawInlineStash.save(currentAccount, entry);
         AndroidUtilities.runOnUIThread(() -> {
             if (mentionContainer == null) {
                 rawgramFinishHide();
@@ -46869,7 +46869,7 @@ public class ChatActivity extends BaseFragment implements
     /** Empties the field (closing the already invisible panel) as soon as the results are inside the button. */
     private void rawgramClearAfterHide() {
         if (chatActivityEnterView != null && chatActivityEnterView.getFieldText() != null && chatActivityEnterView.getFieldText().length() > 0
-                && org.telegram.rawgram.RawInlineStash.has()) {
+                && org.telegram.rawgram.RawInlineStash.has(currentAccount)) {
             chatActivityEnterView.setFieldText("");
         }
         // the panel closes while invisible; bring its alpha back once it is gone
@@ -46886,7 +46886,7 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void rawgramRestoreInline() {
-        org.telegram.rawgram.RawInlineStash.Entry entry = org.telegram.rawgram.RawInlineStash.get();
+        org.telegram.rawgram.RawInlineStash.Entry entry = org.telegram.rawgram.RawInlineStash.get(currentAccount);
         if (entry == null || chatActivityEnterView == null || mentionContainer == null) {
             return;
         }
@@ -46907,8 +46907,8 @@ public class ChatActivity extends BaseFragment implements
             rawgramResetMentionAlpha = null;
         }
         getMessagesController().putUser(entry.bot, true);
-        org.telegram.rawgram.RawInlineStash.beginRestore(entry);
-        org.telegram.rawgram.RawInlineStash.clear();
+        org.telegram.rawgram.RawInlineStash.beginRestore(currentAccount, entry);
+        org.telegram.rawgram.RawInlineStash.clear(currentAccount);
         chatActivityEnterView.setFieldText("@" + UserObject.getPublicUsername(entry.bot) + " " + entry.query);
         // grow back out of the corner the results were parked in
         final View container = mentionContainer;
@@ -47033,14 +47033,14 @@ public class ChatActivity extends BaseFragment implements
 
     private boolean onSideControlButtonOnLongClick(int buttonId, View view) {
         if (buttonId == ChatActivitySideControlsButtonsLayout.BUTTON_RAWGRAM_STASH) {
-            org.telegram.rawgram.RawInlineStash.Entry entry = org.telegram.rawgram.RawInlineStash.get();
+            org.telegram.rawgram.RawInlineStash.Entry entry = org.telegram.rawgram.RawInlineStash.get(currentAccount);
             if (entry != null && getParentActivity() != null) {
                 String bot = entry.bot != null ? "@" + UserObject.getPublicUsername(entry.bot) : "бот";
                 new AlertDialog.Builder(getParentActivity(), themeDelegate)
                         .setTitle("Сохранённые результаты")
                         .setMessage(bot + " «" + entry.query + "» · " + entry.response.results.size() + " результатов")
                         .setPositiveButton("Восстановить", (d, w) -> rawgramRestoreInline())
-                        .setNegativeButton("Забыть", (d, w) -> org.telegram.rawgram.RawInlineStash.clear())
+                        .setNegativeButton("Забыть", (d, w) -> org.telegram.rawgram.RawInlineStash.clear(currentAccount))
                         .show();
             }
             return true;

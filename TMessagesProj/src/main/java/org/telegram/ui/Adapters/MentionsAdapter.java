@@ -930,7 +930,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         }
 
         // rawGram: results parked with "hide" come back exactly as they were, without a new request
-        final org.telegram.rawgram.RawInlineStash.Entry stashed = org.telegram.rawgram.RawInlineStash.takePending(user, query, offset);
+        final org.telegram.rawgram.RawInlineStash.Entry stashed = org.telegram.rawgram.RawInlineStash.takePending(currentAccount, user, query, offset);
         if (stashed != null) {
             requestDelegate.run(stashed.response, null);
             AndroidUtilities.runOnUIThread(() -> {
