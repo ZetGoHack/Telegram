@@ -67,6 +67,58 @@ public class RawgramConfig {
         prefs().edit().putBoolean("rawViewJson", value).apply();
     }
 
+    // ---- numbers: 100K vs 100 000 (read on every formatted number, so cached) ----
+
+    private static int fullNumbers = -1;
+
+    public static boolean isFullNumbers() {
+        if (fullNumbers < 0) {
+            if (ApplicationLoader.applicationContext == null) {
+                return false;
+            }
+            fullNumbers = prefs().getBoolean("fullNumbers", false) ? 1 : 0;
+        }
+        return fullNumbers == 1;
+    }
+
+    public static void setFullNumbers(boolean value) {
+        fullNumbers = value ? 1 : 0;
+        prefs().edit().putBoolean("fullNumbers", value).apply();
+    }
+
+    // ---- chat: hide the soft keyboard when the message list is dragged ----
+
+    private static int hideKeyboardOnScroll = -1;
+
+    public static boolean isHideKeyboardOnScroll() {
+        if (hideKeyboardOnScroll < 0) {
+            if (ApplicationLoader.applicationContext == null) {
+                return false;
+            }
+            hideKeyboardOnScroll = prefs().getBoolean("hideKeyboardOnScroll", false) ? 1 : 0;
+        }
+        return hideKeyboardOnScroll == 1;
+    }
+
+    public static void setHideKeyboardOnScroll(boolean value) {
+        hideKeyboardOnScroll = value ? 1 : 0;
+        prefs().edit().putBoolean("hideKeyboardOnScroll", value).apply();
+    }
+
+    // ---- peer id row in profiles ----
+
+    public static final int ID_OFF = 0;
+    public static final int ID_MTPROTO = 1;
+    public static final int ID_BOTAPI = 2;
+
+    public static int getIdFormat() {
+        return prefs().getInt("idFormat", ID_BOTAPI);
+    }
+
+    public static void setIdFormat(int value) {
+        prefs().edit().putInt("idFormat", value).apply();
+    }
+
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }

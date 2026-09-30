@@ -34,8 +34,10 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
     public static final int BUTTON_POLL_VOTES = 4;
     public static final int BUTTON_SEARCH_DOWN = 5;
     public static final int BUTTON_SEARCH_UP = 6;
+    // rawGram: parked inline results
+    public static final int BUTTON_RAWGRAM_STASH = 7;
 
-    private static final int BUTTONS_COUNT = 7;
+    private static final int BUTTONS_COUNT = 8;
 
     private static final int ANIMATOR_ID_VISIBILITY = 1;
     private static final int ANIMATOR_ID_COUNTER_VISIBILITY = 2;
@@ -47,7 +49,8 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
         R.drawable.reactionbutton,
         R.drawable.menu_poll_notify,
         R.drawable.pagedown,
-        R.drawable.pagedown
+        R.drawable.pagedown,
+        R.drawable.msg_bots
     };
 
     private final String[] buttonDescriptions = new String[] {
@@ -57,7 +60,8 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
         LocaleController.getString(R.string.AccDescrReactionMentionDown),
         LocaleController.getString(R.string.AccDescrPollVotesMentionDown),
         LocaleController.getString(R.string.AccDescrSearchPrev),
-        LocaleController.getString(R.string.AccDescrSearchNext)
+        LocaleController.getString(R.string.AccDescrSearchNext),
+        "Сохранённые инлайн-результаты"
     };
 
     private final Theme.ResourcesProvider resourcesProvider;
@@ -99,6 +103,12 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
             return true;
         }
         return false;
+    }
+
+    @Nullable
+    public android.view.View getButtonView(final int buttonId) {
+        final ButtonHolder holder = getButtonHolder(buttonId);
+        return holder != null ? holder.button : null;
     }
 
     public void updateColors() {
@@ -212,7 +222,10 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
     private ButtonHolder getOrCreateButtonHolder(final int buttonId) {
         if (buttonHolders[buttonId] == null) {
 
-            final BoolAnimator visibilityAnimator = new BoolAnimator(
+            final BoolAnimator visibilityAnimator = buttonId == BUTTON_RAWGRAM_STASH
+                // rawGram: slow start, then a quick snap into place
+                ? new BoolAnimator((buttonId << 16) | ANIMATOR_ID_VISIBILITY, this, new CubicBezierInterpolator(0.6, 0, 0.8, 0.5), 380)
+                : new BoolAnimator(
                 (buttonId << 16) | ANIMATOR_ID_VISIBILITY, this,
                 buttonId == BUTTON_ATTACH ? CubicBezierInterpolator.EASE_OUT_QUINT : AnimatorUtils.DECELERATE_INTERPOLATOR,
                 buttonId == BUTTON_ATTACH ? 300 : 280

@@ -28,6 +28,8 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ChatMessageCell;
 import org.telegram.ui.Cells.HeaderCell;
+import org.telegram.ui.Cells.TextCheckCell;
+import org.telegram.ui.Cells.TextSettingsCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
@@ -44,16 +46,27 @@ public class RawgramSettingsActivity extends BaseFragment {
     private static final int TYPE_INFO = 2;
     private static final int TYPE_PREVIEW = 3;
 
-    private static final int ROW_PRESS_HEADER = 0;
-    private static final int ROW_PRESS_SLIDER = 1;
-    private static final int ROW_PRESS_INFO = 2;
-    private static final int ROW_STICKER_HEADER = 3;
-    private static final int ROW_STICKER_SLIDER = 4;
-    private static final int ROW_STICKER_PREVIEW = 5;
-    private static final int ROW_STICKER_INFO = 6;
-    private static final int ROW_COUNT = 7;
+    private static final int TYPE_CHECK = 4;
+    private static final int TYPE_VALUE = 5;
+
+    private static final int ROW_DATA_HEADER = 0;
+    private static final int ROW_FULL_NUMBERS = 1;
+    private static final int ROW_ID_FORMAT = 2;
+    private static final int ROW_DATA_INFO = 3;
+    private static final int ROW_CHAT_HEADER = 4;
+    private static final int ROW_HIDE_KEYBOARD = 5;
+    private static final int ROW_CHAT_INFO = 6;
+    private static final int ROW_PRESS_HEADER = 7;
+    private static final int ROW_PRESS_SLIDER = 8;
+    private static final int ROW_PRESS_INFO = 9;
+    private static final int ROW_STICKER_HEADER = 10;
+    private static final int ROW_STICKER_SLIDER = 11;
+    private static final int ROW_STICKER_PREVIEW = 12;
+    private static final int ROW_STICKER_INFO = 13;
+    private static final int ROW_COUNT = 14;
 
     private RecyclerListView listView;
+    private ListAdapter adapter;
     private StickerPreviewCell previewCell;
 
     @Override
@@ -79,7 +92,27 @@ public class RawgramSettingsActivity extends BaseFragment {
         actionBar.setAdaptiveBackground(listView);
         listView.setLayoutManager(new LinearLayoutManager(context));
         listView.setVerticalScrollBarEnabled(false);
-        listView.setAdapter(new ListAdapter(context));
+        listView.setAdapter(adapter = new ListAdapter(context));
+        listView.setOnItemClickListener((view, position) -> {
+            if (position == ROW_FULL_NUMBERS) {
+                boolean value = !RawgramConfig.isFullNumbers();
+                RawgramConfig.setFullNumbers(value);
+                ((TextCheckCell) view).setChecked(value);
+            } else if (position == ROW_HIDE_KEYBOARD) {
+                boolean value = !RawgramConfig.isHideKeyboardOnScroll();
+                RawgramConfig.setHideKeyboardOnScroll(value);
+                ((TextCheckCell) view).setChecked(value);
+            } else if (position == ROW_ID_FORMAT) {
+                CharSequence[] names = {"Не показывать", "MTProto (как в API)", "Bot API (-100… для каналов)"};
+                new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity())
+                        .setTitle("ID в профилях")
+                        .setItems(names, (d, which) -> {
+                            RawgramConfig.setIdFormat(which);
+                            adapter.notifyItemChanged(ROW_ID_FORMAT);
+                        })
+                        .show();
+            }
+        });
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         return fragmentView;
     }
@@ -98,12 +131,20 @@ public class RawgramSettingsActivity extends BaseFragment {
 
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
-            return false;
+            int type = holder.getItemViewType();
+            return type == TYPE_CHECK || type == TYPE_VALUE;
         }
 
         @Override
         public int getItemViewType(int position) {
             switch (position) {
+                case ROW_FULL_NUMBERS:
+                case ROW_HIDE_KEYBOARD:
+                    return TYPE_CHECK;
+                case ROW_ID_FORMAT:
+                    return TYPE_VALUE;
+                case ROW_DATA_HEADER:
+                case ROW_CHAT_HEADER:
                 case ROW_PRESS_HEADER:
                 case ROW_STICKER_HEADER:
                     return TYPE_HEADER;
@@ -127,6 +168,10 @@ public class RawgramSettingsActivity extends BaseFragment {
                 view = new SliderCell(context);
             } else if (viewType == TYPE_PREVIEW) {
                 view = previewCell = new StickerPreviewCell(context);
+            } else if (viewType == TYPE_CHECK) {
+                view = new TextCheckCell(context);
+            } else if (viewType == TYPE_VALUE) {
+                view = new TextSettingsCell(context);
             } else {
                 view = new TextInfoPrivacyCell(context);
             }
@@ -138,8 +183,23 @@ public class RawgramSettingsActivity extends BaseFragment {
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             switch (holder.getItemViewType()) {
                 case TYPE_HEADER:
-                    ((HeaderCell) holder.itemView).setText(position == ROW_PRESS_HEADER ? "Задержка зажатия" : "Размер стикеров");
+                    ((HeaderCell) holder.itemView).setText(position == ROW_DATA_HEADER ? "Данные"
+                            : position == ROW_CHAT_HEADER ? "Чат"
+                            : position == ROW_PRESS_HEADER ? "Задержка зажатия" : "Размер стикеров");
                     break;
+                case TYPE_CHECK:
+                    if (position == ROW_HIDE_KEYBOARD) {
+                        ((TextCheckCell) holder.itemView).setTextAndCheck("Сворачивать клавиатуру при прокрутке чата", RawgramConfig.isHideKeyboardOnScroll(), false);
+                    } else {
+                        ((TextCheckCell) holder.itemView).setTextAndCheck("Не сокращать числа (100 000 вместо 100K)", RawgramConfig.isFullNumbers(), true);
+                    }
+                    break;
+                case TYPE_VALUE: {
+                    int format = RawgramConfig.getIdFormat();
+                    String value = format == RawgramConfig.ID_OFF ? "Выкл" : format == RawgramConfig.ID_MTPROTO ? "MTProto" : "Bot API";
+                    ((TextSettingsCell) holder.itemView).setTextAndValue("ID в профилях", value, false);
+                    break;
+                }
                 case TYPE_SLIDER: {
                     SliderCell cell = (SliderCell) holder.itemView;
                     if (position == ROW_PRESS_SLIDER) {
@@ -158,7 +218,12 @@ public class RawgramSettingsActivity extends BaseFragment {
                 }
                 case TYPE_INFO: {
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
-                    if (position == ROW_PRESS_INFO) {
+                    if (position == ROW_DATA_INFO) {
+                        cell.setText("Числа: просмотры, реакции, подписчики, рейтинг — полностью. Изменения видны при следующем открытии экрана. "
+                                + "ID в профилях: Bot API — пользователи как есть, группы -id, каналы и супергруппы -100id; нажатие копирует.");
+                    } else if (position == ROW_CHAT_INFO) {
+                        cell.setText("Клавиатура прячется, как только начинаешь листать сообщения; поле ввода и набранный текст остаются.");
+                    } else if (position == ROW_PRESS_INFO) {
                         cell.setText("Сколько держать палец, чтобы открыть raw-просмотр инлайн-результата или превью стикера / GIF. "
                                 + "Системная задержка на этом устройстве: " + ViewConfiguration.getLongPressTimeout() + " мс.");
                     } else {
@@ -277,7 +342,10 @@ public class RawgramSettingsActivity extends BaseFragment {
             if (wallpaper != null) {
                 canvas.save();
                 canvas.clipRect(0, 0, getWidth(), getHeight());
-                StoryEntry.drawBackgroundDrawable(canvas, wallpaper, getWidth(), getHeight());
+                // lay the wallpaper out as in a full-screen chat and show its middle band
+                int fullHeight = Math.max(getHeight(), AndroidUtilities.displaySize.y);
+                canvas.translate(0, -(fullHeight - getHeight()) / 2f);
+                StoryEntry.drawBackgroundDrawable(canvas, wallpaper, getWidth(), fullHeight);
                 canvas.restore();
             } else {
                 canvas.drawColor(Theme.getColor(Theme.key_chat_wallpaper));

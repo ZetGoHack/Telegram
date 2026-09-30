@@ -2856,6 +2856,13 @@ public class LocaleController {
     }
 
     public static String formatShortNumber(int number, int[] rounded) {
+        if (org.telegram.rawgram.RawgramConfig.isFullNumbers()) {
+            // rawGram: show the exact value instead of 100K / 1.2M
+            if (rounded != null) {
+                rounded[0] = number;
+            }
+            return formatNumber(number, ' ');
+        }
         StringBuilder K = new StringBuilder();
         int lastDec = 0;
         int KCount = 0;

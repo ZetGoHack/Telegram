@@ -657,6 +657,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int userInfoRow;
     private int channelInfoRow;
     private int usernameRow;
+    // rawGram: peer id row (MTProto or Bot API form)
+    private int rawgramIdRow = -1;
     private int notificationsDividerRow;
     private int notificationsRow;
     private int bizHoursRow;
@@ -4639,6 +4641,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 Bundle args = new Bundle();
                 args.putLong("chat_id", userInfo.personal_channel_id);
                 presentFragment(new ChatActivity(args));
+            } else if (position == rawgramIdRow) {
+                // rawGram: tap copies the id in the chosen form
+                String id = rawgramIdText();
+                if (id != null) {
+                    AndroidUtilities.addToClipboard(id);
+                    BulletinFactory.of(ProfileActivity.this).createCopyBulletin("ID " + id + " скопирован").show();
+                }
             } else if (position == birthdayRow) {
                 if (birthdayEffect != null && birthdayEffect.start()) {
                     return;
@@ -10442,6 +10451,17 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         return chatId != 0;
     }
 
+    // rawGram: id of the shown peer in the format chosen in rawGram settings
+    private String rawgramIdText() {
+        int format = org.telegram.rawgram.RawgramConfig.getIdFormat();
+        if (userId != 0) {
+            return org.telegram.rawgram.RawIds.forUser(getMessagesController().getUser(userId), format);
+        } else if (chatId != 0) {
+            return org.telegram.rawgram.RawIds.forChat(getMessagesController().getChat(chatId), format);
+        }
+        return null;
+    }
+
     private void updateRowsIds() {
         updateNotifications(false);
 
@@ -10521,6 +10541,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         locationRow = -1;
         channelInfoRow = -1;
         usernameRow = -1;
+        rawgramIdRow = -1;
         settingsTimerRow = -1;
         settingsKeyRow = -1;
         notificationsDividerRow = -1;
@@ -10713,6 +10734,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (user != null && username != null) {
                     usernameRow = rowCount++;
                 }
+                if (user != null && org.telegram.rawgram.RawgramConfig.getIdFormat() != org.telegram.rawgram.RawgramConfig.ID_OFF) {
+                    rawgramIdRow = rowCount++;
+                }
                 if (userInfo != null) {
                     if (userInfo.birthday != null) {
                         birthdayRow = rowCount++;
@@ -10871,6 +10895,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (ChatObject.isPublic(currentChat)) {
                     usernameRow = rowCount++;
                 }
+            }
+            if (currentChat != null && org.telegram.rawgram.RawgramConfig.getIdFormat() != org.telegram.rawgram.RawgramConfig.ID_OFF) {
+                rawgramIdRow = rowCount++;
             }
             if (emptyRow < 0 && emptyRow2 < 0) {
                 if (hasMusic || peerColor != null || actionsView == null) {
@@ -13456,7 +13483,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     TextDetailCell detailCell = (TextDetailCell) holder.itemView;
                     boolean containsQr = false;
                     boolean containsGift = false;
-                    if (position == birthdayRow) {
+                    if (position == rawgramIdRow) {
+                        int idFormat = org.telegram.rawgram.RawgramConfig.getIdFormat();
+                        detailCell.setTextAndValue(rawgramIdText(), org.telegram.rawgram.RawIds.label(idFormat), false);
+                    } else if (position == birthdayRow) {
                         TLRPC.UserFull userFull = getMessagesController().getUserFull(userId);
                         if (userFull != null && userFull.birthday != null) {
                             final boolean today = BirthdayController.isToday(userFull);
@@ -14314,7 +14344,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (position == infoHeaderRow || position == membersHeaderRow || position == settingsSectionRow2 ||
                     position == numberSectionRow || position == helpHeaderRow || position == debugHeaderRow || position == botPermissionsHeader) {
                 return VIEW_TYPE_HEADER;
-            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow) {
+            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow || position == rawgramIdRow) {
                 return VIEW_TYPE_TEXT_DETAIL;
             } else if (position == usernameRow || position == setUsernameRow) {
                 return VIEW_TYPE_TEXT_DETAIL_MULTILINE;
@@ -15718,6 +15748,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             put(++pointer, userInfoRow, sparseIntArray);
             put(++pointer, channelInfoRow, sparseIntArray);
             put(++pointer, usernameRow, sparseIntArray);
+            put(++pointer, rawgramIdRow, sparseIntArray);
             put(++pointer, notificationsDividerRow, sparseIntArray);
             put(++pointer, reportDividerRow, sparseIntArray);
             put(++pointer, notificationsRow, sparseIntArray);

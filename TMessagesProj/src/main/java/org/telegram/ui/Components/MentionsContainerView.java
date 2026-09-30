@@ -407,7 +407,101 @@ public class MentionsContainerView extends FrameLayout implements NotificationCe
         invalidate();
     }
 
+    // rawGram: "hide" button that parks the shown inline results into a floating button
+    private Runnable rawgramOnHide;
+    private final android.graphics.RectF rawgramHideBounds = new android.graphics.RectF();
+    private boolean rawgramHideTouch;
+    private final AnimatedFloat rawgramHideAppear = new AnimatedFloat(this, 0, 320, CubicBezierInterpolator.EASE_OUT_QUINT);
+    private Paint rawgramHideBg, rawgramHideIcon;
+
+    public void rawgramSetOnHide(Runnable onHide) {
+        rawgramOnHide = onHide;
+        invalidate();
+    }
+
+    private float rawgramButtonsCy(float size) {
+        if (isReversed()) {
+            float bottom = backgroundDrawable != null ? clipBounds.bottom : containerBottom;
+            return Math.min(getMeasuredHeight() - size / 2 - dp(4), bottom + dp(10) + size / 2);
+        }
+        float top = backgroundDrawable != null ? clipBounds.top : containerTop;
+        return Math.max(size / 2 + dp(4), top - dp(10) - size / 2);
+    }
+
+    private void drawRawgramHide(Canvas canvas) {
+        boolean visible = rawgramOnHide != null && adapter.isBotContext() && adapter.getItemCount() > 0 && getVisibility() == VISIBLE;
+        float appear = rawgramHideAppear.set(visible ? 1f : 0f);
+        if (appear <= 0.01f) {
+            rawgramHideBounds.setEmpty();
+            return;
+        }
+        if (rawgramHideBg == null) {
+            rawgramHideBg = new Paint(Paint.ANTI_ALIAS_FLAG);
+            rawgramHideBg.setShadowLayer(dp(3), 0, dp(1), 0x33000000);
+            rawgramHideIcon = new Paint(Paint.ANTI_ALIAS_FLAG);
+            rawgramHideIcon.setStyle(Paint.Style.STROKE);
+            rawgramHideIcon.setStrokeCap(Paint.Cap.ROUND);
+            rawgramHideIcon.setStrokeJoin(Paint.Join.ROUND);
+            rawgramHideIcon.setStrokeWidth(dp(2.2f));
+        }
+        float size = dp(38);
+        float bubbleSize = dp(org.telegram.rawgram.RawRerollBubble.SIZE_DP);
+        float right = getMeasuredWidth() - dp(14);
+        if (rawgramReroll != null) {
+            right -= bubbleSize + dp(10);
+        }
+        float cx = right - size / 2;
+        float cy = rawgramButtonsCy(bubbleSize);
+        rawgramHideBounds.set(cx - size / 2, cy - size / 2, cx + size / 2, cy + size / 2);
+        float s = (0.4f + 0.6f * appear) * (rawgramHideTouch ? 0.92f : 1f);
+        canvas.save();
+        canvas.scale(s, s, cx, cy);
+        rawgramHideBg.setColor(getThemedColor(Theme.key_chat_messagePanelBackground));
+        rawgramHideBg.setAlpha((int) (255 * appear));
+        canvas.drawCircle(cx, cy, size / 2, rawgramHideBg);
+        rawgramHideIcon.setColor(getThemedColor(Theme.key_featuredStickers_addButton));
+        rawgramHideIcon.setAlpha((int) (255 * appear));
+        // a tray with an arrow into it: "put these results aside"
+        float w = dp(8);
+        canvas.drawLine(cx - w, cy + dp(2), cx - w, cy + dp(7), rawgramHideIcon);
+        canvas.drawLine(cx - w, cy + dp(7), cx + w, cy + dp(7), rawgramHideIcon);
+        canvas.drawLine(cx + w, cy + dp(7), cx + w, cy + dp(2), rawgramHideIcon);
+        canvas.drawLine(cx, cy - dp(8), cx, cy + dp(2), rawgramHideIcon);
+        canvas.drawLine(cx - dp(4), cy - dp(2), cx, cy + dp(2), rawgramHideIcon);
+        canvas.drawLine(cx + dp(4), cy - dp(2), cx, cy + dp(2), rawgramHideIcon);
+        canvas.restore();
+    }
+
+    /** Scrolls the results back to the height they open with; returns the animation length (0 if already there). */
+    public int rawgramCollapseToDefault() {
+        if (listView == null || isReversed()) {
+            return 0;
+        }
+        int offset = listView.computeVerticalScrollOffset();
+        if (offset <= dp(2)) {
+            return 0;
+        }
+        final int duration = 320;
+        listView.stopScroll();
+        listView.smoothScrollBy(0, -offset, duration, CubicBezierInterpolator.EASE_OUT);
+        return duration;
+    }
+
+    /** The visible panel of results, in this view's coordinates. */
+    public android.graphics.RectF rawgramPanelBounds() {
+        if (backgroundDrawable != null) {
+            return new android.graphics.RectF(clipBounds);
+        }
+        return new android.graphics.RectF(0, containerTop, getMeasuredWidth(), containerBottom);
+    }
+
+    /** Where the parked results fly to and from: the center of the hide button, in this view's coordinates. */
+    public float[] rawgramHideCenter() {
+        return new float[]{rawgramHideBounds.centerX(), rawgramHideBounds.centerY()};
+    }
+
     private void drawRawgramBubble(Canvas canvas) {
+        drawRawgramHide(canvas);
         float appear = rawgramBubbleAppear.set(rawgramReroll != null && adapter.isBotContext() ? 1f : 0f);
         if (rawgramBubble == null || rawgramLastReroll == null || appear <= 0.01f) {
             if (appear <= 0.01f && rawgramReroll == null) {
@@ -438,6 +532,25 @@ public class MentionsContainerView extends FrameLayout implements NotificationCe
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (rawgramOnHide != null && !rawgramHideBounds.isEmpty()) {
+            boolean inside = rawgramHideBounds.contains(ev.getX(), ev.getY());
+            int action = ev.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN && inside) {
+                rawgramHideTouch = true;
+                invalidate();
+                return true;
+            }
+            if (rawgramHideTouch) {
+                if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                    rawgramHideTouch = false;
+                    invalidate();
+                    if (action == MotionEvent.ACTION_UP && inside) {
+                        rawgramOnHide.run();
+                    }
+                }
+                return true;
+            }
+        }
         if (rawgramReroll != null && rawgramBubble != null && adapter.isBotContext()) {
             boolean inside = rawgramBubble.bounds.contains(ev.getX(), ev.getY());
             int action = ev.getActionMasked();

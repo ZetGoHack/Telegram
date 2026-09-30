@@ -31,6 +31,7 @@ public class RawRerollStatusSheet extends BottomSheet {
     private TextView historyEmpty;
     private final LinearLayout actions;
     private final Runnable listener = this::update;
+    private String actionsKey;
     private final Runnable ticker = new Runnable() {
         @Override
         public void run() {
@@ -200,6 +201,13 @@ public class RawRerollStatusSheet extends BottomSheet {
         }
         optionsView.setText(sb);
 
+        // the chips only change with the state; rebuilding them on every attempt made the row blink
+        String actionsKey = controller.isRunning() + "/" + (controller.matched != null);
+        if (actionsKey.equals(this.actionsKey)) {
+            rebuildHistory();
+            return;
+        }
+        this.actionsKey = actionsKey;
         actions.removeAllViews();
         if (controller.isRunning()) {
             chip("Стоп", true, controller::stop);
@@ -237,48 +245,73 @@ public class RawRerollStatusSheet extends BottomSheet {
 
     private void rebuildHistory() {
         int count = controller.history.size();
-        if (count == historyRows.size() && (count > 0 || historyEmpty != null)) {
+        int shown = historyRows.size();
+        if (count == shown && (count > 0 || historyEmpty != null)) {
             updateHistoryTexts();
             return;
         }
+        if (count > shown && (shown > 0 || historyEmpty != null)) {
+            // new attempts: slide their cards in on top, the rest of the list stays as it is
+            if (historyEmpty != null) {
+                historyList.removeView(historyEmpty);
+                historyEmpty = null;
+            }
+            boolean animate = historyList.isAttachedToWindow();
+            for (int i = shown; i < count; i++) {
+                LinearLayout card = createCard(controller.history.get(i), 0);
+                if (animate) {
+                    card.setVisibility(View.GONE);
+                    RawAnim.expand(card, true);
+                }
+            }
+            updateHistoryTexts();
+            return;
+        }
+        // the history was reset (restart): build it from scratch
         historyList.removeAllViews();
         historyRows.clear();
         historyEmpty = null;
+        cards.clear();
+        controlsOf.clear();
         if (count == 0) {
             historyEmpty = row();
             historyEmpty.setText(controller.isRunning() ? "первая попытка…" : "попыток не было");
             historyList.addView(historyEmpty, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 0, 12, 0));
             return;
         }
-        if (historyList.isAttachedToWindow()) {
-            RawAnim.layout(historyList);
-        }
-        cards.clear();
-        controlsOf.clear();
         for (int i = count - 1; i >= 0; i--) {
-            final RawRerollController.Attempt a = controller.history.get(i);
-            LinearLayout card = new LinearLayout(getContext());
-            card.setOrientation(LinearLayout.VERTICAL);
-            TextView header = row();
-            card.addView(header, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
-            boolean interactive = a.response != null;
-            card.setBackground(cardBackground(interactive, a == expanded));
-            if (interactive) {
-                LinearLayout controls = new LinearLayout(getContext());
-                controls.setOrientation(LinearLayout.VERTICAL);
-                controls.setVisibility(a == expanded ? View.VISIBLE : View.GONE);
-                card.addView(controls, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
-                controlsOf.put(a, controls);
-                cards.put(a, card);
-                if (a == expanded) {
-                    addExpandedControls(controls, a);
-                }
-                header.setOnClickListener(v -> toggle(a));
-            }
-            historyRows.add(header);
-            historyList.addView(card, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 0, 12, 6));
+            createCard(controller.history.get(i), -1);
         }
         updateHistoryTexts();
+    }
+
+    /** Adds the card of one attempt at {@code index} of the list (-1 = at the end); rows are kept newest first. */
+    private LinearLayout createCard(RawRerollController.Attempt a, int index) {
+        LinearLayout card = new LinearLayout(getContext());
+        card.setOrientation(LinearLayout.VERTICAL);
+        TextView header = row();
+        card.addView(header, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+        boolean interactive = a.response != null;
+        card.setBackground(cardBackground(interactive, a == expanded));
+        if (interactive) {
+            LinearLayout controls = new LinearLayout(getContext());
+            controls.setOrientation(LinearLayout.VERTICAL);
+            controls.setVisibility(a == expanded ? View.VISIBLE : View.GONE);
+            card.addView(controls, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+            controlsOf.put(a, controls);
+            cards.put(a, card);
+            if (a == expanded) {
+                addExpandedControls(controls, a);
+            }
+            header.setOnClickListener(v -> toggle(a));
+        }
+        if (index == 0) {
+            historyRows.add(0, header);
+        } else {
+            historyRows.add(header);
+        }
+        historyList.addView(card, index, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 0, 12, 6));
+        return card;
     }
 
     private final java.util.HashMap<RawRerollController.Attempt, LinearLayout> cards = new java.util.HashMap<>();

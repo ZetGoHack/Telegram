@@ -4079,6 +4079,10 @@ public class AndroidUtilities {
         if (v == 0) {
             return "0";
         }
+        if (org.telegram.rawgram.RawgramConfig.isFullNumbers()) {
+            // rawGram: exact value instead of 100K
+            return LocaleController.formatNumber(v, ' ');
+        }
         float num_ = v;
         int count = 0;
         if (dif == 0) dif = v;

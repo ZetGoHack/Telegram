@@ -929,6 +929,18 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             searchResultBotContextSwitchUserId = user.id;
         }
 
+        // rawGram: results parked with "hide" come back exactly as they were, without a new request
+        final org.telegram.rawgram.RawInlineStash.Entry stashed = org.telegram.rawgram.RawInlineStash.takePending(user, query, offset);
+        if (stashed != null) {
+            requestDelegate.run(stashed.response, null);
+            AndroidUtilities.runOnUIThread(() -> {
+                if (query.equals(searchingContextQuery) && !stashed.highlightIds.isEmpty()) {
+                    rawgramHighlightIds.addAll(stashed.highlightIds);
+                    notifyDataSetChanged();
+                }
+            });
+            return;
+        }
         if (cache) {
             messagesStorage.getBotCache(key, requestDelegate);
         } else {
@@ -954,6 +966,33 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             req.peer = MessagesController.getInstance(currentAccount).getInputPeer(dialog_id);
         }
         return req;
+    }
+
+    // rawGram: snapshot of the shown inline results for the "hide" stash, or null when there is nothing to park
+    public org.telegram.rawgram.RawInlineStash.Entry rawgramSnapshot() {
+        if (foundContextBot == null || searchingContextQuery == null || rawgramLastResponse == null || searchResultBotContext == null) {
+            return null;
+        }
+        org.telegram.rawgram.RawInlineStash.Entry entry = new org.telegram.rawgram.RawInlineStash.Entry();
+        entry.bot = foundContextBot;
+        entry.query = searchingContextQuery;
+        // the list the user sees (all pages loaded so far), in one response object
+        TLRPC.TL_messages_botResults copy = new TLRPC.TL_messages_botResults();
+        TLRPC.messages_BotResults last = rawgramLastResponse;
+        copy.flags = last.flags;
+        copy.gallery = contextMedia;
+        copy.query_id = last.query_id;
+        copy.next_offset = nextQueryOffset;
+        copy.switch_pm = searchResultBotContextSwitch;
+        copy.switch_webview = searchResultBotWebViewSwitch;
+        copy.cache_time = last.cache_time;
+        copy.users = last.users;
+        copy.results = new ArrayList<>(searchResultBotContext);
+        entry.response = copy;
+        entry.highlightIds.addAll(rawgramHighlightIds);
+        entry.sourceDialogId = dialog_id;
+        entry.savedAt = System.currentTimeMillis();
+        return entry;
     }
 
     // rawGram: result the client silently drops from the list (media_auto without any media)
