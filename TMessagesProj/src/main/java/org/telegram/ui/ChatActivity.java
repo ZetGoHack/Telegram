@@ -227,12 +227,8 @@ import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.ActionBar.theme.ThemeKey;
 import org.telegram.ui.Adapters.FiltersView;
 import org.telegram.ui.Adapters.MentionsAdapter;
-import org.telegram.rawgram.RawInlineResultViewer;
+import org.telegram.rawgram.RawChatHooks;
 import org.telegram.rawgram.RawgramConfig;
-import org.telegram.rawgram.RawRerollController;
-import org.telegram.rawgram.RawRerollStatusSheet;
-import org.telegram.rawgram.RawMessageDetails;
-import org.telegram.rawgram.RawObjectSheet;
 import org.telegram.ui.Adapters.MessagesSearchAdapter;
 import org.telegram.ui.Business.BusinessBotButton;
 import org.telegram.ui.Business.BusinessLinksActivity;
@@ -2226,7 +2222,7 @@ public class ChatActivity extends BaseFragment implements
         @Override
         public void onTextChanged(final CharSequence text, boolean bigChange, boolean fromDraft) {
             MediaController.getInstance().setInputFieldHasText(!TextUtils.isEmpty(text) || chatActivityEnterView.isEditingMessage());
-            if (mentionContainer != null && mentionContainer.getAdapter() != null && !rawgramHoldMentions) {
+            if (mentionContainer != null && mentionContainer.getAdapter() != null && !rawgram.holdsMentions()) {
                 mentionContainer.getAdapter().searchUsernameOrHashtag(text, chatActivityEnterView.getCursorPosition(), messages, false, false);
             }
             if (waitingForCharaterEnterRunnable != null) {
@@ -3356,34 +3352,38 @@ public class ChatActivity extends BaseFragment implements
         }
     }
 
-    // rawGram: keeps the reroll spinner in the input and the status bubble above the inline results in sync
-    private RawRerollController.Host rawgramRerollHost;
-
-    private RawRerollController.Host getRawgramRerollHost() {
-        if (rawgramRerollHost == null) {
-            rawgramRerollHost = () -> {
-                RawRerollController active = RawRerollController.getActive();
-                RawRerollController reroll = active != null && !active.isDetached() ? active : null;
-                if (chatActivityEnterView != null) {
-                    chatActivityEnterView.rawgramSetAuto(reroll != null && reroll.isRunning(), reroll != null ? reroll::stop : null);
-                }
-                if (mentionContainer != null) {
-                    mentionContainer.rawgramSetBubble(reroll, reroll == null ? null : () -> {
-                        if (getParentActivity() != null) {
-                            new RawRerollStatusSheet(getParentActivity(), reroll, themeDelegate).show();
-                        }
-                    });
-                }
-            };
+    // rawGram: everything it adds to the chat screen lives in RawChatHooks; this is its view of ChatActivity
+    private final RawChatHooks rawgram = new RawChatHooks(new RawChatHooks.Host() {
+        @Override public BaseFragment fragment() { return ChatActivity.this; }
+        @Override public int account() { return currentAccount; }
+        @Override public Theme.ResourcesProvider resources() { return themeDelegate; }
+        @Override public ViewGroup contentView() { return contentView; }
+        @Override public MentionsContainerView mentions() { return mentionContainer; }
+        @Override public ChatActivitySideControlsButtonsLayout sideButtons() { return sideControlsButtonsLayout; }
+        @Override public ChatActivityEnterView enterView() { return chatActivityEnterView; }
+        @Override public ArrayList<MessageObject> messages() { return messages; }
+        @Override public int glassColor() {
+            return blurredBackgroundColorProvider != null ? blurredBackgroundColorProvider.getBackgroundColor() : getThemedColor(Theme.key_chat_messagePanelBackground);
         }
-        return rawgramRerollHost;
-    }
+        @Override public boolean canSendInline() {
+            return currentEncryptedChat == null && (currentChat == null || ChatObject.canSendStickers(currentChat));
+        }
+        @Override public Utilities.Callback<TLRPC.BotInlineResult> inlineSender() {
+            if (chatMode == MODE_SCHEDULED || currentEncryptedChat != null || chatActivityEnterView == null || chatActivityEnterView.getFieldText() == null) {
+                return null;
+            }
+            return result -> AlertsCreator.ensurePaidMessageConfirmation(currentAccount, getDialogId(), 1, price -> sendBotInlineResult(result, true, 0, price, true));
+        }
+        @Override public boolean isTypingInChat() {
+            return isKeyboardVisible() && !hasTextSelection() && (actionBar == null || !actionBar.isSearchFieldVisible());
+        }
+        @Override public void closeMenu() { ChatActivity.this.closeMenu(); }
+    });
 
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
-        RawRerollController.dismissActive();
-        org.telegram.rawgram.RawInlineStash.removeListener(rawgramStashListener);
+        rawgram.onDestroy();
         if (messageMetricsView != null) {
             messageMetricsView.finish();
         }
@@ -6839,12 +6839,7 @@ public class ChatActivity extends BaseFragment implements
                         scrollingFloatingTopic = true;
                         checkTextureViewPosition = true;
                         scrollingChatListView = true;
-                        // rawGram: hide the soft keyboard on a user drag (input text and emoji panel untouched)
-                        if (RawgramConfig.isHideKeyboardOnScroll() && chatActivityEnterView != null && !chatActivityEnterView.isPopupShowing()
-                                && chatActivityEnterView.getEditField() != null && chatActivityEnterView.getEditField().isFocused()
-                                && isKeyboardVisible() && !hasTextSelection() && (actionBar == null || !actionBar.isSearchFieldVisible())) {
-                            chatActivityEnterView.closeKeyboard();
-                        }
+                        rawgram.onChatListDragged();
                     }
                     if (SharedConfig.getDevicePerformanceClass() == SharedConfig.PERFORMANCE_CLASS_LOW) {
                         scrolling = false;
@@ -7512,21 +7507,8 @@ public class ChatActivity extends BaseFragment implements
             if (getParentActivity() == null) {
                 return false;
             }
-            // rawGram: long press on an inline result opens the raw viewer with a rendered preview
-            boolean rawPreviewHandled = view instanceof ContextLinkCell && (((ContextLinkCell) view).isSticker() || ((ContextLinkCell) view).isGif());
-            if (position != 0 && !rawPreviewHandled && !mentionContainer.getAdapter().isBannedInline() && !ContentPreviewViewer.getInstance().isVisible()) {
-                Object rawItem = mentionContainer.getAdapter().getItem(position - 1);
-                if (rawItem instanceof TLRPC.BotInlineResult) {
-                    Utilities.Callback<TLRPC.BotInlineResult> rawOnSend = null;
-                    if (chatMode != MODE_SCHEDULED && currentEncryptedChat == null && chatActivityEnterView != null && chatActivityEnterView.getFieldText() != null) {
-                        rawOnSend = rawResult -> AlertsCreator.ensurePaidMessageConfirmation(currentAccount, getDialogId(), 1, rawPrice -> sendBotInlineResult(rawResult, true, 0, rawPrice, true));
-                    }
-                    RawInlineResultViewer.show(getParentActivity(), currentAccount, mentionContainer.getAdapter(), (TLRPC.BotInlineResult) rawItem, rawOnSend, themeDelegate, getRawgramRerollHost());
-                    try {
-                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
-                    } catch (Exception rawIgnore) {}
-                    return true;
-                }
+            if (rawgram.onInlineResultLongPress(view, position)) {
+                return true;
             }
             if (!mentionContainer.getAdapter().isLongClickEnabled()) {
                 return false;
@@ -7566,10 +7548,7 @@ public class ChatActivity extends BaseFragment implements
             }
             return false;
         }, RawgramConfig.getLongPressDelay());
-        // rawGram: "hide" parks the shown inline results into the side button
-        mentionContainer.rawgramSetOnHide(this::rawgramHideInline);
-        org.telegram.rawgram.RawInlineStash.addListener(rawgramStashListener);
-        AndroidUtilities.runOnUIThread(() -> rawgramUpdateStashButton(false));
+        rawgram.onMentionsCreated();
 
         if (!isInsideContainer) {
             fragmentLocationContextViewWrapper = new FrameLayout(context);
@@ -29831,7 +29810,7 @@ public class ChatActivity extends BaseFragment implements
     public void onResume() {
         super.onResume();
         checkShowBlur(false);
-        rawgramUpdateStashButton(false);
+        rawgram.onResume();
         activityResumeTime = System.currentTimeMillis();
         if (openImport && getSendMessagesHelper().getImportingHistory(dialog_id) != null) {
             ImportingAlert alert = new ImportingAlert(getParentActivity(), null, this, themeDelegate);
@@ -31120,7 +31099,7 @@ public class ChatActivity extends BaseFragment implements
 
             int flags = 0;
             // rawGram: the "Подробности" submenu always needs the swipe-back container
-            final boolean rawgramDetails = message != null && !message.isSponsored();
+            final boolean rawgramDetails = RawChatHooks.hasDetails(message);
             if (isReactionsViewAvailable || showMessageSeen || showSponsorInfo || rawgramDetails) {
                 flags |= ActionBarPopupWindow.ActionBarPopupWindowLayout.FLAG_USE_SWIPEBACK;
             }
@@ -31881,23 +31860,8 @@ public class ChatActivity extends BaseFragment implements
                         popupLayout.addView(new ActionBarPopupWindow.GapView(contentView.getContext(), themeDelegate), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8));
                     }
                 }
-                if (rawgramDetails && popupLayout.getSwipeBack() != null) {
-                    // rawGram: technical details of the message, opened as a swipe-back submenu
-                    final MessageObject rawMessage = message;
-                    LinearLayout details = RawMessageDetails.build(ChatActivity.this, currentAccount, rawMessage, themeDelegate,
-                            () -> popupLayout.getSwipeBack().closeForeground(),
-                            () -> {
-                                closeMenu();
-                                new RawObjectSheet(getParentActivity(), currentAccount, "Сообщение #" + rawMessage.getId(), rawMessage.messageOwner, themeDelegate).show();
-                            },
-                            () -> closeMenu());
-                    final int detailsIndex = popupLayout.addViewToSwipeBack(details);
-                    ActionBarMenuSubItem detailsCell = new ActionBarMenuSubItem(getParentActivity(), true, true, themeDelegate);
-                    detailsCell.setTextAndIcon("Подробности", R.drawable.msg_info);
-                    detailsCell.setRightIcon(R.drawable.msg_arrowright);
-                    popupLayout.addView(detailsCell);
-                    detailsCell.setOnClickListener(v1 -> popupLayout.getSwipeBack().openForeground(detailsIndex));
-                    popupLayout.addView(new ActionBarPopupWindow.GapView(contentView.getContext(), themeDelegate), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8));
+                if (rawgramDetails) {
+                    rawgram.addDetails(popupLayout, message);
                 }
                 scrimPopupWindowItems = new ActionBarMenuSubItem[items.size()];
                 for (int a = 0, N = items.size(); a < N; a++) {
@@ -46808,131 +46772,8 @@ public class ChatActivity extends BaseFragment implements
         }
     }
 
-    // ---- rawGram: parking inline results in a side button and bringing them back in any chat ----
-
-    private final Runnable rawgramStashListener = () -> rawgramUpdateStashButton(true);
-
-    private void rawgramUpdateStashButton(boolean animated) {
-        if (sideControlsButtonsLayout != null) {
-            sideControlsButtonsLayout.showButton(ChatActivitySideControlsButtonsLayout.BUTTON_RAWGRAM_STASH, org.telegram.rawgram.RawInlineStash.has(currentAccount), animated);
-        }
-    }
-
-    private boolean rawgramHiding;
-    private Runnable rawgramResetMentionAlpha;
-
-    private void rawgramHideInline() {
-        if (rawgramHiding || mentionContainer == null || chatActivityEnterView == null || sideControlsButtonsLayout == null) {
-            return;
-        }
-        org.telegram.rawgram.RawInlineStash.Entry entry = mentionContainer.getAdapter().rawgramSnapshot();
-        if (entry == null) {
-            return;
-        }
-        rawgramHiding = true;
-        // 1. the stash button comes in first, above the results
-        sideControlsButtonsLayout.setTranslationZ(dp(2));
-        org.telegram.rawgram.RawInlineStash.save(currentAccount, entry);
-        AndroidUtilities.runOnUIThread(() -> {
-            if (mentionContainer == null) {
-                rawgramFinishHide();
-                return;
-            }
-            // 2. the results scroll back to the height they opened with
-            int collapse = mentionContainer.rawgramCollapseToDefault();
-            // 3. and soak into the button
-            AndroidUtilities.runOnUIThread(this::rawgramAbsorbInline, collapse > 0 ? collapse + 40 : 0);
-        }, 440);
-    }
-
-    private void rawgramAbsorbInline() {
-        View button = sideControlsButtonsLayout != null ? sideControlsButtonsLayout.getButtonView(ChatActivitySideControlsButtonsLayout.BUTTON_RAWGRAM_STASH) : null;
-        if (mentionContainer == null || button == null || !mentionContainer.isOpen()) {
-            rawgramFinishHide();
-            return;
-        }
-        final MentionsContainerView container = mentionContainer;
-        int gooColor = blurredBackgroundColorProvider != null ? blurredBackgroundColorProvider.getBackgroundColor() : getThemedColor(Theme.key_chat_messagePanelBackground);
-        // the field empties right away; the results keep what they show until they are inside the button
-        rawgramHoldMentions = true;
-        chatActivityEnterView.setFieldText("");
-        container.rawgramSlideOutButtons();
-        org.telegram.rawgram.RawAbsorb.start(contentView, container, container.rawgramPanelBounds(), button,
-                gooColor, container::rawgramDrawButtons, this::rawgramReleaseMentions, this::rawgramFinishHide);
-    }
-
-    private void rawgramFinishHide() {
-        rawgramHiding = false;
-        if (sideControlsButtonsLayout != null) {
-            sideControlsButtonsLayout.setTranslationZ(0);
-        }
-        rawgramReleaseMentions();
-    }
-
-    // while the results are being parked, the mentions adapter doesn't see field changes (it would drop the list)
-    private boolean rawgramHoldMentions;
-
-    /** Lets the adapter catch up with the (now empty) field, which closes the already invisible panel. */
-    private void rawgramReleaseMentions() {
-        if (rawgramHoldMentions) {
-            rawgramHoldMentions = false;
-            if (mentionContainer != null && mentionContainer.getAdapter() != null && chatActivityEnterView != null) {
-                mentionContainer.getAdapter().searchUsernameOrHashtag(chatActivityEnterView.getFieldText(), chatActivityEnterView.getCursorPosition(), messages, false, false);
-            }
-        }
-        // the panel closes while invisible; bring its alpha back once it is gone
-        final View container = mentionContainer;
-        if (container != null && container.getAlpha() < 1f) {
-            if (rawgramResetMentionAlpha != null) {
-                AndroidUtilities.cancelRunOnUIThread(rawgramResetMentionAlpha);
-            }
-            AndroidUtilities.runOnUIThread(rawgramResetMentionAlpha = () -> {
-                rawgramResetMentionAlpha = null;
-                container.setAlpha(1f);
-            }, 500);
-        }
-    }
-
-    private void rawgramRestoreInline() {
-        org.telegram.rawgram.RawInlineStash.Entry entry = org.telegram.rawgram.RawInlineStash.get(currentAccount);
-        if (entry == null || chatActivityEnterView == null || mentionContainer == null) {
-            return;
-        }
-        boolean banned = currentEncryptedChat != null || currentChat != null && !ChatObject.canSendStickers(currentChat);
-        if (banned) {
-            BulletinFactory.of(this).createSimpleBulletin(R.raw.error, "В этом чате запрещена отправка инлайн-результатов").show();
-            return;
-        }
-        if (entry.bot == null || TextUtils.isEmpty(UserObject.getPublicUsername(entry.bot))) {
-            BulletinFactory.of(this).createSimpleBulletin(R.raw.error, "Не удалось восстановить: у бота нет username").show();
-            return;
-        }
-        if (rawgramHiding) {
-            return;
-        }
-        if (rawgramResetMentionAlpha != null) {
-            AndroidUtilities.cancelRunOnUIThread(rawgramResetMentionAlpha);
-            rawgramResetMentionAlpha = null;
-        }
-        getMessagesController().putUser(entry.bot, true);
-        org.telegram.rawgram.RawInlineStash.beginRestore(currentAccount, entry);
-        org.telegram.rawgram.RawInlineStash.clear(currentAccount);
-        chatActivityEnterView.setFieldText("@" + UserObject.getPublicUsername(entry.bot) + " " + entry.query);
-        // grow back out of the corner the results were parked in
-        final View container = mentionContainer;
-        container.animate().cancel();
-        container.setPivotX(container.getWidth() - dp(40));
-        container.setPivotY(container.getHeight());
-        container.setScaleX(0.3f);
-        container.setScaleY(0.3f);
-        container.setAlpha(0f);
-        container.animate().scaleX(1f).scaleY(1f).alpha(1f).setStartDelay(380).setDuration(300)
-                .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT).start();
-    }
-
     private void onSideControlButtonOnClick(int buttonId, View v) {
-        if (buttonId == ChatActivitySideControlsButtonsLayout.BUTTON_RAWGRAM_STASH) {
-            rawgramRestoreInline();
+        if (rawgram.onSideButtonClick(buttonId)) {
             return;
         }
         if (buttonId == ChatActivitySideControlsButtonsLayout.BUTTON_PAGE_DOWN) {
@@ -47040,17 +46881,7 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private boolean onSideControlButtonOnLongClick(int buttonId, View view) {
-        if (buttonId == ChatActivitySideControlsButtonsLayout.BUTTON_RAWGRAM_STASH) {
-            org.telegram.rawgram.RawInlineStash.Entry entry = org.telegram.rawgram.RawInlineStash.get(currentAccount);
-            if (entry != null && getParentActivity() != null) {
-                String bot = entry.bot != null ? "@" + UserObject.getPublicUsername(entry.bot) : "бот";
-                new AlertDialog.Builder(getParentActivity(), themeDelegate)
-                        .setTitle("Сохранённые результаты")
-                        .setMessage(bot + " «" + entry.query + "» · " + entry.response.results.size() + " результатов")
-                        .setPositiveButton("Восстановить", (d, w) -> rawgramRestoreInline())
-                        .setNegativeButton("Забыть", (d, w) -> org.telegram.rawgram.RawInlineStash.clear(currentAccount))
-                        .show();
-            }
+        if (rawgram.onSideButtonLongClick(buttonId)) {
             return true;
         }
         final Runnable onRead;
