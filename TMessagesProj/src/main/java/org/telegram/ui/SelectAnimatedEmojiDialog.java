@@ -6001,7 +6001,7 @@ public class SelectAnimatedEmojiDialog extends FrameLayout implements Notificati
                     .setOnClickListener(e -> done((int) (System.currentTimeMillis() / 1000 + 8 * 60 * 60)));
             ActionBarMenuItem.addItem(false, false, menuView, 0, LocaleController.getString(R.string.SetEmojiStatusUntil2Days), false, resourcesProvider)
                     .setOnClickListener(e -> done((int) (System.currentTimeMillis() / 1000 + 2 * 24 * 60 * 60)));
-            ActionBarMenuItem.addItem(false, true, menuView, 0, LocaleController.getString(R.string.SetEmojiStatusUntilOther), false, resourcesProvider)
+            ActionBarMenuItem.addItem(false, false, menuView, 0, LocaleController.getString(R.string.SetEmojiStatusUntilOther), false, resourcesProvider)
                     .setOnClickListener(e -> {
                         if (dateBottomSheet != null) {
                             return;
@@ -6020,6 +6020,12 @@ public class SelectAnimatedEmojiDialog extends FrameLayout implements Notificati
                         dateBottomSheet = builder.show();
                         animateMenuShow(false, null);
                     });
+            // rawGram: the status picker has no sticker-style preview menu, so the emoji's id is offered here
+            if (imageViewEmoji != null && imageViewEmoji.span != null && imageViewEmoji.span.documentId != 0) {
+                final long rawgramDocId = imageViewEmoji.span.documentId;
+                ActionBarMenuItem.addItem(false, true, menuView, R.drawable.msg_copy, "Скопировать ID документа", false, resourcesProvider)
+                        .setOnClickListener(e -> org.telegram.rawgram.RawDocInfo.copyId(rawgramDocId));
+            }
 
             contentView.addView(linearLayoutView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER));
 

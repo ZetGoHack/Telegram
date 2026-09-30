@@ -40229,6 +40229,7 @@ public class ChatActivity extends BaseFragment implements
         @Override
         public void didLongPressBotButton(ChatMessageCell cell, TL_keyboard.KeyboardButtonProto button) {
             if (isQuickRepliesOrWelcomeMessagesMode()) return;
+            if (rawgram.onBotButtonLongPress(cell, button, () -> didPressBotButton(cell, button), () -> didLongPressBotButton(cell, button))) return;
 
             final TL_keyboard.TL_inlineButtonTypeUrl buttonTypeUrl = TLKeyboardHelper.getType(button, TL_keyboard.TL_inlineButtonTypeUrl.class);
             final TL_keyboard.TL_inlineButtonTypeCopy buttonTypeCopy = TLKeyboardHelper.getType(button, TL_keyboard.TL_inlineButtonTypeCopy.class);

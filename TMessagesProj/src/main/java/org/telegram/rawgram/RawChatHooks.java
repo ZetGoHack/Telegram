@@ -15,12 +15,15 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.utils.tlutils.TLKeyboardHelper;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_keyboard;
 import org.telegram.ui.ActionBar.ActionBarMenuSubItem;
 import org.telegram.ui.ActionBar.ActionBarPopupWindow;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Cells.ChatMessageCell;
 import org.telegram.ui.Cells.ContextLinkCell;
 import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.ChatActivityEnterView;
@@ -35,7 +38,8 @@ import java.util.ArrayList;
 /**
  * Everything rawGram adds to a chat screen, behind a small host interface: the inline results tray
  * (park results in a side button, bring them back in any chat), the reroll spinner/bubble, the long press
- * raw viewer for inline results, the "Подробности" message submenu and hiding the keyboard on scroll.
+ * raw viewer for inline results, the "Подробности" message submenu, the inline keyboard button sheet
+ * and hiding the keyboard on scroll.
  * ChatActivity only calls these hooks, so rawGram changes don't touch (or recompile) the chat screen.
  */
 public class RawChatHooks {
@@ -189,6 +193,45 @@ public class RawChatHooks {
         popupLayout.addView(detailsCell);
         detailsCell.setOnClickListener(v -> popupLayout.getSwipeBack().openForeground(detailsIndex));
         popupLayout.addView(new ActionBarPopupWindow.GapView(activity, host.resources()), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8));
+    }
+
+    // ---- inline keyboard buttons: long press shows what the button carries ----
+
+    // set while Telegram's own long press runs from the sheet, so the hook doesn't catch it again
+    private boolean botButtonBypass;
+
+    /**
+     * Long press on an inline keyboard button. {@code press} is the normal tap, {@code original} re-enters
+     * Telegram's long press (it is offered for url buttons, whose menu has open/copy). Returns true if handled.
+     */
+    public boolean onBotButtonLongPress(ChatMessageCell cell, TL_keyboard.KeyboardButtonProto button, Runnable press, Runnable original) {
+        Activity activity = host.fragment().getParentActivity();
+        MessageObject message = cell != null ? cell.getMessageObject() : null;
+        if (botButtonBypass || !RawBotButtonSheet.enabled || activity == null || button == null || message == null) {
+            return false;
+        }
+        Runnable safePress = press == null ? null : () -> {
+            // the cell may show another message by now (the list scrolled under the sheet)
+            ChatActivityEnterView enterView = host.enterView();
+            if (cell.getMessageObject() == message) {
+                press.run();
+            } else if (enterView != null) {
+                enterView.didPressedBotButton(button, message, message, null);
+            }
+        };
+        Runnable menu = original == null || !TLKeyboardHelper.isType(button, TL_keyboard.TL_inlineButtonTypeUrl.class) ? null : () -> {
+            botButtonBypass = true;
+            try {
+                original.run();
+            } finally {
+                botButtonBypass = false;
+            }
+        };
+        RawBotButtonSheet.show(activity, host.account(), message, button, host.resources(), safePress, menu);
+        try {
+            cell.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING);
+        } catch (Exception ignore) {}
+        return true;
     }
 
     // ---- inline results tray: park the shown results in a side button, bring them back in any chat ----

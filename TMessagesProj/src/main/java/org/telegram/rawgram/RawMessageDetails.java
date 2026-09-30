@@ -31,9 +31,11 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_keyboard;
 import org.telegram.ui.ActionBar.ActionBarMenuSubItem;
 import org.telegram.ui.ActionBar.ActionBarPopupWindow;
 import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.BulletinFactory;
@@ -240,6 +242,32 @@ public class RawMessageDetails {
         }
     }
 
+    /** Sheets are created only here: their constructors need the activity, which may be gone by the time of the tap. */
+    private static void showSheet(Env env, Utilities.Callback0Return<BottomSheet> factory) {
+        if (env.fragment.getParentActivity() == null) return;
+        env.fragment.showDialog(factory.run());
+    }
+
+    /** "3: bold, text_url, custom_emoji" — distinct types in order of appearance. */
+    private static String entitiesSummary(ArrayList<TLRPC.MessageEntity> entities) {
+        ArrayList<String> types = new ArrayList<>();
+        for (TLRPC.MessageEntity e : entities) {
+            String type = RawEntitiesSheet.entityType(e);
+            if (!types.contains(type)) types.add(type);
+        }
+        return entities.size() + ": " + TextUtils.join(", ", types);
+    }
+
+    private static int buttonCount(TLRPC.ReplyMarkup markup) {
+        int count = 0;
+        if (markup instanceof TLRPC.TL_replyInlineMarkup) {
+            for (TL_keyboard.KeyboardInlineButtonRow row : ((TLRPC.TL_replyInlineMarkup) markup).rows) count += row.buttons.size();
+        } else if (markup instanceof TLRPC.TL_replyKeyboardMarkup) {
+            for (TL_keyboard.KeyboardButtonRow row : ((TLRPC.TL_replyKeyboardMarkup) markup).rows) count += row.buttons.size();
+        }
+        return count;
+    }
+
     // ---- message block ----
 
     private static void messageFields(ArrayList<Row> out, Env env) {
@@ -288,7 +316,17 @@ public class RawMessageDetails {
             for (TLRPC.ReactionCount rc : m.reactions.results) {
                 total += rc.count;
             }
-            add(out, "Реакции", total + "  (видов: " + m.reactions.results.size() + ")", R.drawable.msg_reactions);
+            add(out, "Реакции", total + "  (видов: " + m.reactions.results.size() + ")", R.drawable.msg_reactions,
+                    () -> showSheet(env, () -> new RawReactionsSheet(env.fragment, account, message, env.rp)));
+        }
+        if (m.entities != null && !m.entities.isEmpty()) {
+            add(out, "Форматирование", entitiesSummary(m.entities), R.drawable.msg_text_outlined,
+                    () -> showSheet(env, () -> new RawEntitiesSheet(env.fragment, account, message, env.rp)));
+        }
+        int buttons = buttonCount(m.reply_markup);
+        if (buttons > 0) {
+            add(out, "Кнопки", buttons + "  (" + TLDumper.typeName(m.reply_markup) + ")", R.drawable.msg_bot,
+                    () -> showSheet(env, () -> new RawEntitiesSheet(env.fragment, account, message, env.rp)));
         }
         if (m.ttl_period != 0) add(out, "Автоудаление", LocaleController.formatTTLString(m.ttl_period) + "  (" + m.ttl_period + " с)", R.drawable.msg_autodelete);
         add(out, "Подпись автора", m.post_author, R.drawable.msg_text_outlined);

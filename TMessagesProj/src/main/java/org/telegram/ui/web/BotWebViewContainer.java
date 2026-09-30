@@ -183,6 +183,9 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
     private final static int REQUEST_CODE_WEB_VIEW_FILE = 3000, REQUEST_CODE_WEB_PERMISSION = 4000, REQUEST_CODE_QR_CAMERA_PERMISSION = 5000;
     private final static int DIALOG_SEQUENTIAL_COOLDOWN_TIME = 3000;
 
+    // rawGram: launch URL + bridge events of this webview
+    public final org.telegram.rawgram.RawWebAppLog rawgramLog = new org.telegram.rawgram.RawWebAppLog();
+
     private MyWebView webView;
     private String mUrl;
     private Delegate delegate;
@@ -1055,6 +1058,7 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
 
     public void loadUrl(int currentAccount, String url, boolean sameOrigin) {
         this.currentAccount = currentAccount;
+        rawgramLog.onUrl(url); // rawGram
         if (bot) {
             documentGeneration++;
             restrictBridgeToOrigin = sameOrigin;
@@ -1217,6 +1221,7 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
             return;
         }
         d("notifyEvent " + event);
+        rawgramLog.onOut(event, eventData); // rawGram
         evaluateJs("window.Telegram.WebView.receiveEvent('" + event + "', " + eventData + ");", false);
     }
 
@@ -1257,6 +1262,7 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
             d("notifyEvent " + event + " dropped for untrusted document");
             return;
         }
+        rawgramLog.onOut(event, eventData); // rawGram
         StringBuilder sb = new StringBuilder();
         sb.append("window.Telegram.WebView.receiveEvent('");
         sb.append(event);
@@ -1273,6 +1279,9 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
                     || !webView.botWebViewContainer.isRequestContextCurrent(context))) {
                 FileLog.d("notifyEvent " + event + " dropped after document change");
                 return;
+            }
+            if (webView.botWebViewContainer != null) {
+                webView.botWebViewContainer.rawgramLog.onOut(event, eventData); // rawGram
             }
             webView.evaluateJS("window.Telegram.WebView.receiveEvent('" + event + "', " + eventData + ");");
         });
@@ -1538,6 +1547,7 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
         if (!bot) {
             return;
         }
+        rawgramLog.onIn(eventType, eventData); // rawGram
         if (webView == null || delegate == null) {
             d("onEventReceived " + eventType + ": no webview or delegate!");
             return;

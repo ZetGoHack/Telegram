@@ -4122,6 +4122,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 }
             }
         });
+        requestDelegate = org.telegram.rawgram.RawCallbackLog.wrap(currentAccount, messageObject, button, cacheFinal, requestDelegate); // rawGram: log callback answers
         if (cacheFinal) {
             getMessagesStorage().getBotCache(key, requestDelegate);
         } else {

@@ -405,6 +405,9 @@ public class ConnectionsManager extends BaseController {
                 startRequestTime = System.currentTimeMillis();
             }
             long finalStartRequestTime = startRequestTime;
+            // rawGram: MTProto request log (one volatile read when disabled)
+            final org.telegram.rawgram.RawRequestLog.Entry rawLogEntry = org.telegram.rawgram.RawRequestLog.enabled
+                    ? org.telegram.rawgram.RawRequestLog.onSend(currentAccount, object, requestToken, datacenterId, connectionType) : null;
             listen(requestToken, (response, errorCode, errorText, networkType, timestamp, requestMsgId, dcId) -> {
                 try {
                     TLObject resp = null;
@@ -423,6 +426,9 @@ public class ConnectionsManager extends BaseController {
                                 throw e2;
                             }
                             FileLog.fatal(e2);
+                            if (rawLogEntry != null) {
+                                org.telegram.rawgram.RawRequestLog.onParseFailed(rawLogEntry, e2, responseSize);
+                            }
                             return;
                         }
                     } else if (errorText != null) {
@@ -432,6 +438,9 @@ public class ConnectionsManager extends BaseController {
                         if (BuildVars.LOGS_ENABLED && error.code != -2000) {
                             FileLog.e(object + " got error " + error.code + " " + error.text);
                         }
+                    }
+                    if (rawLogEntry != null) {
+                        org.telegram.rawgram.RawRequestLog.onResponse(rawLogEntry, resp, error, responseSize);
                     }
                     if ((connectionType & ConnectionTypeDownload) != 0 && VideoPlayer.activePlayers.isEmpty()) {
                         long ping_time = native_getCurrentPingTime(currentAccount);

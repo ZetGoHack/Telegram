@@ -129,6 +129,17 @@ public class RawgramConfig {
         prefs().edit().putBoolean("hideKeyboardOnScroll", value).apply();
     }
 
+    // ---- MTProto request log (the hot-path flag is cached in RawRequestLog.enabled) ----
+
+    public static boolean isRequestLog() {
+        return prefs().getBoolean("requestLog", false);
+    }
+
+    /** Use RawRequestLog.setEnabled: it also flips the cached flag. */
+    static void setRequestLog(boolean value) {
+        prefs().edit().putBoolean("requestLog", value).apply();
+    }
+
     // ---- peer id row in profiles ----
 
     public static final int ID_OFF = 0;

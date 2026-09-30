@@ -68,9 +68,11 @@ public class RawgramSettingsActivity extends BaseFragment {
     private static final int ROW_RECENT_SLIDER = 15;
     private static final int ROW_RECENT_INFO = 16;
     private static final int ROW_TOOLS_HEADER = 17;
-    private static final int ROW_SERVER_CONFIG = 18;
-    private static final int ROW_TOOLS_INFO = 19;
-    private static final int ROW_COUNT = 20;
+    private static final int ROW_REQUEST_LOG = 18;
+    private static final int ROW_REQUEST_LOG_OPEN = 19;
+    private static final int ROW_SERVER_CONFIG = 20;
+    private static final int ROW_TOOLS_INFO = 21;
+    private static final int ROW_COUNT = 22;
 
     private RecyclerListView listView;
     private ListAdapter adapter;
@@ -118,6 +120,12 @@ public class RawgramSettingsActivity extends BaseFragment {
                             adapter.notifyItemChanged(ROW_ID_FORMAT);
                         })
                         .show();
+            } else if (position == ROW_REQUEST_LOG) {
+                boolean value = !RawRequestLog.enabled;
+                RawRequestLog.setEnabled(value);
+                ((TextCheckCell) view).setChecked(value);
+            } else if (position == ROW_REQUEST_LOG_OPEN) {
+                presentFragment(new RawRequestLogActivity());
             } else if (position == ROW_SERVER_CONFIG) {
                 RawServerConfig.show(getParentActivity(), currentAccount, getResourceProvider());
             }
@@ -149,8 +157,10 @@ public class RawgramSettingsActivity extends BaseFragment {
             switch (position) {
                 case ROW_FULL_NUMBERS:
                 case ROW_HIDE_KEYBOARD:
+                case ROW_REQUEST_LOG:
                     return TYPE_CHECK;
                 case ROW_ID_FORMAT:
+                case ROW_REQUEST_LOG_OPEN:
                 case ROW_SERVER_CONFIG:
                     return TYPE_VALUE;
                 case ROW_DATA_HEADER:
@@ -203,7 +213,9 @@ public class RawgramSettingsActivity extends BaseFragment {
                             : position == ROW_TOOLS_HEADER ? "Инструменты" : "Размер стикеров");
                     break;
                 case TYPE_CHECK:
-                    if (position == ROW_HIDE_KEYBOARD) {
+                    if (position == ROW_REQUEST_LOG) {
+                        ((TextCheckCell) holder.itemView).setTextAndCheck("Журнал запросов MTProto", RawRequestLog.enabled, true);
+                    } else if (position == ROW_HIDE_KEYBOARD) {
                         ((TextCheckCell) holder.itemView).setTextAndCheck("Сворачивать клавиатуру при прокрутке чата", RawgramConfig.isHideKeyboardOnScroll(), false);
                     } else {
                         ((TextCheckCell) holder.itemView).setTextAndCheck("Не сокращать числа (100 000 вместо 100K)", RawgramConfig.isFullNumbers(), true);
@@ -212,6 +224,10 @@ public class RawgramSettingsActivity extends BaseFragment {
                 case TYPE_VALUE: {
                     if (position == ROW_SERVER_CONFIG) {
                         ((TextSettingsCell) holder.itemView).setText("Конфиг сервера (raw)", false);
+                        break;
+                    }
+                    if (position == ROW_REQUEST_LOG_OPEN) {
+                        ((TextSettingsCell) holder.itemView).setText("Открыть журнал", true);
                         break;
                     }
                     int format = RawgramConfig.getIdFormat();
@@ -249,8 +265,11 @@ public class RawgramSettingsActivity extends BaseFragment {
                         cell.setText("Сколько держать палец, чтобы открыть raw-просмотр инлайн-результата или превью стикера / GIF. "
                                 + "Системная задержка на этом устройстве: " + ViewConfiguration.getLongPressTimeout() + " мс.");
                     } else if (position == ROW_TOOLS_INFO) {
-                        cell.setText("Свежие help.getConfig и help.getAppConfig этого аккаунта: все лимиты сервера "
-                                + "(недавние стикеры, избранное, подписи, папки…), DC и флаги клиента.");
+                        cell.setText("Журнал запросов: последние " + RawRequestLog.CAPACITY + " RPC-вызовов всех аккаунтов — метод, время, "
+                                + "ответ или ошибка (FLOOD_WAIT_…); полные объекты запроса и ответа — для последних " + RawRequestLog.KEEP_OBJECTS
+                                + ". Выключенный журнал ничего не стоит.\n\n"
+                                + "Конфиг сервера: свежие help.getConfig и help.getAppConfig этого аккаунта — все лимиты "
+                                + "(обычные и премиум), DC и флаги клиента.");
                     } else if (position == ROW_RECENT_INFO) {
                         cell.setText("Сколько недавних стикеров показывать в панели. Telegram показывает 20, хотя сервер хранит до "
                                 + MessagesController.getInstance(currentAccount).maxRecentStickersCount

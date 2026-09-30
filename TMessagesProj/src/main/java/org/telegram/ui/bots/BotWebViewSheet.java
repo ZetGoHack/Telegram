@@ -1719,6 +1719,7 @@ public class BotWebViewSheet extends Dialog implements NotificationCenter.Notifi
                 webViewContainer.loadFlickerAndSettingsItem(currentAccount, botId, null);
                 webViewContainer.reload();
             })
+            .add(R.drawable.msg_info, org.telegram.rawgram.RawWebAppLog.MENU_TEXT, () -> org.telegram.rawgram.RawWebAppLog.show(getContext(), currentAccount, webViewContainer, resourcesProvider)) // rawGram
             .addIf(onVerifiedAge == null && userbot != null && userbot.bot_has_main_app, R.drawable.msg_home, LocaleController.getString(R.string.AddShortcut), () -> {
                 MediaDataController.getInstance(currentAccount).installShortcut(botId, MediaDataController.SHORTCUT_TYPE_ATTACHED_BOT);
             })

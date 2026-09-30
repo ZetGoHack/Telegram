@@ -53,6 +53,7 @@ import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.telegram.rawgram.RawDocInfo;
 import org.telegram.rawgram.RawDocumentViewer;
 import org.telegram.rawgram.RawgramConfig;
 import org.telegram.messenger.AccountInstance;
@@ -788,6 +789,7 @@ public class ContentPreviewViewer {
                 items.add("Raw");
                 icons.add(R.drawable.msg_info);
                 actions.add(ACTION_RAWGRAM_RAW);
+                items.add("Скопировать ID документа"); icons.add(R.drawable.msg_copy); actions.add(ACTION_RAWGRAM_COPY_ID);
 
                 if (items.isEmpty()) {
                     return;
@@ -831,6 +833,8 @@ public class ContentPreviewViewer {
                             delegate.deleteSticker(currentDocument);
                         } else if (actions.get(which) == ACTION_RAWGRAM_RAW) {
                             openRawViewer();
+                        } else if (actions.get(which) == ACTION_RAWGRAM_COPY_ID) {
+                            RawDocInfo.copyId(currentDocument);
                         }
                         dismissPopupWindow();
                     }
@@ -940,6 +944,9 @@ public class ContentPreviewViewer {
                     icons.add(inFavs ? R.drawable.msg_unfave : R.drawable.msg_fave);
                     actions.add(5);
                 }
+                // rawGram
+                items.add("Raw"); icons.add(R.drawable.msg_info); actions.add(ACTION_RAWGRAM_RAW);
+                items.add("Скопировать ID документа"); icons.add(R.drawable.msg_copy); actions.add(ACTION_RAWGRAM_COPY_ID);
                 if (items.isEmpty()) {
                     return;
                 }
@@ -969,6 +976,10 @@ public class ContentPreviewViewer {
                         delegate.removeFromRecent(currentDocument);
                     } else if (action == 5) {
                         MediaDataController.getInstance(currentAccount).addRecentSticker(MediaDataController.TYPE_FAVE, parentObject, currentDocument, (int) (System.currentTimeMillis() / 1000), inFavs);
+                    } else if (action == ACTION_RAWGRAM_RAW) {
+                        openRawViewer();
+                    } else if (action == ACTION_RAWGRAM_COPY_ID) {
+                        RawDocInfo.copyId(currentDocument);
                     }
                     dismissPopupWindow();
                 };
@@ -1077,6 +1088,7 @@ public class ContentPreviewViewer {
                 items.add(0, "Raw");
                 icons.add(0, R.drawable.msg_info);
                 actions.add(0, ACTION_RAWGRAM_RAW);
+                if (RawDocInfo.docOf(currentDocument, inlineResult) != null) { items.add(1, "Скопировать ID документа"); icons.add(1, R.drawable.msg_copy); actions.add(1, ACTION_RAWGRAM_COPY_ID); }
                 if (items.isEmpty()) {
                     return;
                 }
@@ -1114,6 +1126,8 @@ public class ContentPreviewViewer {
                         delegate.addCaptionToGif(currentDocument != null ? currentDocument : inlineResult, parentObject, true, 0, 0);
                     } else if (actions.get(which) == ACTION_RAWGRAM_RAW) {
                         openRawViewer();
+                    } else if (actions.get(which) == ACTION_RAWGRAM_COPY_ID) {
+                        RawDocInfo.copyId(RawDocInfo.docOf(currentDocument, inlineResult));
                     }
                     dismissPopupWindow();
                 };
@@ -2421,6 +2435,7 @@ public class ContentPreviewViewer {
     }
 
     private static final int ACTION_RAWGRAM_RAW = 1000;
+    private static final int ACTION_RAWGRAM_COPY_ID = 1001;
 
     // rawGram: close the preview and show the raw TL of what was previewed
     private void openRawViewer() {

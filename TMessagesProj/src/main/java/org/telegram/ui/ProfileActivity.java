@@ -600,6 +600,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private final static int delete_group = 45;
     private final static int enable_no_forwards = 46;
     private final static int disable_no_forwards = 47;
+    private final static int rawgram_raw = 48; // rawGram
 
     private Rect rect = new Rect();
 
@@ -2817,6 +2818,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 //                        return;
 //                    }
                     presentFragment(new PeerColorActivity(0).startOnProfile().setOnApplied(ProfileActivity.this));
+                } else if (id == rawgram_raw) {
+                    org.telegram.rawgram.RawProfileRaw.show(ProfileActivity.this, currentAccount, userId != 0 ? getMessagesController().getUser(userId) : null, userId != 0 ? null : getMessagesController().getChat(chatId), userId != 0 ? userInfo : chatInfo);
                 } else if (id == copy_link_profile) {
                     TLRPC.User user = getMessagesController().getUser(userId);
                     AndroidUtilities.addToClipboard(getMessagesController().linkPrefix + "/" + UserObject.getPublicUsername(user));
@@ -12365,6 +12368,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         if (selfUser && !myProfile) {
             otherItem.addSubItem(logout, R.drawable.msg_leave, LocaleController.getString(R.string.LogOut));
         }
+        otherItem.addSubItem(rawgram_raw, R.drawable.msg_info, "Raw"); // rawGram
         if (!isPulledDown) {
             otherItem.hideSubItem(gallery_menu_save);
             otherItem.hideSubItem(set_as_main);
