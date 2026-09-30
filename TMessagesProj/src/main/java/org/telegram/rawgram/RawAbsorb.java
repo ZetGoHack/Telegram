@@ -49,6 +49,8 @@ public class RawAbsorb extends FrameLayout {
     private final RectF current = new RectF();
     private final int[] loc = new int[2];
     private final float gooAlpha;
+    private final float targetLeft, targetTop;
+    private final org.telegram.messenger.Utilities.Callback<Canvas> decor;
     private float progress, discR, handover;
 
     private final GooLayer goo;
@@ -56,8 +58,12 @@ public class RawAbsorb extends FrameLayout {
     private final IconLayer icon;
 
     private RawAbsorb(Context context, View source, float sourceX, float sourceY, RectF from, View target,
-                      float targetX, float targetY, float targetR, int color, int iconRes, int iconColor) {
+                      float targetLeft, float targetTop, float targetX, float targetY, float targetR, int color,
+                      org.telegram.messenger.Utilities.Callback<Canvas> decor) {
         super(context);
+        this.targetLeft = targetLeft;
+        this.targetTop = targetTop;
+        this.decor = decor;
         this.source = source;
         this.target = target;
         this.sourceX = sourceX;
@@ -66,10 +72,11 @@ public class RawAbsorb extends FrameLayout {
         this.targetX = targetX;
         this.targetY = targetY;
         this.targetR = targetR;
-        this.gooAlpha = Math.max(0.85f, Color.alpha(color) / 255f);
+        // as translucent as the glass the buttons are made of, so the blob doesn't read as a gray patch
+        this.gooAlpha = Math.max(0.55f, Color.alpha(color) / 255f);
         goo = new GooLayer(context, color);
         content = new ContentLayer(context);
-        icon = new IconLayer(context, iconRes, iconColor);
+        icon = new IconLayer(context);
         addView(goo, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         addView(content, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         addView(icon, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
@@ -82,9 +89,10 @@ public class RawAbsorb extends FrameLayout {
      * @param source  the panel view; it is hidden (alpha 0) for the animation and drawn by the overlay instead
      * @param panel   the visible panel rect in the source's coordinates
      * @param target  the button to soak into; its disc is centered horizontally, 28dp above its bottom
+     * @param decor   draws the source's floating controls (in the source's coordinates), unclipped by the panel shape
      */
-    public static void start(ViewGroup root, View source, RectF panel, View target, int color, int iconRes, int iconColor,
-                             Runnable onAbsorbed, Runnable onEnd) {
+    public static void start(ViewGroup root, View source, RectF panel, View target, int color,
+                             org.telegram.messenger.Utilities.Callback<Canvas> decor, Runnable onAbsorbed, Runnable onEnd) {
         // everything is kept in window coordinates; the layers translate by their own window position
         int[] srcLoc = new int[2], tgtLoc = new int[2];
         source.getLocationInWindow(srcLoc);
@@ -95,7 +103,7 @@ public class RawAbsorb extends FrameLayout {
         float tx = tgtLoc[0] + target.getWidth() / 2f;
         float ty = tgtLoc[1] + target.getHeight() - dp(28);
 
-        RawAbsorb overlay = new RawAbsorb(root.getContext(), source, sx, sy, from, target, tx, ty, dp(22), color, iconRes, iconColor);
+        RawAbsorb overlay = new RawAbsorb(root.getContext(), source, sx, sy, from, target, tgtLoc[0], tgtLoc[1], tx, ty, dp(22), color, decor);
         int index = root.indexOfChild(source);
         root.addView(overlay, index < 0 ? -1 : index + 1, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         source.setAlpha(0f);
@@ -153,12 +161,14 @@ public class RawAbsorb extends FrameLayout {
         float swell = discR / targetR;
         target.setScaleX(swell);
         target.setScaleY(swell);
-        // the button gives its disc to the overlay while the panel is still around it, and takes it back
-        // (fully opaque first) before the blob under it fades away
+        // while the blob is around the button, the overlay draws an exact copy of the button on top of it
+        // (so the blob can merge with its edge); swapping identical pictures is invisible, no crossfade
         float giveAway = part(t, 0.22f, 0.38f);
         float takeBack = part(t, 0.74f, 0.86f);
         handover = giveAway * (1f - takeBack);
-        target.setAlpha(1f - handover);
+        boolean copied = t >= 0.22f && t < 0.86f;
+        target.setAlpha(copied ? 0f : 1f);
+        icon.setVisibility(copied ? View.VISIBLE : View.INVISIBLE);
 
         goo.setAlpha(gooAlpha * Math.max(part(t, 0.04f, 0.34f), giveAway) * (1f - part(t, 0.86f, 0.96f)));
         goo.invalidate();
@@ -198,7 +208,8 @@ public class RawAbsorb extends FrameLayout {
             canvas.translate(-loc[0], -loc[1]);
             float r = cornerRadius();
             canvas.drawRoundRect(current, r, r, paint);
-            canvas.drawCircle(targetX, targetY, discR, paint);
+            // a bit smaller than the button: the blob only shows where it merges with the button's edge
+            canvas.drawCircle(targetX, targetY, discR - dp(3), paint);
             canvas.restore();
         }
     }
@@ -212,11 +223,18 @@ public class RawAbsorb extends FrameLayout {
 
         @Override
         protected void onDraw(Canvas canvas) {
+            getLocationInWindow(loc);
+            if (decor != null) {
+                canvas.save();
+                canvas.translate(sourceX - loc[0], sourceY - loc[1]);
+                decor.run(canvas);
+                canvas.restore();
+                invalidate();
+            }
             float alpha = 1f - part(progress, 0.06f, 0.46f);
             if (alpha <= 0) {
                 return;
             }
-            getLocationInWindow(loc);
             canvas.save();
             canvas.translate(-loc[0], -loc[1]);
             float r = cornerRadius();
@@ -235,35 +253,23 @@ public class RawAbsorb extends FrameLayout {
         }
     }
 
-    /** The button's icon, kept on screen while the button itself is handed over to the blob. */
+    /** An exact copy of the button, drawn above the blob while the real one is hidden. */
     private class IconLayer extends View {
-        private final Drawable drawable;
 
-        IconLayer(Context context, int iconRes, int iconColor) {
+        IconLayer(Context context) {
             super(context);
-            Drawable d = iconRes != 0 ? ContextCompat.getDrawable(context, iconRes) : null;
-            if (d != null) {
-                d = d.mutate();
-                d.setColorFilter(new PorterDuffColorFilter(iconColor, PorterDuff.Mode.SRC_IN));
-            }
-            drawable = d;
+            setVisibility(View.INVISIBLE);
         }
 
         @Override
         protected void onDraw(Canvas canvas) {
-            if (drawable == null || handover <= 0) {
-                return;
-            }
             getLocationInWindow(loc);
             canvas.save();
             canvas.translate(-loc[0], -loc[1]);
             float s = discR / targetR;
             canvas.scale(s, s, targetX, targetY);
-            int w = drawable.getIntrinsicWidth(), h = drawable.getIntrinsicHeight();
-            int cx = (int) targetX, cy = (int) targetY + dp(1);
-            drawable.setBounds(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2);
-            drawable.setAlpha((int) (255 * handover));
-            drawable.draw(canvas);
+            canvas.translate(targetLeft, targetTop);
+            target.draw(canvas);
             canvas.restore();
         }
     }

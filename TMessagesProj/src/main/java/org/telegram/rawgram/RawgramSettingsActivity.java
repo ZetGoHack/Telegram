@@ -225,11 +225,8 @@ public class RawgramSettingsActivity extends BaseFragment {
                         cell.bind(RawgramConfig.LONG_PRESS_MIN, RawgramConfig.LONG_PRESS_MAX, RawgramConfig.LONG_PRESS_STEP,
                                 RawgramConfig.getLongPressDelay(), " мс", RawgramConfig::setLongPressDelay);
                     } else if (position == ROW_RECENT_SLIDER) {
-                        int server = MessagesController.getInstance(currentAccount).maxRecentStickersCount;
-                        int value = Math.max(RawgramConfig.RECENT_STICKERS_MIN, Math.min(RawgramConfig.RECENT_STICKERS_MAX,
-                                RawgramConfig.recentStickersLimit(server)));
                         cell.bind(RawgramConfig.RECENT_STICKERS_MIN, RawgramConfig.RECENT_STICKERS_MAX, RawgramConfig.RECENT_STICKERS_STEP,
-                                value, "", RawgramConfig::setRecentStickersLimit);
+                                RawgramConfig.getRecentStickersShown(), "", RawgramConfig::setRecentStickersShown);
                     } else {
                         cell.bind(RawgramConfig.STICKER_SCALE_MIN, RawgramConfig.STICKER_SCALE_MAX, RawgramConfig.STICKER_SCALE_STEP,
                                 RawgramConfig.getStickerScalePercent(), "%", value -> {
@@ -255,10 +252,9 @@ public class RawgramSettingsActivity extends BaseFragment {
                         cell.setText("Свежие help.getConfig и help.getAppConfig этого аккаунта: все лимиты сервера "
                                 + "(недавние стикеры, избранное, подписи, папки…), DC и флаги клиента.");
                     } else if (position == ROW_RECENT_INFO) {
-                        cell.setText("Сколько последних стикеров хранить. Сервер помнит только "
+                        cell.setText("Сколько недавних стикеров показывать в панели. Telegram показывает 20, хотя сервер хранит до "
                                 + MessagesController.getInstance(currentAccount).maxRecentStickersCount
-                                + " — остальные rawGram держит на этом устройстве и не теряет при синхронизации. "
-                                + "Новый лимит начинает действовать со следующего отправленного стикера.");
+                                + " (stickers_recent_limit) — остальные просто не выводились.");
                     } else {
                         cell.setText("Размер стикеров в чатах относительно стандартного размера Telegram.");
                     }

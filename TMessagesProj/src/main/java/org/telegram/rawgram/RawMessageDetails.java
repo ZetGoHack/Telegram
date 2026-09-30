@@ -1,9 +1,14 @@
 package org.telegram.rawgram;
 
+import android.Manifest;
+import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.text.TextUtils;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -12,22 +17,30 @@ import androidx.core.content.FileProvider;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
-import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.ActionBarMenuSubItem;
 import org.telegram.ui.ActionBar.ActionBarPopupWindow;
+import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.ChatActivity;
+import org.telegram.ui.Components.BulletinFactory;
+import org.telegram.ui.Components.EmojiPacksAlert;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.StickersAlert;
+import org.telegram.ui.ProfileActivity;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -37,8 +50,10 @@ import java.util.Locale;
 
 /**
  * "Подробности" submenu of the message context menu, in the spirit of Telegram Desktop's "Details":
- * icon + title + gray value per row (only the fields that are set), tap copies the value,
- * then "Скопировать медиа" and "Посмотреть в raw" at the bottom.
+ * icon + title + gray value per row (only the fields that are set). Rows with a natural action
+ * (profile, set, link, reply, map) perform it on tap and show the value in the accent color;
+ * the rest copy on tap. Long press always copies. Then "Скопировать медиа", "Сохранить в галерею"
+ * and "Посмотреть в raw" at the bottom.
  */
 public class RawMessageDetails {
 
@@ -46,16 +61,36 @@ public class RawMessageDetails {
         final String title;
         final String value;
         final int icon;
+        /** Tap action; null = tap copies the value. */
+        final Runnable action;
 
-        Row(String title, String value, int icon) {
+        Row(String title, String value, int icon, Runnable action) {
             this.title = title;
             this.value = value;
             this.icon = icon;
+            this.action = action;
         }
     }
 
-    public static LinearLayout build(Context context, int currentAccount, MessageObject message, Theme.ResourcesProvider rp,
+    /** What the row builders need to wire actions. */
+    private static class Env {
+        final BaseFragment fragment;
+        final int account;
+        final MessageObject message;
+        final Theme.ResourcesProvider rp;
+
+        Env(BaseFragment fragment, int account, MessageObject message, Theme.ResourcesProvider rp) {
+            this.fragment = fragment;
+            this.account = account;
+            this.message = message;
+            this.rp = rp;
+        }
+    }
+
+    public static LinearLayout build(BaseFragment fragment, int currentAccount, MessageObject message, Theme.ResourcesProvider rp,
                                      Runnable onBack, Runnable onRaw, Runnable onClose) {
+        Context context = fragment.getParentActivity();
+        Env env = new Env(fragment, currentAccount, message, rp);
         LinearLayout root = new LinearLayout(context);
         root.setOrientation(LinearLayout.VERTICAL);
 
@@ -69,17 +104,17 @@ public class RawMessageDetails {
         LinearLayout rows = new LinearLayout(context);
         rows.setOrientation(LinearLayout.VERTICAL);
         ArrayList<Row> messageRows = new ArrayList<>();
-        messageFields(messageRows, currentAccount, message);
+        messageFields(messageRows, env);
         ArrayList<Row> mediaRows = new ArrayList<>();
-        mediaFields(mediaRows, currentAccount, MessageObject.getMedia(message.messageOwner));
+        mediaFields(mediaRows, env, MessageObject.getMedia(message.messageOwner));
         for (Row r : messageRows) {
-            rows.addView(row(context, r, rp), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+            rows.addView(row(context, r, rp, onClose), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         }
         if (!messageRows.isEmpty() && !mediaRows.isEmpty()) {
             rows.addView(new ActionBarPopupWindow.GapView(context, rp), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8));
         }
         for (Row r : mediaRows) {
-            rows.addView(row(context, r, rp), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+            rows.addView(row(context, r, rp, onClose), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         }
         ScrollView scroll = new ScrollView(context) {
             @Override
@@ -94,12 +129,18 @@ public class RawMessageDetails {
 
         // protected content (no forwarding/saving in this chat, self-destructing media) is not copied out
         boolean protectedContent = message.messageOwner.noforwards || message.needDrawBluredPreview()
-                || org.telegram.messenger.MessagesController.getInstance(currentAccount).isPeerNoForwards(message.getDialogId());
+                || MessagesController.getInstance(currentAccount).isPeerNoForwards(message.getDialogId());
         if (hasMediaFile(message) && !protectedContent) {
             ActionBarMenuSubItem copy = new ActionBarMenuSubItem(context, false, false, rp);
             copy.setTextAndIcon("Скопировать медиа", R.drawable.msg_copy);
             copy.setOnClickListener(v -> copyMedia(context, currentAccount, message, onClose));
             root.addView(copy, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+        }
+        if (canSaveToGallery(message) && !protectedContent) {
+            ActionBarMenuSubItem save = new ActionBarMenuSubItem(context, false, false, rp);
+            save.setTextAndIcon("Сохранить в галерею", R.drawable.msg_gallery);
+            save.setOnClickListener(v -> saveToGallery(env, onClose));
+            root.addView(save, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         }
 
         ActionBarMenuSubItem raw = new ActionBarMenuSubItem(context, false, true, rp);
@@ -109,59 +150,133 @@ public class RawMessageDetails {
         return root;
     }
 
-    private static ActionBarMenuSubItem row(Context context, Row r, Theme.ResourcesProvider rp) {
+    private static ActionBarMenuSubItem row(Context context, Row r, Theme.ResourcesProvider rp, Runnable onClose) {
         ActionBarMenuSubItem item = new ActionBarMenuSubItem(context, false, false, rp);
         item.setTextAndIcon(r.title, r.icon);
         item.setSubtext(r.value);
+        if (r.action != null) {
+            // accent-colored value hints that tap does something besides copying
+            item.setSubtextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4, rp));
+        }
         // long values (links, file names) must ellipsize instead of stretching the popup
         item.getTextView().setMaxWidth(AndroidUtilities.dp(260));
         item.subtextView.setMaxWidth(AndroidUtilities.dp(260));
         item.setOnClickListener(v -> {
-            AndroidUtilities.addToClipboard(r.value);
-            RawNotify.show(R.drawable.msg_copy, r.title + " скопировано");
+            if (r.action != null) {
+                if (onClose != null) onClose.run();
+                r.action.run();
+            } else {
+                copy(r);
+            }
+        });
+        item.setOnLongClickListener(v -> {
+            copy(r);
+            return true;
         });
         return item;
     }
 
+    private static void copy(Row r) {
+        AndroidUtilities.addToClipboard(r.value);
+        RawNotify.show(R.drawable.msg_copy, r.title + " скопировано");
+    }
+
     private static void add(ArrayList<Row> out, String title, String value, int icon) {
+        add(out, title, value, icon, null);
+    }
+
+    private static void add(ArrayList<Row> out, String title, String value, int icon, Runnable action) {
         if (!TextUtils.isEmpty(value)) {
-            out.add(new Row(title, value, icon));
+            out.add(new Row(title, value, icon, action));
+        }
+    }
+
+    private static void addPeer(ArrayList<Row> out, Env env, String title, RawPeers.Info info, int icon) {
+        if (info != null) {
+            add(out, title, info.format(), icon, () -> openProfile(env, info));
+        }
+    }
+
+    // ---- actions ----
+
+    private static void openProfile(Env env, RawPeers.Info info) {
+        if (!info.isCached) {
+            // ProfileActivity can't show a peer it has never seen
+            AndroidUtilities.addToClipboard(info.id);
+            RawNotify.show(R.drawable.msg_copy, "Нет в кеше — ID скопирован");
+            return;
+        }
+        env.fragment.presentFragment(ProfileActivity.of(info.dialogId));
+    }
+
+    private static void openUrl(Env env, String url) {
+        Browser.openUrl(env.fragment.getParentActivity(), url);
+    }
+
+    private static void openStickerSet(Env env, TLRPC.InputStickerSet input, boolean emoji) {
+        Activity activity = env.fragment.getParentActivity();
+        if (activity == null) return;
+        if (emoji) {
+            ArrayList<TLRPC.InputStickerSet> sets = new ArrayList<>();
+            sets.add(input);
+            env.fragment.showDialog(new EmojiPacksAlert(env.fragment, activity, env.rp, sets));
+        } else {
+            env.fragment.showDialog(new StickersAlert(activity, env.fragment, input, null, null, env.rp, false));
+        }
+    }
+
+    private static void openMap(Env env, double lat, double lon, String fallback) {
+        Activity activity = env.fragment.getParentActivity();
+        try {
+            String ll = String.format(Locale.US, "%.6f,%.6f", lat, lon);
+            activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("geo:" + ll + "?q=" + ll)));
+        } catch (Exception e) {
+            // no map app installed
+            AndroidUtilities.addToClipboard(fallback);
+            RawNotify.show(R.drawable.msg_copy, "Координаты скопированы");
         }
     }
 
     // ---- message block ----
 
-    private static void messageFields(ArrayList<Row> out, int currentAccount, MessageObject message) {
+    private static void messageFields(ArrayList<Row> out, Env env) {
+        MessageObject message = env.message;
         TLRPC.Message m = message.messageOwner;
-        MessagesController mc = MessagesController.getInstance(currentAccount);
+        int account = env.account;
+        MessagesController mc = MessagesController.getInstance(account);
         add(out, "ID", Integer.toString(m.id), R.drawable.menu_hashtag);
         if (m.date != 0) add(out, "Дата", date(m.date), R.drawable.msg_calendar2);
         if (m.edit_date != 0) add(out, "Изменено", date(m.edit_date), R.drawable.msg_edit);
         if (m.fwd_from != null) {
             if (m.fwd_from.date != 0) add(out, "Дата оригинала", date(m.fwd_from.date), R.drawable.msg_forward);
-            if (m.fwd_from.from_id != null) add(out, "Автор оригинала", peer(currentAccount, m.fwd_from.from_id), R.drawable.msg_openprofile);
+            if (m.fwd_from.from_id != null) addPeer(out, env, "Автор оригинала", RawPeers.resolve(account, m.fwd_from.from_id), R.drawable.msg_openprofile);
             add(out, "Имя автора оригинала", m.fwd_from.from_name, R.drawable.msg_text_outlined);
             if (m.fwd_from.channel_post != 0) add(out, "Пост в оригинале", Integer.toString(m.fwd_from.channel_post), R.drawable.msg_channel);
-            if (m.fwd_from.saved_from_peer != null) add(out, "Сохранено из", peer(currentAccount, m.fwd_from.saved_from_peer), R.drawable.msg_saved);
+            if (m.fwd_from.saved_from_peer != null) addPeer(out, env, "Сохранено из", RawPeers.resolve(account, m.fwd_from.saved_from_peer), R.drawable.msg_saved);
         }
-        if (m.from_id != null) add(out, "Отправитель", peer(currentAccount, m.from_id), R.drawable.msg_openprofile);
+        if (m.from_id != null) addPeer(out, env, "Отправитель", RawPeers.resolve(account, m.from_id), R.drawable.msg_openprofile);
         if (m.peer_id != null) {
-            add(out, "Чат", peer(currentAccount, m.peer_id), m.peer_id instanceof TLRPC.TL_peerChannel ? R.drawable.msg_channel : R.drawable.msg_groups);
+            addPeer(out, env, "Чат", RawPeers.resolve(account, m.peer_id), m.peer_id instanceof TLRPC.TL_peerChannel ? R.drawable.msg_channel : R.drawable.msg_groups);
             if (m.peer_id instanceof TLRPC.TL_peerChannel && m.id > 0) {
                 TLRPC.Chat chat = mc.getChat(m.peer_id.channel_id);
                 String username = ChatObject.getPublicUsername(chat);
-                add(out, "Ссылка", TextUtils.isEmpty(username)
+                String link = TextUtils.isEmpty(username)
                         ? "https://t.me/c/" + m.peer_id.channel_id + "/" + m.id
-                        : "https://t.me/" + username + "/" + m.id, R.drawable.msg_link);
+                        : "https://t.me/" + username + "/" + m.id;
+                add(out, "Ссылка", link, R.drawable.msg_link, () -> openUrl(env, link));
             }
         }
-        if (m.reply_to != null && m.reply_to.reply_to_msg_id != 0) add(out, "Ответ на", Integer.toString(m.reply_to.reply_to_msg_id), R.drawable.menu_reply);
-        if (m.reply_to != null && m.reply_to.reply_to_top_id != 0) add(out, "Тред", Integer.toString(m.reply_to.reply_to_top_id), R.drawable.msg_discussion);
-        if (m.via_bot_id != 0) {
-            TLRPC.User bot = mc.getUser(m.via_bot_id);
-            String username = UserObject.getPublicUsername(bot);
-            add(out, "Через бота", TextUtils.isEmpty(username) ? Long.toString(m.via_bot_id) : "@" + username + "  ·  " + m.via_bot_id, R.drawable.msg_bot);
+        if (m.reply_to != null && m.reply_to.reply_to_msg_id != 0) {
+            int replyId = m.reply_to.reply_to_msg_id;
+            // scroll only to replies within this chat (not cross-chat quotes) and only from a chat screen
+            boolean sameChat = m.reply_to.reply_to_peer_id == null || DialogObject.getPeerDialogId(m.reply_to.reply_to_peer_id) == message.getDialogId();
+            Runnable scroll = sameChat && env.fragment instanceof ChatActivity
+                    ? () -> ((ChatActivity) env.fragment).scrollToMessageId(replyId, message.getId(), true, 0, true, 0)
+                    : null;
+            add(out, "Ответ на", Integer.toString(replyId), R.drawable.menu_reply, scroll);
         }
+        if (m.reply_to != null && m.reply_to.reply_to_top_id != 0) add(out, "Тред", Integer.toString(m.reply_to.reply_to_top_id), R.drawable.msg_discussion);
+        if (m.via_bot_id != 0) addPeer(out, env, "Через бота", RawPeers.user(account, m.via_bot_id), R.drawable.msg_bot);
         if (m.grouped_id != 0) add(out, "Альбом", Long.toString(m.grouped_id), R.drawable.msg_gallery);
         if (m.views > 0) add(out, "Просмотры", Integer.toString(m.views), R.drawable.msg_views);
         if (m.forwards > 0) add(out, "Пересылки", Integer.toString(m.forwards), R.drawable.msg_shareout);
@@ -178,19 +293,20 @@ public class RawMessageDetails {
 
     // ---- media block ----
 
-    private static void mediaFields(ArrayList<Row> out, int currentAccount, TLRPC.MessageMedia media) {
+    private static void mediaFields(ArrayList<Row> out, Env env, TLRPC.MessageMedia media) {
         if (media == null) {
             return;
         }
         if (media instanceof TLRPC.TL_messageMediaWebPage && media.webpage != null) {
-            add(out, "Ссылка", media.webpage.url, R.drawable.msg_link2);
+            String url = media.webpage.url;
+            add(out, "Ссылка", url, R.drawable.msg_link2, () -> openUrl(env, url));
             if (media.webpage.document != null) {
-                documentFields(out, currentAccount, media.webpage.document);
+                documentFields(out, env, media.webpage.document);
             } else if (media.webpage.photo != null) {
                 photoFields(out, media.webpage.photo);
             }
         } else if (media.document != null) {
-            documentFields(out, currentAccount, media.document);
+            documentFields(out, env, media.document);
         } else if (media.photo != null) {
             photoFields(out, media.photo);
         } else if (media instanceof TLRPC.TL_messageMediaPoll) {
@@ -203,17 +319,25 @@ public class RawMessageDetails {
         } else if (media.geo != null && !(media.geo instanceof TLRPC.TL_geoPointEmpty)) {
             add(out, "Название", media.title, R.drawable.msg_location);
             add(out, "Адрес", media.address, R.drawable.msg_location);
-            add(out, "Координаты", String.format(Locale.US, "%.6f, %.6f", media.geo.lat, media.geo._long), R.drawable.msg_location);
+            double lat = media.geo.lat, lon = media.geo._long;
+            String coords = String.format(Locale.US, "%.6f, %.6f", lat, lon);
+            add(out, "Координаты", coords, R.drawable.msg_location, () -> openMap(env, lat, lon, coords));
             if (media.geo.accuracy_radius > 0) add(out, "Точность", media.geo.accuracy_radius + " м", R.drawable.msg_location);
         } else if (media instanceof TLRPC.TL_messageMediaContact) {
             String name = ((media.first_name != null ? media.first_name : "") + " " + (media.last_name != null ? media.last_name : "")).trim();
-            add(out, "Имя", name, R.drawable.msg_openprofile);
-            add(out, "Телефон", media.phone_number, R.drawable.msg_calls);
-            if (media.user_id != 0) add(out, "ID пользователя", Long.toString(media.user_id), R.drawable.menu_hashtag);
+            if (media.user_id != 0) {
+                RawPeers.Info contact = RawPeers.user(env.account, media.user_id);
+                add(out, "Имя", name, R.drawable.msg_openprofile, () -> openProfile(env, contact));
+                add(out, "Телефон", media.phone_number, R.drawable.msg_calls);
+                add(out, "ID пользователя", Long.toString(media.user_id), R.drawable.menu_hashtag, () -> openProfile(env, contact));
+            } else {
+                add(out, "Имя", name, R.drawable.msg_openprofile);
+                add(out, "Телефон", media.phone_number, R.drawable.msg_calls);
+            }
         }
     }
 
-    private static void documentFields(ArrayList<Row> out, int currentAccount, TLRPC.Document doc) {
+    private static void documentFields(ArrayList<Row> out, Env env, TLRPC.Document doc) {
         if (doc.size > 0) add(out, "Размер файла", size(doc.size), R.drawable.msg_download);
         add(out, "Тип медиа", doc.mime_type, R.drawable.msg_media);
         String fileName = FileLoader.getDocumentFileName(doc);
@@ -249,12 +373,12 @@ public class RawMessageDetails {
         add(out, "Эмодзи", alt, R.drawable.msg_emoji_cat);
         if (doc.dc_id > 0) add(out, "Датацентр", dc(doc.dc_id), R.drawable.msg_language);
         if (set != null && !(set instanceof TLRPC.TL_inputStickerSetEmpty)) {
-            stickerSetFields(out, currentAccount, set, emoji);
+            stickerSetFields(out, env, set, emoji);
         }
     }
 
-    private static void stickerSetFields(ArrayList<Row> out, int currentAccount, TLRPC.InputStickerSet input, boolean emoji) {
-        TLRPC.TL_messages_stickerSet cached = MediaDataController.getInstance(currentAccount).getStickerSet(input, true);
+    private static void stickerSetFields(ArrayList<Row> out, Env env, TLRPC.InputStickerSet input, boolean emoji) {
+        TLRPC.TL_messages_stickerSet cached = MediaDataController.getInstance(env.account).getStickerSet(input, true);
         TLRPC.StickerSet set = cached != null ? cached.set : null;
         long setId = set != null ? set.id : input.id;
         String shortName = set != null ? set.short_name : input.short_name;
@@ -264,15 +388,16 @@ public class RawMessageDetails {
         } else {
             name = shortName;
         }
-        add(out, "Набор", name, emoji ? R.drawable.msg_emoji_stickers : R.drawable.msg_sticker);
+        add(out, "Набор", name, emoji ? R.drawable.msg_emoji_stickers : R.drawable.msg_sticker, () -> openStickerSet(env, input, emoji));
         if (!TextUtils.isEmpty(shortName)) {
-            add(out, "Ссылка на набор", "https://t.me/" + (emoji ? "addemoji/" : "addstickers/") + shortName, R.drawable.msg_link);
+            String link = "https://t.me/" + (emoji ? "addemoji/" : "addstickers/") + shortName;
+            add(out, "Ссылка на набор", link, R.drawable.msg_link, () -> openUrl(env, link));
         }
         if (setId != 0) {
             add(out, "ID набора", Long.toString(setId), R.drawable.menu_hashtag);
             // official sets are not created by a user: their id encodes no owner
             long ownerId = set != null && set.official ? 0 : stickerSetOwner(setId);
-            if (ownerId > 0) add(out, "Владелец набора", user(currentAccount, ownerId), R.drawable.msg_openprofile);
+            if (ownerId > 0) addPeer(out, env, "Владелец набора", RawPeers.user(env.account, ownerId), R.drawable.msg_openprofile);
         }
     }
 
@@ -395,6 +520,74 @@ public class RawMessageDetails {
         }
     }
 
+    // ---- save to gallery (same path as ChatActivity's OPTION_SAVE_TO_GALLERY / saveMessageToGallery) ----
+
+    private static boolean isVideoLike(MessageObject message) {
+        return message.isVideo() || message.isGif() || message.isRoundVideo() || message.isVideoSticker();
+    }
+
+    private static boolean canSaveToGallery(MessageObject message) {
+        // animated (Lottie .tgs) stickers aren't images a gallery can show
+        return message.isPhoto() || isVideoLike(message) || message.isSticker() && !message.isAnimatedSticker();
+    }
+
+    private static String galleryPath(int account, MessageObject message) {
+        File f = mediaFile(account, message);
+        if (f != null) return f.getPath();
+        // streamed videos: a cached quality or the quality picked for saving
+        if (message.cachedQuality != null && message.cachedQuality.isCached() && message.cachedQuality.uri != null) {
+            String p = message.cachedQuality.uri.getPath();
+            if (p != null && new File(p).exists()) return p;
+        }
+        if (message.qualityToSave != null) {
+            f = FileLoader.getInstance(account).getPathToAttach(message.qualityToSave, null, false, true);
+            if (f != null && f.exists()) return f.getPath();
+        }
+        return null;
+    }
+
+    private static void saveToGallery(Env env, Runnable onClose) {
+        Activity activity = env.fragment.getParentActivity();
+        if (activity == null) return;
+        MessageObject message = env.message;
+        String path = galleryPath(env.account, message);
+        if (path == null) {
+            RawNotify.show(R.drawable.msg_download, "Файл ещё не загружен");
+            return;
+        }
+        if (onClose != null) onClose.run();
+        // same check as ChatActivity: only scoped-storage builds save through MediaStore without a permission
+        if (Build.VERSION.SDK_INT >= 23 && (Build.VERSION.SDK_INT <= 28 || BuildVars.NO_SCOPED_STORAGE)
+                && activity.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            activity.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
+            return;
+        }
+        final BulletinFactory.FileType type = message.isLivePhoto() ? BulletinFactory.FileType.LIVEPHOTO
+                : isVideoLike(message) ? BulletinFactory.FileType.VIDEO : BulletinFactory.FileType.PHOTO;
+        Utilities.Callback<Uri> onSaved = uri -> {
+            if (BulletinFactory.canShowBulletin(env.fragment)) {
+                BulletinFactory.of(env.fragment).createDownloadBulletin(type, env.rp).show();
+            } else {
+                RawNotify.show(R.drawable.msg_gallery, "Сохранено в галерею");
+            }
+        };
+        if (message.isLivePhoto()) {
+            TLRPC.MessageMedia media = MessageObject.getMedia(message.messageOwner);
+            TLRPC.Document videoDoc = media != null ? media.document : null;
+            if (videoDoc != null) {
+                File video = FileLoader.getInstance(env.account).getPathToAttach(videoDoc, false);
+                if (video == null || !video.exists()) {
+                    video = FileLoader.getInstance(env.account).getPathToAttach(videoDoc, true);
+                }
+                if (video != null && video.exists()) {
+                    MediaController.saveFile(path, video.getPath(), activity, onSaved);
+                    return;
+                }
+            }
+        }
+        MediaController.saveFile(path, activity, isVideoLike(message) ? 1 : 0, null, null, onSaved);
+    }
+
     // ---- formatting ----
 
     private static String date(int unix) {
@@ -432,32 +625,5 @@ public class RawMessageDetails {
                 where = null;
         }
         return where != null ? "DC" + id + ", " + where : "DC" + id;
-    }
-
-    private static String user(int currentAccount, long userId) {
-        TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(userId);
-        if (user == null) {
-            return Long.toString(userId);
-        }
-        String username = UserObject.getPublicUsername(user);
-        String name = UserObject.getUserName(user);
-        return name + (TextUtils.isEmpty(username) ? "" : " (@" + username + ")") + "  ·  " + userId;
-    }
-
-    private static String peer(int currentAccount, TLRPC.Peer peer) {
-        long dialogId = DialogObject.getPeerDialogId(peer);
-        String name = null;
-        MessagesController mc = MessagesController.getInstance(currentAccount);
-        if (dialogId > 0) {
-            TLRPC.User user = mc.getUser(dialogId);
-            if (user != null) name = UserObject.getUserName(user);
-        } else {
-            TLRPC.Chat chat = mc.getChat(-dialogId);
-            if (chat != null) name = chat.title;
-        }
-        String id = peer instanceof TLRPC.TL_peerChannel ? RawIds.format(peer.channel_id, true, false, RawgramConfig.getIdFormat() == RawgramConfig.ID_OFF ? RawgramConfig.ID_BOTAPI : RawgramConfig.getIdFormat())
-                : peer instanceof TLRPC.TL_peerChat ? RawIds.format(peer.chat_id, false, true, RawgramConfig.getIdFormat() == RawgramConfig.ID_OFF ? RawgramConfig.ID_BOTAPI : RawgramConfig.getIdFormat())
-                : Long.toString(peer.user_id);
-        return name != null ? name + "  ·  " + id : id;
     }
 }

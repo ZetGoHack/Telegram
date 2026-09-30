@@ -58,33 +58,28 @@ public class RawgramConfig {
         prefs().edit().putInt(KEY_STICKER_SCALE, stickerScale).apply();
     }
 
-    // ---- recent stickers: how many are kept locally (0 = the server's stickers_recent_limit) ----
+    // ---- recent stickers: how many the sticker panel shows (Telegram hardcodes 20; the server keeps up to 200) ----
 
     public static final int RECENT_STICKERS_MIN = 20;
     public static final int RECENT_STICKERS_MAX = 200;
     public static final int RECENT_STICKERS_STEP = 10;
+    public static final int RECENT_STICKERS_DEFAULT = 20;
 
-    private static int recentStickersLimit = -1;
+    private static int recentStickersShown = -1;
 
-    public static int getRecentStickersLimit() {
-        if (recentStickersLimit < 0) {
+    public static int getRecentStickersShown() {
+        if (recentStickersShown < 0) {
             if (org.telegram.messenger.ApplicationLoader.applicationContext == null) {
-                return 0;
+                return RECENT_STICKERS_DEFAULT;
             }
-            recentStickersLimit = prefs().getInt("recentStickersLimit", 0);
+            recentStickersShown = clamp(prefs().getInt("recentStickersShown", RECENT_STICKERS_DEFAULT), RECENT_STICKERS_MIN, RECENT_STICKERS_MAX);
         }
-        return recentStickersLimit;
+        return recentStickersShown;
     }
 
-    public static void setRecentStickersLimit(int value) {
-        recentStickersLimit = clamp(value, RECENT_STICKERS_MIN, RECENT_STICKERS_MAX);
-        prefs().edit().putInt("recentStickersLimit", recentStickersLimit).apply();
-    }
-
-    /** The limit to apply: the user's choice, or the server's one if nothing was chosen. */
-    public static int recentStickersLimit(int serverLimit) {
-        int limit = getRecentStickersLimit();
-        return limit > 0 ? limit : serverLimit;
+    public static void setRecentStickersShown(int value) {
+        recentStickersShown = clamp(value, RECENT_STICKERS_MIN, RECENT_STICKERS_MAX);
+        prefs().edit().putInt("recentStickersShown", recentStickersShown).apply();
     }
 
     /** Last view chosen in the raw code block: JSON (true) or the flat field list (false). */

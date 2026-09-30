@@ -2226,7 +2226,7 @@ public class ChatActivity extends BaseFragment implements
         @Override
         public void onTextChanged(final CharSequence text, boolean bigChange, boolean fromDraft) {
             MediaController.getInstance().setInputFieldHasText(!TextUtils.isEmpty(text) || chatActivityEnterView.isEditingMessage());
-            if (mentionContainer != null && mentionContainer.getAdapter() != null) {
+            if (mentionContainer != null && mentionContainer.getAdapter() != null && !rawgramHoldMentions) {
                 mentionContainer.getAdapter().searchUsernameOrHashtag(text, chatActivityEnterView.getCursorPosition(), messages, false, false);
             }
             if (waitingForCharaterEnterRunnable != null) {
@@ -31884,7 +31884,7 @@ public class ChatActivity extends BaseFragment implements
                 if (rawgramDetails && popupLayout.getSwipeBack() != null) {
                     // rawGram: technical details of the message, opened as a swipe-back submenu
                     final MessageObject rawMessage = message;
-                    LinearLayout details = RawMessageDetails.build(getParentActivity(), currentAccount, rawMessage, themeDelegate,
+                    LinearLayout details = RawMessageDetails.build(ChatActivity.this, currentAccount, rawMessage, themeDelegate,
                             () -> popupLayout.getSwipeBack().closeForeground(),
                             () -> {
                                 closeMenu();
@@ -46851,11 +46851,14 @@ public class ChatActivity extends BaseFragment implements
             rawgramFinishHide();
             return;
         }
-        final View container = mentionContainer;
+        final MentionsContainerView container = mentionContainer;
         int gooColor = blurredBackgroundColorProvider != null ? blurredBackgroundColorProvider.getBackgroundColor() : getThemedColor(Theme.key_chat_messagePanelBackground);
-        org.telegram.rawgram.RawAbsorb.start(contentView, container, mentionContainer.rawgramPanelBounds(), button,
-                gooColor, R.drawable.msg_bots, getThemedColor(Theme.key_glass_defaultIcon),
-                this::rawgramClearAfterHide, this::rawgramFinishHide);
+        // the field empties right away; the results keep what they show until they are inside the button
+        rawgramHoldMentions = true;
+        chatActivityEnterView.setFieldText("");
+        container.rawgramSlideOutButtons();
+        org.telegram.rawgram.RawAbsorb.start(contentView, container, container.rawgramPanelBounds(), button,
+                gooColor, container::rawgramDrawButtons, this::rawgramReleaseMentions, this::rawgramFinishHide);
     }
 
     private void rawgramFinishHide() {
@@ -46863,14 +46866,19 @@ public class ChatActivity extends BaseFragment implements
         if (sideControlsButtonsLayout != null) {
             sideControlsButtonsLayout.setTranslationZ(0);
         }
-        rawgramClearAfterHide();
+        rawgramReleaseMentions();
     }
 
-    /** Empties the field (closing the already invisible panel) as soon as the results are inside the button. */
-    private void rawgramClearAfterHide() {
-        if (chatActivityEnterView != null && chatActivityEnterView.getFieldText() != null && chatActivityEnterView.getFieldText().length() > 0
-                && org.telegram.rawgram.RawInlineStash.has(currentAccount)) {
-            chatActivityEnterView.setFieldText("");
+    // while the results are being parked, the mentions adapter doesn't see field changes (it would drop the list)
+    private boolean rawgramHoldMentions;
+
+    /** Lets the adapter catch up with the (now empty) field, which closes the already invisible panel. */
+    private void rawgramReleaseMentions() {
+        if (rawgramHoldMentions) {
+            rawgramHoldMentions = false;
+            if (mentionContainer != null && mentionContainer.getAdapter() != null && chatActivityEnterView != null) {
+                mentionContainer.getAdapter().searchUsernameOrHashtag(chatActivityEnterView.getFieldText(), chatActivityEnterView.getCursorPosition(), messages, false, false);
+            }
         }
         // the panel closes while invisible; bring its alpha back once it is gone
         final View container = mentionContainer;

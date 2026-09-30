@@ -6,6 +6,7 @@ import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -27,6 +28,15 @@ public class RawRerollStatusSheet extends BottomSheet {
     private final TextView statsView;
     private final TextView optionsView;
     private final LinearLayout historyList;
+    private final ScrollView scrollView;
+    private final TextView newPill;
+    private boolean newPillShown;
+    private int unseenNew;
+    // once the sheet has seen a running reroll the history area keeps its full height, so the sheet never grows per attempt
+    private boolean reserveHistory;
+    // card whose on-screen position must survive the next layout (new cards inserted above it)
+    private View scrollAnchor;
+    private int scrollAnchorTop;
     private final java.util.ArrayList<TextView> historyRows = new java.util.ArrayList<>();
     private TextView historyEmpty;
     private final LinearLayout actions;
@@ -68,11 +78,16 @@ public class RawRerollStatusSheet extends BottomSheet {
         stateView = new TextView(context);
         stateView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
         stateView.setTypeface(AndroidUtilities.bold());
+        // fixed one-line height: the text changes several times a second and must never re-wrap the sheet
+        stateView.setSingleLine(true);
+        stateView.setEllipsize(TextUtils.TruncateAt.END);
         root.addView(stateView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 16, 8, 16, 0));
 
         statsView = new TextView(context);
         statsView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
         statsView.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
+        statsView.setSingleLine(true);
+        statsView.setEllipsize(TextUtils.TruncateAt.END);
         root.addView(statsView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 16, 4, 16, 0));
 
         optionsView = new TextView(context);
@@ -95,18 +110,62 @@ public class RawRerollStatusSheet extends BottomSheet {
         historyHeader.setTextColor(getThemedColor(Theme.key_featuredStickers_addButton));
         root.addView(historyHeader, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 16, 0, 16, 4));
 
-        ScrollView scrollView = new ScrollView(context) {
+        reserveHistory = controller.isRunning();
+        scrollView = new ScrollView(context) {
             @Override
             protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
                 int max = (int) (AndroidUtilities.displaySize.y * 0.4f);
-                super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(max, MeasureSpec.AT_MOST));
+                super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(max, reserveHistory ? MeasureSpec.EXACTLY : MeasureSpec.AT_MOST));
+            }
+
+            @Override
+            protected void onLayout(boolean changed, int l, int t, int r, int b) {
+                super.onLayout(changed, l, t, r, b);
+                if (scrollAnchor != null) {
+                    int delta = scrollAnchor.getTop() - scrollAnchorTop;
+                    scrollAnchor = null;
+                    if (delta != 0) {
+                        // same frame as the insertion, so what the user looks at never moves
+                        scrollTo(0, getScrollY() + delta);
+                        // a running fling works in absolute positions and would undo the shift: stop it
+                        smoothScrollBy(0, 0);
+                    }
+                }
+            }
+
+            @Override
+            protected void onScrollChanged(int l, int t, int oldl, int oldt) {
+                super.onScrollChanged(l, t, oldl, oldt);
+                if (t <= AndroidUtilities.dp(8)) {
+                    hideNewPill();
+                }
             }
         };
         historyList = new LinearLayout(context);
         historyList.setOrientation(LinearLayout.VERTICAL);
         historyList.setPadding(0, 0, 0, AndroidUtilities.dp(12));
         scrollView.addView(historyList, LayoutHelper.createScroll(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP));
-        root.addView(scrollView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+        FrameLayout historyFrame = new FrameLayout(context);
+        historyFrame.addView(scrollView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+        // "N новых ↑": attempts that arrived above while the user was reading further down
+        newPill = new TextView(context);
+        newPill.setGravity(Gravity.CENTER);
+        newPill.setSingleLine(true);
+        newPill.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        newPill.setTypeface(AndroidUtilities.bold());
+        newPill.setPadding(AndroidUtilities.dp(12), 0, AndroidUtilities.dp(12), 0);
+        int accent = getThemedColor(Theme.key_featuredStickers_addButton);
+        newPill.setTextColor(getThemedColor(Theme.key_featuredStickers_buttonText));
+        newPill.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(14), accent, Theme.multAlpha(accent, 0.8f)));
+        newPill.setVisibility(View.GONE);
+        newPill.setOnClickListener(v -> {
+            scrollView.smoothScrollTo(0, 0);
+            hideNewPill();
+        });
+        historyFrame.addView(newPill, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 28, Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 4, 0, 0));
+        root.addView(historyFrame, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
         setCustomView(root);
         controller.addListener(listener);
@@ -141,6 +200,10 @@ public class RawRerollStatusSheet extends BottomSheet {
     }
 
     private void update() {
+        if (controller.isRunning() && !reserveHistory) {
+            reserveHistory = true;
+            scrollView.requestLayout();
+        }
         updateState();
         updateRest();
     }
@@ -150,13 +213,14 @@ public class RawRerollStatusSheet extends BottomSheet {
             case RawRerollController.STATE_RUNNING:
                 int wait = controller.getWaitSecondsLeft();
                 long waiting = (android.os.SystemClock.elapsedRealtime() - controller.attemptSentAt) / 1000;
-                boolean awaiting = controller.awaitingAnswer && waiting >= 2;
+                // the live part goes first, the pattern last: a long pattern gets ellipsized, never the timer
                 stateView.setText(wait > 0
-                        ? "⏳ FLOOD_WAIT: жду " + wait + " с, потом продолжу поиск " + controller.getPatternLabel()
-                        : awaiting
-                        ? "⟳ попытка " + controller.attempt + ": жду ответ бота " + waiting + " с"
+                        ? "⏳ FLOOD_WAIT: жду " + wait + " с · " + controller.getPatternLabel()
+                        : controller.awaitingAnswer
+                        ? "⟳ попытка " + controller.attempt + ": жду ответ " + waiting + " с"
                             + (controller.options.timeoutSec > 0 ? " из " + controller.options.timeoutSec : "")
-                        : "⟳ идёт поиск " + controller.getPatternLabel());
+                            + " · " + controller.getPatternLabel()
+                        : "⟳ попытка " + controller.attempt + ": идёт поиск · " + controller.getPatternLabel());
                 stateView.setTextColor(getThemedColor(Theme.key_featuredStickers_addButton));
                 break;
             case RawRerollController.STATE_MATCHED:
@@ -196,9 +260,7 @@ public class RawRerollStatusSheet extends BottomSheet {
         sb.append(where);
         sb.append(" · индексы: ").append(o.indices.isEmpty() ? "все" : o.indices);
         sb.append(" · задержка ").append(o.delayMs).append(" мс");
-        if (controller.floodWaits > 0) {
-            sb.append(" · FLOOD_WAIT ×").append(controller.floodWaits);
-        }
+        // nothing here changes during a run (the FLOOD_WAIT counter lives in the stats line), so it never re-wraps
         optionsView.setText(sb);
 
         // the chips only change with the state; rebuilding them on every attempt made the row blink
@@ -235,7 +297,8 @@ public class RawRerollStatusSheet extends BottomSheet {
     private void updateStats() {
         long elapsed = controller.getElapsedMs();
         int max = controller.options != null ? controller.options.maxAttempts : 0;
-        statsView.setText(String.format(Locale.US, "попытки: %d / %d · прошло %.1f с", controller.attempt, max, elapsed / 1000f));
+        statsView.setText(String.format(Locale.US, "попытки: %d / %d · прошло %.1f с", controller.attempt, max, elapsed / 1000f)
+                + (controller.floodWaits > 0 ? " · FLOOD_WAIT ×" + controller.floodWaits : ""));
     }
 
     // ---- interactive history: one row per attempt, newest on top ----
@@ -256,13 +319,23 @@ public class RawRerollStatusSheet extends BottomSheet {
                 historyList.removeView(historyEmpty);
                 historyEmpty = null;
             }
-            boolean animate = historyList.isAttachedToWindow();
+            boolean attached = historyList.isAttachedToWindow();
+            // reading further down or looking at an expanded card: keep that content still and just count the new ones
+            boolean hold = attached && shown > 0
+                    && (scrollView.getScrollY() > AndroidUtilities.dp(8) || expanded != null && cards.containsKey(expanded));
+            if (hold && scrollAnchor == null) {
+                scrollAnchor = historyList.getChildAt(0);
+                scrollAnchorTop = scrollAnchor.getTop();
+            }
             for (int i = shown; i < count; i++) {
                 LinearLayout card = createCard(controller.history.get(i), 0);
-                if (animate) {
+                if (attached && !hold) {
                     card.setVisibility(View.GONE);
                     RawAnim.expand(card, true);
                 }
+            }
+            if (hold) {
+                showNewPill(count - shown);
             }
             updateHistoryTexts();
             return;
@@ -273,6 +346,9 @@ public class RawRerollStatusSheet extends BottomSheet {
         historyEmpty = null;
         cards.clear();
         controlsOf.clear();
+        scrollAnchor = null;
+        hideNewPill();
+        scrollView.scrollTo(0, 0);
         if (count == 0) {
             historyEmpty = row();
             historyEmpty.setText(controller.isRunning() ? "первая попытка…" : "попыток не было");
@@ -283,6 +359,33 @@ public class RawRerollStatusSheet extends BottomSheet {
             createCard(controller.history.get(i), -1);
         }
         updateHistoryTexts();
+    }
+
+    private void showNewPill(int added) {
+        unseenNew += added;
+        newPill.setText(unseenNew + " " + (unseenNew % 10 == 1 && unseenNew % 100 != 11 ? "новая" : "новых") + " ↑");
+        if (newPillShown) {
+            return;
+        }
+        newPillShown = true;
+        newPill.animate().cancel();
+        newPill.setVisibility(View.VISIBLE);
+        newPill.setAlpha(0f);
+        newPill.setTranslationY(-AndroidUtilities.dp(8));
+        newPill.animate().alpha(1f).translationY(0).setDuration(200)
+                .setInterpolator(org.telegram.ui.Components.CubicBezierInterpolator.EASE_OUT_QUINT).start();
+    }
+
+    private void hideNewPill() {
+        unseenNew = 0;
+        if (newPill == null || !newPillShown) {
+            return;
+        }
+        newPillShown = false;
+        newPill.animate().cancel();
+        newPill.animate().alpha(0f).translationY(-AndroidUtilities.dp(8)).setDuration(150)
+                .setInterpolator(org.telegram.ui.Components.CubicBezierInterpolator.EASE_OUT)
+                .withEndAction(() -> newPill.setVisibility(View.GONE)).start();
     }
 
     /** Adds the card of one attempt at {@code index} of the list (-1 = at the end); rows are kept newest first. */

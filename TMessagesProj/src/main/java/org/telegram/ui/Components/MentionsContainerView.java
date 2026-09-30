@@ -500,7 +500,35 @@ public class MentionsContainerView extends FrameLayout implements NotificationCe
         return new float[]{rawgramHideBounds.centerX(), rawgramHideBounds.centerY()};
     }
 
+    // the floating buttons leave to the right while the results are parked
+    private long rawgramSlideStart;
+
+    public void rawgramSlideOutButtons() {
+        rawgramSlideStart = android.os.SystemClock.elapsedRealtime();
+        invalidate();
+    }
+
+    /** Draws the floating buttons (hide + reroll bubble); used by the park animation, which draws them unclipped. */
+    public void rawgramDrawButtons(Canvas canvas) {
+        drawRawgramBubble(canvas);
+    }
+
     private void drawRawgramBubble(Canvas canvas) {
+        float slide = 0;
+        if (rawgramSlideStart != 0) {
+            float t = Math.min(1f, (android.os.SystemClock.elapsedRealtime() - rawgramSlideStart) / 300f);
+            slide = CubicBezierInterpolator.EASE_IN.getInterpolation(t) * dp(150);
+            if (t < 1f) {
+                invalidate();
+            }
+        }
+        canvas.save();
+        canvas.translate(slide, 0);
+        drawRawgramBubbleInner(canvas);
+        canvas.restore();
+    }
+
+    private void drawRawgramBubbleInner(Canvas canvas) {
         drawRawgramHide(canvas);
         float appear = rawgramBubbleAppear.set(rawgramReroll != null && adapter.isBotContext() ? 1f : 0f);
         if (rawgramBubble == null || rawgramLastReroll == null || appear <= 0.01f) {
@@ -612,6 +640,7 @@ public class MentionsContainerView extends FrameLayout implements NotificationCe
             boolean reversed = isReversed();
             if (!shown) {
                 scrollToFirst = true;
+                rawgramSlideStart = 0;
                 if (listView.getLayoutManager() == linearLayoutManager) {
                     linearLayoutManager.scrollToPositionWithOffset(0, reversed ? -100000 : 100000);
                 }
