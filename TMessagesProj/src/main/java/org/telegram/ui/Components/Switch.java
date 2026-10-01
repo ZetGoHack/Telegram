@@ -226,6 +226,11 @@ public class Switch extends View {
         return color;
     }
 
+    /** rawGram: lets the custom switch styles apply subclasses' colour processing. */
+    public int rawProcessColor(int color) {
+        return processColor(color);
+    }
+
     public void setColors(int track, int trackChecked, int thumb, int thumbChecked) {
         trackColorKey = track;
         trackCheckedColorKey = trackChecked;
@@ -374,6 +379,12 @@ public class Switch extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         if (getVisibility() != VISIBLE) {
+            return;
+        }
+        if (overrideColorProgress == 0 && org.telegram.rawgram.RawSwitchStyle.enabled() && org.telegram.rawgram.RawSwitchStyle.draw(this, canvas, progress,
+                trackColorKey, trackCheckedColorKey, thumbColorKey, thumbCheckedColorKey, iconDrawable,
+                animatorIconVisibility.getFloatValue(), drawIconType, rippleDrawable, resourcesProvider)) {
+            lastIconColor = 0;
             return;
         }
 

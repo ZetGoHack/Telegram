@@ -90,10 +90,12 @@ import me.vkryl.android.animator.FactorAnimator;
 public class MainTabsActivity extends ViewPagerActivity implements NotificationCenter.NotificationCenterDelegate, FactorAnimator.Target {
 
     public static final int TABS_COUNT = 4;
+    // rawGram: the Contacts tab can be hidden (read once, when the class loads)
+    private static final boolean RAW_HIDE_CONTACTS = org.telegram.rawgram.RawUiConfig.mainTabsHideContacts();
     private static final int POSITION_CHATS = 0;
-    private static final int POSITION_CONTACTS = 1;
-    private static final int POSITION_CALLS_OR_SETTINGS = 2;
-    private static final int POSITION_PROFILE = 3;
+    private static final int POSITION_CONTACTS = RAW_HIDE_CONTACTS ? -1 : 1;
+    private static final int POSITION_CALLS_OR_SETTINGS = RAW_HIDE_CONTACTS ? 1 : 2;
+    private static final int POSITION_PROFILE = RAW_HIDE_CONTACTS ? 2 : 3;
 
     private static final int INDEX_CHATS = 0;
     private static final int INDEX_CONTACTS = 1;
@@ -102,6 +104,9 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     private static final int INDEX_PROFILE = 4;
 
     private static int indexToPosition(int index) {
+        if (RAW_HIDE_CONTACTS) {
+            return index == INDEX_CHATS ? POSITION_CHATS : index == INDEX_CONTACTS ? POSITION_CONTACTS : index == INDEX_PROFILE ? POSITION_PROFILE : POSITION_CALLS_OR_SETTINGS;
+        }
         return index > 2 ? index - 1 : index;
     }
 
@@ -348,7 +353,10 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             });
 
             tabsView.addView(tabs[index]);
-            tabsView.setViewVisible(view, true, false);
+            tabsView.setViewVisible(view, position >= 0, false);
+            if (org.telegram.rawgram.RawUiConfig.mainTabsHideTitles()) {
+                view.setMainTabsCompact(true);
+            }
         }
         checkUi_callTabVisible(getUserConfig().showCallsTab, false);
 
@@ -767,7 +775,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
     @Override
     protected int getFragmentsCount() {
-        return TABS_COUNT;
+        return POSITION_PROFILE + 1;
     }
 
     @Override

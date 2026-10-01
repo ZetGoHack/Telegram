@@ -75,12 +75,25 @@ public class RawChatHooks {
         boolean isTypingInChat();
 
         void closeMenu();
+
+        /** Runs a message menu option (ChatActivity.OPTION_*) for {@code message}, as if picked from its menu. */
+        void runMessageOption(MessageObject message, int option);
     }
 
     private final Host host;
 
     public RawChatHooks(Host host) {
         this.host = host;
+    }
+
+    // "Чаты: вид и поведение": double tap, message menu items, admin shortcuts (RawChatUiActions)
+    private RawChatUiActions ui;
+
+    public RawChatUiActions ui() {
+        if (ui == null) {
+            ui = new RawChatUiActions(host);
+        }
+        return ui;
     }
 
     // ---- lifecycle ----

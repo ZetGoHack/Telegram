@@ -50,40 +50,45 @@ public class RawgramSettingsActivity extends BaseFragment {
     private static final int TYPE_CHECK = 4;
     private static final int TYPE_VALUE = 5;
 
-    private static final int ROW_DATA_HEADER = 0;
-    private static final int ROW_FULL_NUMBERS = 1;
-    private static final int ROW_ID_FORMAT = 2;
-    private static final int ROW_DATA_INFO = 3;
-    private static final int ROW_FEAT_HEADER = 4;
-    private static final int ROW_FEAT_DETAILS = 5;
-    private static final int ROW_FEAT_INLINE_RAW = 6;
-    private static final int ROW_FEAT_TRAY = 7;
-    private static final int ROW_FEAT_BOT_BUTTONS = 8;
-    private static final int ROW_FEAT_PREVIEW_RAW = 9;
-    private static final int ROW_FEAT_OBJECT_RAW = 10;
-    private static final int ROW_FEAT_WEBAPP = 11;
-    private static final int ROW_FEAT_INFO = 12;
-    private static final int ROW_CHAT_HEADER = 13;
-    private static final int ROW_HIDE_KEYBOARD = 14;
-    private static final int ROW_HIDE_CAMERA = 15;
-    private static final int ROW_CHAT_INFO = 16;
-    private static final int ROW_PRESS_HEADER = 17;
-    private static final int ROW_PRESS_SLIDER = 18;
-    private static final int ROW_PRESS_INFO = 19;
-    private static final int ROW_STICKER_HEADER = 20;
-    private static final int ROW_STICKER_SLIDER = 21;
-    private static final int ROW_STICKER_PREVIEW = 22;
-    private static final int ROW_STICKER_INFO = 23;
-    private static final int ROW_RECENT_HEADER = 24;
-    private static final int ROW_RECENT_SLIDER = 25;
-    private static final int ROW_RECENT_INFO = 26;
-    private static final int ROW_TOOLS_HEADER = 27;
-    private static final int ROW_REQUEST_LOG = 28;
-    private static final int ROW_REQUEST_LOG_OPEN = 29;
-    private static final int ROW_CRASH_LOG = 30;
-    private static final int ROW_SERVER_CONFIG = 31;
-    private static final int ROW_TOOLS_INFO = 32;
-    private static final int ROW_COUNT = 33;
+    private static final int ROW_LOOK_HEADER = 0;
+    private static final int ROW_LOOK_UI = 1;
+    private static final int ROW_LOOK_CHAT = 2;
+    private static final int ROW_LOOK_CLASSIC = 3;
+    private static final int ROW_LOOK_INFO = 4;
+    private static final int ROW_DATA_HEADER = 5;
+    private static final int ROW_FULL_NUMBERS = 6;
+    private static final int ROW_ID_FORMAT = 7;
+    private static final int ROW_DATA_INFO = 8;
+    private static final int ROW_FEAT_HEADER = 9;
+    private static final int ROW_FEAT_DETAILS = 10;
+    private static final int ROW_FEAT_INLINE_RAW = 11;
+    private static final int ROW_FEAT_TRAY = 12;
+    private static final int ROW_FEAT_BOT_BUTTONS = 13;
+    private static final int ROW_FEAT_PREVIEW_RAW = 14;
+    private static final int ROW_FEAT_OBJECT_RAW = 15;
+    private static final int ROW_FEAT_WEBAPP = 16;
+    private static final int ROW_FEAT_INFO = 17;
+    private static final int ROW_CHAT_HEADER = 18;
+    private static final int ROW_HIDE_KEYBOARD = 19;
+    private static final int ROW_HIDE_CAMERA = 20;
+    private static final int ROW_CHAT_INFO = 21;
+    private static final int ROW_PRESS_HEADER = 22;
+    private static final int ROW_PRESS_SLIDER = 23;
+    private static final int ROW_PRESS_INFO = 24;
+    private static final int ROW_STICKER_HEADER = 25;
+    private static final int ROW_STICKER_SLIDER = 26;
+    private static final int ROW_STICKER_PREVIEW = 27;
+    private static final int ROW_STICKER_INFO = 28;
+    private static final int ROW_RECENT_HEADER = 29;
+    private static final int ROW_RECENT_SLIDER = 30;
+    private static final int ROW_RECENT_INFO = 31;
+    private static final int ROW_TOOLS_HEADER = 32;
+    private static final int ROW_REQUEST_LOG = 33;
+    private static final int ROW_REQUEST_LOG_OPEN = 34;
+    private static final int ROW_CRASH_LOG = 35;
+    private static final int ROW_SERVER_CONFIG = 36;
+    private static final int ROW_TOOLS_INFO = 37;
+    private static final int ROW_COUNT = 38;
 
     private RecyclerListView listView;
     private ListAdapter adapter;
@@ -114,7 +119,15 @@ public class RawgramSettingsActivity extends BaseFragment {
         listView.setVerticalScrollBarEnabled(false);
         listView.setAdapter(adapter = new ListAdapter(context));
         listView.setOnItemClickListener((view, position) -> {
-            if (position == ROW_FULL_NUMBERS) {
+            if (position == ROW_LOOK_UI) {
+                presentFragment(new RawUiSettingsActivity());
+            } else if (position == ROW_LOOK_CHAT) {
+                presentFragment(new RawChatUiSettingsActivity());
+            } else if (position == ROW_LOOK_CLASSIC) {
+                boolean value = !RawClassicUi.isEnabled();
+                RawClassicUi.setEnabled(value);
+                ((TextCheckCell) view).setChecked(value);
+            } else if (position == ROW_FULL_NUMBERS) {
                 boolean value = !RawgramConfig.isFullNumbers();
                 RawgramConfig.setFullNumbers(value);
                 ((TextCheckCell) view).setChecked(value);
@@ -212,6 +225,7 @@ public class RawgramSettingsActivity extends BaseFragment {
         @Override
         public int getItemViewType(int position) {
             switch (position) {
+                case ROW_LOOK_CLASSIC:
                 case ROW_FULL_NUMBERS:
                 case ROW_HIDE_KEYBOARD:
                 case ROW_HIDE_CAMERA:
@@ -224,11 +238,14 @@ public class RawgramSettingsActivity extends BaseFragment {
                 case ROW_FEAT_OBJECT_RAW:
                 case ROW_FEAT_WEBAPP:
                     return TYPE_CHECK;
+                case ROW_LOOK_UI:
+                case ROW_LOOK_CHAT:
                 case ROW_ID_FORMAT:
                 case ROW_REQUEST_LOG_OPEN:
                 case ROW_CRASH_LOG:
                 case ROW_SERVER_CONFIG:
                     return TYPE_VALUE;
+                case ROW_LOOK_HEADER:
                 case ROW_DATA_HEADER:
                 case ROW_FEAT_HEADER:
                 case ROW_CHAT_HEADER:
@@ -273,7 +290,8 @@ public class RawgramSettingsActivity extends BaseFragment {
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             switch (holder.getItemViewType()) {
                 case TYPE_HEADER:
-                    ((HeaderCell) holder.itemView).setText(position == ROW_DATA_HEADER ? "Данные"
+                    ((HeaderCell) holder.itemView).setText(position == ROW_LOOK_HEADER ? "Внешний вид"
+                            : position == ROW_DATA_HEADER ? "Данные"
                             : position == ROW_FEAT_HEADER ? "Функции rawGram"
                             : position == ROW_CHAT_HEADER ? "Чат"
                             : position == ROW_PRESS_HEADER ? "Задержка зажатия"
@@ -281,7 +299,9 @@ public class RawgramSettingsActivity extends BaseFragment {
                             : position == ROW_TOOLS_HEADER ? "Инструменты" : "Размер стикеров");
                     break;
                 case TYPE_CHECK:
-                    if (position >= ROW_FEAT_DETAILS && position <= ROW_FEAT_WEBAPP) {
+                    if (position == ROW_LOOK_CLASSIC) {
+                        ((TextCheckCell) holder.itemView).setTextAndCheck("Классический вид чата", RawClassicUi.isEnabled(), false);
+                    } else if (position >= ROW_FEAT_DETAILS && position <= ROW_FEAT_WEBAPP) {
                         ((TextCheckCell) holder.itemView).setTextAndCheck(featureTitle(position), isFeatureOn(position), position != ROW_FEAT_WEBAPP);
                     } else if (position == ROW_REQUEST_LOG) {
                         ((TextCheckCell) holder.itemView).setTextAndCheck("Журнал запросов MTProto", RawRequestLog.enabled, true);
@@ -294,6 +314,14 @@ public class RawgramSettingsActivity extends BaseFragment {
                     }
                     break;
                 case TYPE_VALUE: {
+                    if (position == ROW_LOOK_UI) {
+                        ((TextSettingsCell) holder.itemView).setText("Интерфейс", true);
+                        break;
+                    }
+                    if (position == ROW_LOOK_CHAT) {
+                        ((TextSettingsCell) holder.itemView).setText("Чаты: вид и поведение", true);
+                        break;
+                    }
                     if (position == ROW_SERVER_CONFIG) {
                         ((TextSettingsCell) holder.itemView).setText("Конфиг сервера (raw)", false);
                         break;
@@ -332,7 +360,10 @@ public class RawgramSettingsActivity extends BaseFragment {
                 }
                 case TYPE_INFO: {
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
-                    if (position == ROW_DATA_INFO) {
+                    if (position == ROW_LOOK_INFO) {
+                        cell.setText("Классический вид: сплошная шапка, закреп под ней и поле ввода во всю ширину вместо плавающих «пилюль». "
+                                + "Применяется к чатам, открытым после переключения.");
+                    } else if (position == ROW_DATA_INFO) {
                         cell.setText("Числа: просмотры, реакции, подписчики, рейтинг — полностью. Изменения видны при следующем открытии экрана. "
                                 + "ID в профилях: Bot API — пользователи как есть, группы -id, каналы и супергруппы -100id; нажатие копирует.");
                     } else if (position == ROW_FEAT_INFO) {

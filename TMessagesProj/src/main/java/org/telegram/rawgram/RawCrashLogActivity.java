@@ -275,7 +275,7 @@ public class RawCrashLogActivity extends BaseFragment {
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             int type = holder.getItemViewType();
             if (type == VIEW_ACTION) {
-                ((TextCell) holder.itemView).setTextAndIcon(capturing ? "Снимаю logcat…" : "Снять logcat сейчас", R.drawable.msg_log, !items.isEmpty());
+                ((TextCell) holder.itemView).setTextAndIcon(capturing ? "Снимаю logcat…" : "Снять logcat и историю завершений", R.drawable.msg_log, !items.isEmpty());
             } else if (type == VIEW_INFO) {
                 ((TextInfoPrivacyCell) holder.itemView).setText(items.isEmpty()
                         ? "Падений пока не было. При падении rawGram сохраняет стек, сведения об устройстве и хвост logcat; при следующем запуске покажет уведомление.\n\n«Снять logcat» сохраняет текущий лог процесса и состояние пушей/энергосбережения — пригодится, если, например, уведомления приходят с задержкой."

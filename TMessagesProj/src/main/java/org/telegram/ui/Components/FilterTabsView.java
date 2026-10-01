@@ -1544,12 +1544,15 @@ public class FilterTabsView extends FrameLayout {
         if (!tabs.isEmpty()) {
             final int width = MeasureSpec.getSize(widthMeasureSpec) - listViewPaddingH * 2;
             Tab firstTab = findDefaultTab();
-            if (firstTab != null) {
+            if (firstTab != null || org.telegram.rawgram.RawFolderTabs.customTabs()) {
+                int trueTabsWidth = allTabsWidth;
+                if (firstTab != null && !org.telegram.rawgram.RawFolderTabs.customTitles()) { // rawGram: keep icon titles
                 firstTab.setTitle(LocaleController.getString(R.string.FilterAllChats), null, false);
                 int tabWidth = firstTab.getWidth(false);
                 firstTab.setTitle(allTabsWidth > width ? LocaleController.getString(R.string.FilterAllChatsShort) : LocaleController.getString(R.string.FilterAllChats), null, false);
-                int trueTabsWidth = allTabsWidth - tabWidth;
+                trueTabsWidth = allTabsWidth - tabWidth;
                 trueTabsWidth += firstTab.getWidth(false);
+                }
                 int prevWidth = additionalTabWidth;
                 additionalTabWidth = trueTabsWidth < width ? (width - trueTabsWidth) / tabs.size() : 0;
                 if (prevWidth != additionalTabWidth) {
@@ -1717,7 +1720,7 @@ public class FilterTabsView extends FrameLayout {
                 requestLayout();
                 allTabsWidth = 0;
                 final FilterTabsView.Tab defaultTab = findDefaultTab();
-                if (defaultTab != null) {
+                if (defaultTab != null && !org.telegram.rawgram.RawFolderTabs.customTitles()) {
                     defaultTab.setTitle(LocaleController.getString(R.string.FilterAllChats), null, false);
                 }
                 for (int b = 0; b < N; b++) {
@@ -1753,7 +1756,7 @@ public class FilterTabsView extends FrameLayout {
             }
             allTabsWidth = 0;
             final FilterTabsView.Tab defaultTab = findDefaultTab();
-            if (defaultTab != null) {
+            if (defaultTab != null && !org.telegram.rawgram.RawFolderTabs.customTitles()) {
                 defaultTab.setTitle(LocaleController.getString(R.string.FilterAllChats), null, false);
             }
             for (int b = 0, N = tabs.size(); b < N; b++) {
@@ -1814,6 +1817,8 @@ public class FilterTabsView extends FrameLayout {
                 return;
             }
             ArrayList<MessagesController.DialogFilter> filters = MessagesController.getInstance(UserConfig.selectedAccount).getDialogFilters();
+            idx1 = org.telegram.rawgram.RawFolderTabs.tabToFilterIndex(idx1, filters); // rawGram: hidden "All chats" tab
+            idx2 = org.telegram.rawgram.RawFolderTabs.tabToFilterIndex(idx2, filters);
             MessagesController.DialogFilter filter1 = filters.get(idx1);
             MessagesController.DialogFilter filter2 = filters.get(idx2);
             int temp = filter1.order;

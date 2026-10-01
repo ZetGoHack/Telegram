@@ -28,6 +28,8 @@ public class ChatActivityTopPanelLayout extends AnimatedLinearLayout {
     }
 
     BlurredBackgroundDrawable backgroundDrawable;
+    public boolean rawClassic; // rawGram: full-width solid panel attached to the action bar
+    public Theme.ResourcesProvider rawClassicResources;
 
     public void setBlurredBackground(BlurredBackgroundDrawable background) {
         backgroundDrawable = background;
@@ -68,7 +70,7 @@ public class ChatActivityTopPanelLayout extends AnimatedLinearLayout {
 
         clipRectF.set(getPaddingLeft(), getPaddingTop(), getMeasuredWidth() - getPaddingRight(), getPaddingTop() + bgHeight);
 
-        final float r = Math.min(dp(18), Math.min(clipRectF.width(), clipRectF.height()) / 2f);
+        final float r = rawClassic ? 0 : Math.min(dp(18), Math.min(clipRectF.width(), clipRectF.height()) / 2f);
         clipPath.rewind();
         clipPath.addRoundRect(clipRectF, r, r, Path.Direction.CW);
 
@@ -106,7 +108,9 @@ public class ChatActivityTopPanelLayout extends AnimatedLinearLayout {
     protected void dispatchDraw(@NonNull Canvas canvas) {
         if (getMetadata().getTotalVisibility() == 0) return;
 
-        if (backgroundDrawable != null) {
+        if (rawClassic) {
+            org.telegram.rawgram.RawClassicUi.drawTopPanelBackground(canvas, this, getMetadata().getTotalHeight(), getMetadata().getTotalVisibility(), rawClassicResources);
+        } else if (backgroundDrawable != null) {
             backgroundDrawable.draw(canvas);
         }
 

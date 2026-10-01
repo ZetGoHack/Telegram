@@ -2393,8 +2393,9 @@ public class AndroidUtilities {
         synchronized (typefaceCache) {
             if (!typefaceCache.containsKey(assetPath)) {
                 try {
-                    Typeface t;
-                    if (Build.VERSION.SDK_INT >= 26) {
+                    Typeface t = org.telegram.rawgram.RawTypeface.createOrNull(assetPath); // rawGram: system font
+                    if (t != null) {
+                    } else if (Build.VERSION.SDK_INT >= 26) {
                         Typeface.Builder builder = new Typeface.Builder(ApplicationLoader.applicationContext.getAssets(), assetPath);
                         if (assetPath.contains("rextrabold")) {
                             builder.setWeight(800);
@@ -2449,6 +2450,9 @@ public class AndroidUtilities {
     }
 
     public static int getShadowHeight() {
+        if (org.telegram.rawgram.RawUiConfig.hideDividers()) {
+            return 0;
+        }
         if (density >= 4.0f) {
             return 3;
         } else if (density >= 2.0f) {

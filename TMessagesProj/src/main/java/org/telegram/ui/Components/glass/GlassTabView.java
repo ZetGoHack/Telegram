@@ -673,4 +673,24 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
     public void onPreBind() {
 
     }
+
+    /** rawGram (ported from Nagram): bottom tab without a title, icon centred. */
+    public void setMainTabsCompact(boolean compact) {
+        if (textView.getVisibility() == (compact ? GONE : VISIBLE)) {
+            return;
+        }
+        textView.setVisibility(compact ? GONE : VISIBLE);
+        setContentDescription(compact ? textView.getText() : null);
+        if (backupImageView != null) {
+            backupImageView.setLayoutParams(compact ?
+                    LayoutHelper.createFrame(22, 22, Gravity.CENTER) :
+                    LayoutHelper.createFrame(22, 22, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 5, 0, 0));
+        } else {
+            imageView.setLayoutParams(compact ?
+                    LayoutHelper.createFrame(24, 24, Gravity.CENTER) :
+                    LayoutHelper.createFrame(24, 24, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 4, 0, 0));
+        }
+        requestLayout();
+        invalidate();
+    }
 }

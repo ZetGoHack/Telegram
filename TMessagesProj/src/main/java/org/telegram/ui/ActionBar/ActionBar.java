@@ -420,7 +420,7 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
                     }
                 }
 
-                if (Theme.canStartHolidayAnimation()) {
+                if (org.telegram.rawgram.RawUiConfig.snow(Theme.canStartHolidayAnimation())) { // rawGram: snow off / always / by date
                     if (snowflakesEffect == null) {
                         snowflakesEffect = new SnowflakesEffect(0);
                     }
@@ -435,6 +435,14 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
                     fireworksEffect.onDraw(this, canvas);
                 }
             }
+        }
+        if (supportsHolidayImage && !titleOverlayShown && (child == titleTextView[0] || child == titlesContainer && useContainerForTitles)
+                && org.telegram.rawgram.RawUiConfig.snowMode() == org.telegram.rawgram.RawUiConfig.SNOW_ALWAYS && Theme.getCurrentHolidayDrawable() == null) {
+            // rawGram: snow outside the holiday season (the block above only runs while a holiday drawable exists)
+            if (snowflakesEffect == null) {
+                snowflakesEffect = new SnowflakesEffect(0);
+            }
+            snowflakesEffect.onDraw(this, canvas);
         }
         if (clip) {
             canvas.restore();

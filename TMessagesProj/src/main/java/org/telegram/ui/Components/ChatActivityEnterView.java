@@ -14750,6 +14750,7 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     private int getThemedColor(int key) {
+        if (parentFragment != null && parentFragment.rawClassic) key = org.telegram.rawgram.RawClassicUi.mapInputIconKey(key);
         if (resourcesProvider != null) {
             return resourcesProvider.getColor(key);
         }

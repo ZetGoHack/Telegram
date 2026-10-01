@@ -8991,6 +8991,9 @@ public class Theme {
                 return animatingColors.valueAt(index);
             }
         }
+        if (key_divider == key && org.telegram.rawgram.RawUiConfig.hideDividers()) {
+            return 0x00ffffff;
+        }
         if (serviceBitmapShader != null && (key_chat_serviceText == key || key_chat_serviceLink == key || key_chat_serviceIcon == key
                 || key_chat_stickerReplyLine == key || key_chat_stickerReplyNameText == key || key_chat_stickerReplyMessageText == key)) {
             return 0xffffffff;

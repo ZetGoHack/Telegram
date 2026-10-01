@@ -198,6 +198,7 @@ public class RawCrashLog {
             sb.append('\n');
             sb.append("--- logcat (last ").append(SNAPSHOT_LOGCAT_LINES).append(" lines, pid ").append(android.os.Process.myPid()).append(") ---\n");
             sb.append(captureLogcat(SNAPSHOT_LOGCAT_LINES, SNAPSHOT_LOGCAT_BYTES, SNAPSHOT_LOGCAT_TIMEOUT));
+            appendExitHistory(sb);
             try (Writer w = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
                 w.write(sb.toString());
             }
@@ -205,6 +206,82 @@ public class RawCrashLog {
             return file;
         } catch (Throwable e) {
             return null;
+        }
+    }
+
+    /**
+     * The system's own record of how this app's processes ended (Android 11+): crashes, ANRs, native crashes,
+     * low-memory and background kills — including ones from before rawGram's handler existed. ANRs and native
+     * crashes (Android 12+) come with the system trace.
+     */
+    private static void appendExitHistory(StringBuilder sb) {
+        sb.append("\n--- system exit history (ApplicationExitInfo) ---\n");
+        if (Build.VERSION.SDK_INT < 30) {
+            sb.append("недоступно: нужен Android 11+\n");
+            return;
+        }
+        try {
+            android.app.ActivityManager am = (android.app.ActivityManager) ApplicationLoader.applicationContext.getSystemService(Context.ACTIVITY_SERVICE);
+            java.util.List<android.app.ApplicationExitInfo> exits = am.getHistoricalProcessExitReasons(null, 0, 16);
+            if (exits == null || exits.isEmpty()) {
+                sb.append("записей нет\n");
+                return;
+            }
+            SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+            int traces = 0;
+            for (android.app.ApplicationExitInfo info : exits) {
+                sb.append('\n').append(fmt.format(new Date(info.getTimestamp())))
+                        .append("  ").append(exitReasonName(info.getReason()))
+                        .append("  process=").append(info.getProcessName())
+                        .append("  pid=").append(info.getPid())
+                        .append("  importance=").append(info.getImportance())
+                        .append("  status=").append(info.getStatus())
+                        .append("  pss=").append(info.getPss() / 1024).append("MB")
+                        .append("  rss=").append(info.getRss() / 1024).append("MB\n");
+                if (info.getDescription() != null) {
+                    sb.append("  ").append(info.getDescription()).append('\n');
+                }
+                int reason = info.getReason();
+                if (traces < 3 && (reason == android.app.ApplicationExitInfo.REASON_ANR || reason == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE)) {
+                    try (java.io.InputStream in = info.getTraceInputStream()) {
+                        if (in != null) {
+                            traces++;
+                            byte[] buf = new byte[64 * 1024];
+                            int total = 0, n;
+                            while (total < buf.length && (n = in.read(buf, total, buf.length - total)) > 0) {
+                                total += n;
+                            }
+                            sb.append("  --- trace (first ").append(total / 1024).append(" KB) ---\n")
+                                    .append(new String(buf, 0, total, StandardCharsets.UTF_8)).append('\n');
+                        }
+                    } catch (Throwable ignore) {
+                    }
+                }
+            }
+        } catch (Throwable e) {
+            sb.append("ошибка: ").append(e).append('\n');
+        }
+    }
+
+    private static String exitReasonName(int reason) {
+        switch (reason) {
+            case 1: return "EXIT_SELF";
+            case 2: return "SIGNALED";
+            case 3: return "LOW_MEMORY";
+            case 4: return "CRASH (java)";
+            case 5: return "CRASH_NATIVE";
+            case 6: return "ANR";
+            case 7: return "INITIALIZATION_FAILURE";
+            case 8: return "PERMISSION_CHANGE";
+            case 9: return "EXCESSIVE_RESOURCE_USAGE";
+            case 10: return "USER_REQUESTED";
+            case 11: return "USER_STOPPED";
+            case 12: return "DEPENDENCY_DIED";
+            case 13: return "OTHER";
+            case 14: return "FREEZER";
+            case 15: return "PACKAGE_STATE_CHANGE";
+            case 16: return "PACKAGE_UPDATED";
+            default: return "UNKNOWN(" + reason + ")";
         }
     }
 

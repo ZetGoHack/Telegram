@@ -1310,6 +1310,7 @@ public class ChatActivity extends BaseFragment implements
     public float drawingChatListViewYoffset;
     public int blurredViewTopOffset;
     public int blurredViewBottomOffset;
+    public boolean rawClassic; // rawGram: classic chat look (RawClassicUi), fixed per createView
     public ChatMessageSharedResources sharedResources;
 
     private ValueAnimator searchExpandAnimator;
@@ -1891,6 +1892,8 @@ public class ChatActivity extends BaseFragment implements
         @Override
         public boolean hasDoubleTap(View view, int position) {
             if (isQuickRepliesOrWelcomeMessagesMode()) return false;
+            final Boolean rawgramTap = rawgram.ui().hasDoubleTap(view);
+            if (rawgramTap != null) return rawgramTap;
             String reactionStringSetting = getMediaDataController().getDoubleTapReaction();
             TLRPC.TL_availableReaction reaction = getMediaDataController().getReactionsMap().get(reactionStringSetting);
             if (reaction == null && (reactionStringSetting == null || !reactionStringSetting.startsWith("animated_"))) {
@@ -1917,6 +1920,9 @@ public class ChatActivity extends BaseFragment implements
         @Override
         public void onDoubleTap(View view, int position, float x, float y) {
             if (getParentActivity() == null || isSecretChat() || isInScheduleMode() || isInPreviewMode() || isQuickRepliesOrWelcomeMessagesMode()) {
+                return;
+            }
+            if (rawgram.ui().onDoubleTap(view)) {
                 return;
             }
             MessageObject messageObject;
@@ -3378,6 +3384,11 @@ public class ChatActivity extends BaseFragment implements
             return isKeyboardVisible() && !hasTextSelection() && (actionBar == null || !actionBar.isSearchFieldVisible());
         }
         @Override public void closeMenu() { ChatActivity.this.closeMenu(); }
+        @Override public void runMessageOption(MessageObject message, int option) {
+            selectedObjectGroup = getValidGroupedMessage(selectedObject = message);
+            selectedObjectToEditCaption = null;
+            processSelectedOption(option);
+        }
     });
 
     @Override
@@ -3597,6 +3608,7 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public View createView(Context context) {
         Timer t = Timer.create("ChatActivity.createView");
+        rawClassic = org.telegram.rawgram.RawClassicUi.isEnabled() && !isInsideContainer;
 
         blurredBackgroundColorProvider = new BlurredBackgroundColorProviderThemed(themeDelegate, Theme.key_chat_messagePanelBackground) {
             @Override
@@ -3719,6 +3731,9 @@ public class ChatActivity extends BaseFragment implements
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
             public void onItemClick(final int id) {
+                if (rawgram.ui().onHeaderItemClick(id)) {
+                    return;
+                }
                 if (id == -1) {
                     if (isInPollAddOptionMode()) {
                         pollAddOptionModeClose();
@@ -4153,6 +4168,7 @@ public class ChatActivity extends BaseFragment implements
         });
 
         topPanelLayout = new ChatActivityTopPanelLayout(context);
+        topPanelLayout.rawClassic = rawClassic; topPanelLayout.rawClassicResources = themeDelegate;
         topPanelLayout.setOnAnimatedHeightChangedListener(() -> {
             invalidateChatListViewTopPadding();
             invalidateMessagesVisiblePart();
@@ -4190,7 +4206,7 @@ public class ChatActivity extends BaseFragment implements
                 openSearchWithText(isSupportedTags() ? "" : null);
             }
         };
-        avatarContainer.setGlassMode();
+        if (!rawClassic) avatarContainer.setGlassMode();
         avatarContainer.allowShorterStatus = true;
         avatarContainer.premiumIconHiddable = true;
         avatarContainer.allowDrawStories = dialog_id < 0 && !isTopic;
@@ -4252,7 +4268,7 @@ public class ChatActivity extends BaseFragment implements
             });
             getConnectionsManager().bindRequestToGuid(req, classGuid);
         } else {
-            actionBar.addView(avatarContainer, 0, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT, !inPreviewMode ? 52 : 0, 0, 52, 0));
+            actionBar.addView(avatarContainer, 0, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT, !inPreviewMode ? (rawClassic ? 56 : 52) : 0, 0, 52, 0));
             actionBar.createMenu().bringToFront();
         }
         actionBar.setOnActionModeFactorChangeListener(() -> {
@@ -4419,6 +4435,7 @@ public class ChatActivity extends BaseFragment implements
                 });
                 muteItemGap = headerItem.lazilyAddColoredGap();
             }
+            rawgram.ui().addAdminShortcuts(headerItem, currentChat);
             if (currentChat != null) {
                 headerItem.lazilyAddSubItem(open_direct, R.drawable.msg_markunread, getString(R.string.ChannelOpenDirect));
                 headerItem.setSubItemShown(open_direct, ChatObject.isChannel(currentChat) && !ChatObject.isMonoForum(currentChat) && currentChat.linked_monoforum_id != 0 && ChatObject.canManageMonoForum(currentAccount, -currentChat.linked_monoforum_id));
@@ -4596,7 +4613,8 @@ public class ChatActivity extends BaseFragment implements
 
         contentView.setOccupyStatusBar(!inBubbleMode && !isInsideContainer && !inPreviewMode);
 
-        actionBar.setupGlass(
+        if (rawClassic) org.telegram.rawgram.RawClassicUi.setupChatActionBar(actionBar, themeDelegate, isReport());
+        else actionBar.setupGlass(
             glassBackgroundDrawableFactory,
             BlurredBackgroundProviderImpl.topPanelChatActivity(themeDelegate),
             ChatObject.isForum(currentChat));
@@ -4622,6 +4640,7 @@ public class ChatActivity extends BaseFragment implements
             glassBackgroundDrawableFactory.create(chatInputViewsContainer, blurredBackgroundColorProvider));
         chatInputViewsContainer.setUnderKeyboardBackgroundDrawable(
             glassBackgroundDrawableFactoryFrosted.create(chatInputViewsContainer, blurredBackgroundColorProvider));
+        if (rawClassic) chatInputViewsContainer.rawClassic = new org.telegram.rawgram.RawClassicUi.InputPanel(themeDelegate);
 
 
         chatInputBubbleContainer = chatInputViewsContainer.getInputIslandBubbleContainer();
@@ -6696,7 +6715,7 @@ public class ChatActivity extends BaseFragment implements
                 if (!foundTopView) {
                     scrolled = super.scrollVerticallyBy(dy, recycler, state);
                 }
-                final boolean allowPullingDownScroll = !isInPollAddOptionMode() && !hasSelectedMessages();
+                final boolean allowPullingDownScroll = !isInPollAddOptionMode() && !hasSelectedMessages() && org.telegram.rawgram.RawChatUiConfig.allowSwipeToNext(isTopic);
                 if (allowPullingDownScroll && dy > 0 && scrolled == 0 && (ChatObject.isChannel(currentChat) && !currentChat.megagroup || isTopic && !UserObject.isBotForum(currentUser)) && chatMode != MODE_SAVED && chatMode != MODE_WELCOME_MESSAGES && chatMode != MODE_SCHEDULED && chatListView.getScrollState() == RecyclerView.SCROLL_STATE_DRAGGING && !chatListView.isFastScrollAnimationRunning() && !chatListView.isMultiselect() && !isReport()) {
                     if (pullingDownOffset == 0 && pullingDownDrawable != null) {
                         if (nextChannels != null && !nextChannels.isEmpty()) {
@@ -7002,6 +7021,7 @@ public class ChatActivity extends BaseFragment implements
         chatActivityFadeView.setup(navbarContentDrawableFactory);
         chatActivityFadeView.setFadeHeightTop(dp(48));
         chatActivityFadeView.setFadeHeightBottom(dp(48));
+        if (rawClassic) chatActivityFadeView.setVisibility(View.INVISIBLE);
         contentView.addView(chatActivityFadeView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         if (getDialogId() != getUserConfig().getClientUserId()) {
@@ -12145,7 +12165,7 @@ public class ChatActivity extends BaseFragment implements
         }
 
         if (topPanelLayout != null) {
-            topPanelLayout.setTranslationY(ty - dp(5) - getTopicTabsSideSize(TopicsTabsView.Position.TOP) * getHashtagTabsShownT());
+            topPanelLayout.setTranslationY(ty - (rawClassic ? 0 : dp(5)) - getTopicTabsSideSize(TopicsTabsView.Position.TOP) * getHashtagTabsShownT());
         }
     }
 
@@ -17120,6 +17140,7 @@ public class ChatActivity extends BaseFragment implements
     private boolean shouldHaveLightNavigationBarIcons;
 
     public boolean isShouldHaveLightNavigationBarIcons() {
+        if (rawClassic) return !org.telegram.rawgram.RawClassicUi.isLight(getThemedColor(Theme.key_chat_messagePanelBackground));
         return shouldHaveLightNavigationBarIcons && (!windowInsetsStateHolder.inAppViewIsVisible() || themeDelegate != null && themeDelegate.isDark);
     }
 
@@ -17666,6 +17687,7 @@ public class ChatActivity extends BaseFragment implements
                     super.drawChild(canvas, instantCameraView, drawingTime);
                 }
                 result = super.drawChild(canvas, child, drawingTime);
+                if (rawClassic && child == actionBar) org.telegram.rawgram.RawClassicUi.drawHeaderShadow(canvas, this, actionBar, topPanelLayout);
                 if (isVideo && child == chatListView && messageObject.type != MessageObject.TYPE_ROUND_VIDEO && videoPlayerContainer != null && videoPlayerContainer.getTag() != null) {
                     canvas.save();
                     float transitionOffset = 0;
@@ -31036,6 +31058,7 @@ public class ChatActivity extends BaseFragment implements
                 icons.add(R.drawable.msg_calendar2);
             }
 
+            if (!suggestEdit) rawgram.ui().filterMessageMenu(message, options, items, icons, allowChatActions && !noforwards);
             if (options.isEmpty() && optionsView == null) {
                 return false;
             }
@@ -33356,6 +33379,13 @@ public class ChatActivity extends BaseFragment implements
 
     private void processSelectedOption(int option) {
         if (selectedObject == null || getParentActivity() == null) {
+            return;
+        }
+        if (rawgram.ui().onMenuOption(option, selectedObject, selectedObjectGroup)) {
+            selectedObject = null;
+            selectedObjectGroup = null;
+            selectedObjectToEditCaption = null;
+            closeMenu(true);
             return;
         }
         boolean preserveDim = false;
@@ -42658,6 +42688,7 @@ public class ChatActivity extends BaseFragment implements
         themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_SUBMENUITEM, null, null, null, selectedBackgroundDelegate, Theme.key_actionBarDefaultSubmenuItem));
         themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_SUBMENUITEM | ThemeDescription.FLAG_IMAGECOLOR, null, null, null, selectedBackgroundDelegate, Theme.key_actionBarDefaultSubmenuItemIcon));
         themeDescriptions.add(new ThemeDescription(chatListView, ThemeDescription.FLAG_LISTGLOWCOLOR, null, null, null, null, Theme.key_actionBarDefault));
+        if (rawClassic) themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, isReport() ? Theme.key_actionBarActionModeDefault : Theme.key_actionBarDefault));
 
         themeDescriptions.add(new ThemeDescription(avatarContainer != null ? avatarContainer.getTitleTextView() : null, ThemeDescription.FLAG_TEXTCOLOR, null, null, null, null, Theme.key_actionBarDefaultTitle));
         themeDescriptions.add(new ThemeDescription(avatarContainer != null ? avatarContainer.getTitleTextView() : null, ThemeDescription.FLAG_IMAGECOLOR, null, null, null, null, Theme.key_actionBarDefaultSubtitle));
@@ -44318,6 +44349,7 @@ public class ChatActivity extends BaseFragment implements
         if (actionBar == null) {
             return !Theme.isCurrentThemeDark();
         }
+        if (rawClassic) return org.telegram.rawgram.RawClassicUi.isLight(getThemedColor(Theme.key_actionBarDefault));
         return !shouldHaveLightStatusBarIcons;
     }
 
@@ -46549,7 +46581,8 @@ public class ChatActivity extends BaseFragment implements
                 * (1f - animatorSearchResultAsListVisibility.getFloatValue())
                 * (1f - getHashtagTabsShownT());
 
-            topPanelLayout.setPadding(dp(7) + (int) sideMenu, dp(7), dp(7), dp(7));
+            if (rawClassic) topPanelLayout.setPadding((int) sideMenu, 0, 0, 0);
+            else topPanelLayout.setPadding(dp(7) + (int) sideMenu, dp(7), dp(7), dp(7));
         }
     }
 
@@ -46593,7 +46626,7 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void checkUi_fadeViewVisible() {
-        final boolean visible = animatorSearchResultAsListVisibility.getFloatValue() < 1;
+        final boolean visible = !rawClassic && animatorSearchResultAsListVisibility.getFloatValue() < 1;
         chatActivityFadeView.setVisibility(visible ? View.VISIBLE : View.INVISIBLE);
     }
 

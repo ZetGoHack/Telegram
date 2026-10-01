@@ -634,6 +634,9 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
                 LocaleController.formatPluralString("Stories", totalCount);
         }
 
+        if (currentTitle == null && type != TYPE_ARCHIVE) {
+            currentTitle = org.telegram.rawgram.RawUi.storiesCellTitle(currentAccount); // rawGram: custom title instead of the logo
+        }
         if (!hasOverlayText) {
             titleView.setText(currentTitle, animated && !LocaleController.isRTL);
         }

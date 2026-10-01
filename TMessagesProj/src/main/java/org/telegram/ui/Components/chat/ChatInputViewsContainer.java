@@ -74,6 +74,7 @@ public class ChatInputViewsContainer extends FrameLayout {
 
 
     public boolean drawInputBackground = true;
+    public org.telegram.rawgram.RawClassicUi.InputPanel rawClassic; // rawGram: classic full-width input panel
     public BlurredBackgroundDrawable blurredBackgroundDrawable;
     private BlurredBackgroundDrawable underKeyboardBackgroundDrawable;
     public void setInputIslandBubbleDrawable(BlurredBackgroundDrawable drawable) {
@@ -269,10 +270,11 @@ public class ChatInputViewsContainer extends FrameLayout {
         tmpRect.offset(0, blurTop + (int) bubbleInputTranlationY);
 
         blurredBackgroundDrawable.setBounds(tmpRect);
-        if (drawInputBackground)
+        if (rawClassic != null) rawClassic.draw(canvas, this, tmpRect.top + dp(7), inputBubbleHeightRound, needDrawInAppKeyboard ? getMeasuredHeight() - imeBottomInset : -1, blurredBackgroundDrawable.getAlpha(), drawInputBackground);
+        else if (drawInputBackground)
             blurredBackgroundDrawable.draw(canvas);
 
-        if (needDrawInAppKeyboard) {
+        if (needDrawInAppKeyboard && rawClassic == null) {
             underKeyboardBackgroundDrawable.draw(canvas);
         }
 
@@ -284,7 +286,8 @@ public class ChatInputViewsContainer extends FrameLayout {
         final boolean needClip = child == inAppKeyboardBubbleContainer;
         if (needClip) {
             canvas.save();
-            canvas.clipPath(underKeyboardBackgroundDrawable.getPath());
+            if (rawClassic != null) canvas.clipRect(0, getMeasuredHeight() - imeBottomInset, getMeasuredWidth(), getMeasuredHeight());
+            else canvas.clipPath(underKeyboardBackgroundDrawable.getPath());
         }
 
         final boolean result = super.drawChild(canvas, child, drawingTime);
@@ -353,7 +356,8 @@ public class ChatInputViewsContainer extends FrameLayout {
             final int y = (int) event.getY();
 
             captured = blurredBackgroundDrawable != null && blurredBackgroundDrawable.getAlpha() == 255 && blurredBackgroundDrawable.getBounds().contains(x, y)
-                || underKeyboardBackgroundDrawable != null && underKeyboardBackgroundDrawable.getBounds().contains(x, y);
+                || underKeyboardBackgroundDrawable != null && underKeyboardBackgroundDrawable.getBounds().contains(x, y)
+                || rawClassic != null && rawClassic.contains(y);
 
         }
         if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
