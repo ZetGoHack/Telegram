@@ -2,8 +2,6 @@ package org.telegram.rawgram;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -13,15 +11,11 @@ import android.text.TextUtils;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 
-import androidx.core.content.FileProvider;
-
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.FileLoader;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MediaDataController;
@@ -54,7 +48,7 @@ import java.util.Locale;
  * "Подробности" submenu of the message context menu, in the spirit of Telegram Desktop's "Details":
  * icon + title + gray value per row (only the fields that are set). Rows with a natural action
  * (profile, set, link, reply, map) perform it on tap and show the value in the accent color;
- * the rest copy on tap. Long press always copies. Then "Скопировать медиа", "Сохранить в галерею"
+ * the rest copy on tap. Long press always copies. Then "Скопировать фото", "Сохранить в галерею"
  * and "Посмотреть в raw" at the bottom.
  */
 public class RawMessageDetails {
@@ -135,7 +129,7 @@ public class RawMessageDetails {
         // only images: Android apps paste images from the clipboard, videos and files they ignore
         if (isImage(message) && !protectedContent) {
             ActionBarMenuSubItem copy = new ActionBarMenuSubItem(context, false, false, rp);
-            copy.setTextAndIcon("Скопировать медиа", R.drawable.msg_copy);
+            copy.setTextAndIcon("Скопировать фото", R.drawable.msg_copy);
             copy.setOnClickListener(v -> copyMedia(context, currentAccount, message, onClose));
             root.addView(copy, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         }
@@ -489,7 +483,7 @@ public class RawMessageDetails {
                 || media instanceof TLRPC.TL_messageMediaPhoto && media.photo != null;
     }
 
-    private static File mediaFile(int currentAccount, MessageObject message) {
+    static File mediaFile(int currentAccount, MessageObject message) {
         TLRPC.Message m = message.messageOwner;
         if (!TextUtils.isEmpty(m.attachPath)) {
             File f = new File(m.attachPath);
@@ -506,59 +500,23 @@ public class RawMessageDetails {
     private static void copyMedia(Context context, int currentAccount, MessageObject message, Runnable onClose) {
         File file = mediaFile(currentAccount, message);
         if (file == null) {
-            RawNotify.show(R.drawable.msg_download, "Файл ещё не загружен");
+            RawNotify.show(R.drawable.msg_download, "Фото ещё не загружено");
             return;
         }
-        TLRPC.Document doc = document(MessageObject.getMedia(message.messageOwner));
-        String mime = doc != null && !TextUtils.isEmpty(doc.mime_type) ? doc.mime_type : doc != null ? "application/octet-stream" : "image/jpeg";
         if (onClose != null) onClose.run();
-        Uri uri = null;
-        try {
-            uri = FileProvider.getUriForFile(context, ApplicationLoader.getApplicationId() + ".provider", file);
-        } catch (IllegalArgumentException e) {
-            // file is in a dir the provider doesn't expose (internal cache): copy it under files/cache first
-        }
-        if (uri != null) {
-            setClip(context, uri, mime);
-            return;
-        }
-        Context app = ApplicationLoader.applicationContext;
-        Utilities.globalQueue.postRunnable(() -> {
-            Uri copied = null;
-            try {
-                File dir = new File(app.getFilesDir(), "cache/rawgram_clip");
-                File[] old = dir.listFiles();
-                if (old != null) {
-                    for (File f : old) f.delete();
-                }
-                dir.mkdirs();
-                File copy = new File(dir, file.getName());
-                if (AndroidUtilities.copyFile(file, copy)) {
-                    copied = FileProvider.getUriForFile(app, ApplicationLoader.getApplicationId() + ".provider", copy);
-                }
-            } catch (Exception e) {
-                FileLog.e(e);
+        RawClipboard.copyImage(context, file, imageMime(message, file), ok -> {
+            if (ok) {
+                RawNotify.show(R.drawable.msg_copy, "Фото скопировано");
+            } else {
+                RawNotify.show(R.drawable.msg_info, "Не удалось скопировать фото");
             }
-            final Uri result = copied;
-            AndroidUtilities.runOnUIThread(() -> {
-                if (result != null) {
-                    setClip(app, result, mime);
-                } else {
-                    RawNotify.show(R.drawable.msg_info, "Не удалось скопировать медиа");
-                }
-            });
         });
     }
 
-    private static void setClip(Context context, Uri uri, String mime) {
-        try {
-            ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
-            clipboard.setPrimaryClip(new ClipData("rawGram media", new String[]{mime}, new ClipData.Item(uri)));
-            RawNotify.show(R.drawable.msg_copy, "Медиа скопировано");
-        } catch (Exception e) {
-            FileLog.e(e);
-            RawNotify.show(R.drawable.msg_info, "Не удалось скопировать медиа");
-        }
+    /** Document mime when it's an image document, otherwise guessed from the file (photos are jpeg). */
+    static String imageMime(MessageObject message, File file) {
+        String mime = mime(message);
+        return mime.startsWith("image/") ? mime : RawClipboard.guessImageMime(file);
     }
 
     // ---- save to gallery (same path as ChatActivity's OPTION_SAVE_TO_GALLERY / saveMessageToGallery) ----
@@ -572,7 +530,7 @@ public class RawMessageDetails {
         return doc != null && doc.mime_type != null ? doc.mime_type.toLowerCase(Locale.ROOT) : "";
     }
 
-    private static boolean isImage(MessageObject message) {
+    static boolean isImage(MessageObject message) {
         TLRPC.MessageMedia media = MessageObject.getMedia(message.messageOwner);
         boolean photo = media instanceof TLRPC.TL_messageMediaPhoto && media.photo != null
                 || media instanceof TLRPC.TL_messageMediaWebPage && media.webpage != null && media.webpage.photo != null && media.webpage.document == null;

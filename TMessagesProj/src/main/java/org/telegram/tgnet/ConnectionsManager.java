@@ -288,7 +288,7 @@ public class ConnectionsManager extends BaseController {
         if (preferences.contains("pushConnection")) {
             return preferences.getBoolean("pushConnection", true);
         } else {
-            return MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("backgroundConnection", false);
+            return true; // rawGram: no FCM for a custom api_id, the push connection is the delivery path
         }
     }
 
@@ -948,6 +948,7 @@ public class ConnectionsManager extends BaseController {
     }
 
     public static void onInternalPushReceived(final int currentAccount) {
+        org.telegram.rawgram.RawPushDiag.onInternalPush();
         KeepAliveJob.startJob();
     }
 

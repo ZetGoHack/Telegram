@@ -8787,7 +8787,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             });
             previewMenu[0].addView(muteItem);
         }
-        previewMenu[0].addView(org.telegram.rawgram.RawDialogRaw.menuItem(this, dialogId)); // rawGram
+        if (org.telegram.rawgram.RawgramConfig.isObjectRaw()) {
+            previewMenu[0].addView(org.telegram.rawgram.RawDialogRaw.menuItem(this, dialogId)); // rawGram
+        }
 
         if (!isCommunityCell) {
             ActionBarMenuSubItem deleteItem = new ActionBarMenuSubItem(getParentActivity(), false, true);

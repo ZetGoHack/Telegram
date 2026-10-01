@@ -87,16 +87,22 @@ public class RawChatHooks {
 
     /** After the inline results view is set up. */
     public void onMentionsCreated() {
-        MentionsContainerView mentions = host.mentions();
-        if (mentions != null) {
-            mentions.rawgramSetOnHide(this::hideInline);
-        }
+        updateHideButton();
         RawInlineStash.addListener(stashListener);
         AndroidUtilities.runOnUIThread(() -> updateStashButton(false));
     }
 
     public void onResume() {
+        updateHideButton();
         updateStashButton(false);
+    }
+
+    // the tray switch may change while this chat is in the back stack
+    private void updateHideButton() {
+        MentionsContainerView mentions = host.mentions();
+        if (mentions != null) {
+            mentions.rawgramSetOnHide(RawgramConfig.isInlineTray() ? this::hideInline : null);
+        }
     }
 
     public void onDestroy() {
@@ -146,7 +152,7 @@ public class RawChatHooks {
     public boolean onInlineResultLongPress(View view, int position) {
         MentionsContainerView mentions = host.mentions();
         Activity activity = host.fragment().getParentActivity();
-        if (mentions == null || activity == null) {
+        if (!RawgramConfig.isInlineRaw() || mentions == null || activity == null) {
             return false;
         }
         // stickers and GIFs keep Telegram's own preview (which has its own raw item)
@@ -169,7 +175,7 @@ public class RawChatHooks {
     // ---- "Подробности" submenu of the message menu ----
 
     public static boolean hasDetails(MessageObject message) {
-        return message != null && !message.isSponsored();
+        return RawgramConfig.isMessageDetails() && message != null && !message.isSponsored();
     }
 
     /** Adds the "Подробности" item (and its swipe-back page) to the message menu. */
@@ -207,7 +213,7 @@ public class RawChatHooks {
     public boolean onBotButtonLongPress(ChatMessageCell cell, TL_keyboard.KeyboardButtonProto button, Runnable press, Runnable original) {
         Activity activity = host.fragment().getParentActivity();
         MessageObject message = cell != null ? cell.getMessageObject() : null;
-        if (botButtonBypass || !RawBotButtonSheet.enabled || activity == null || button == null || message == null) {
+        if (botButtonBypass || !RawBotButtonSheet.enabled || !RawgramConfig.isBotButtonDebug() || activity == null || button == null || message == null) {
             return false;
         }
         Runnable safePress = press == null ? null : () -> {
@@ -250,7 +256,9 @@ public class RawChatHooks {
     private void updateStashButton(boolean animated) {
         ChatActivitySideControlsButtonsLayout sideButtons = host.sideButtons();
         if (sideButtons != null) {
-            sideButtons.showButton(ChatActivitySideControlsButtonsLayout.BUTTON_RAWGRAM_STASH, RawInlineStash.has(host.account()), animated);
+            // tray off: parked results stay stored, just hidden
+            boolean show = RawgramConfig.isInlineTray() && RawInlineStash.has(host.account());
+            sideButtons.showButton(ChatActivitySideControlsButtonsLayout.BUTTON_RAWGRAM_STASH, show, animated);
         }
     }
 

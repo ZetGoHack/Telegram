@@ -54,25 +54,36 @@ public class RawgramSettingsActivity extends BaseFragment {
     private static final int ROW_FULL_NUMBERS = 1;
     private static final int ROW_ID_FORMAT = 2;
     private static final int ROW_DATA_INFO = 3;
-    private static final int ROW_CHAT_HEADER = 4;
-    private static final int ROW_HIDE_KEYBOARD = 5;
-    private static final int ROW_CHAT_INFO = 6;
-    private static final int ROW_PRESS_HEADER = 7;
-    private static final int ROW_PRESS_SLIDER = 8;
-    private static final int ROW_PRESS_INFO = 9;
-    private static final int ROW_STICKER_HEADER = 10;
-    private static final int ROW_STICKER_SLIDER = 11;
-    private static final int ROW_STICKER_PREVIEW = 12;
-    private static final int ROW_STICKER_INFO = 13;
-    private static final int ROW_RECENT_HEADER = 14;
-    private static final int ROW_RECENT_SLIDER = 15;
-    private static final int ROW_RECENT_INFO = 16;
-    private static final int ROW_TOOLS_HEADER = 17;
-    private static final int ROW_REQUEST_LOG = 18;
-    private static final int ROW_REQUEST_LOG_OPEN = 19;
-    private static final int ROW_SERVER_CONFIG = 20;
-    private static final int ROW_TOOLS_INFO = 21;
-    private static final int ROW_COUNT = 22;
+    private static final int ROW_FEAT_HEADER = 4;
+    private static final int ROW_FEAT_DETAILS = 5;
+    private static final int ROW_FEAT_INLINE_RAW = 6;
+    private static final int ROW_FEAT_TRAY = 7;
+    private static final int ROW_FEAT_BOT_BUTTONS = 8;
+    private static final int ROW_FEAT_PREVIEW_RAW = 9;
+    private static final int ROW_FEAT_OBJECT_RAW = 10;
+    private static final int ROW_FEAT_WEBAPP = 11;
+    private static final int ROW_FEAT_INFO = 12;
+    private static final int ROW_CHAT_HEADER = 13;
+    private static final int ROW_HIDE_KEYBOARD = 14;
+    private static final int ROW_HIDE_CAMERA = 15;
+    private static final int ROW_CHAT_INFO = 16;
+    private static final int ROW_PRESS_HEADER = 17;
+    private static final int ROW_PRESS_SLIDER = 18;
+    private static final int ROW_PRESS_INFO = 19;
+    private static final int ROW_STICKER_HEADER = 20;
+    private static final int ROW_STICKER_SLIDER = 21;
+    private static final int ROW_STICKER_PREVIEW = 22;
+    private static final int ROW_STICKER_INFO = 23;
+    private static final int ROW_RECENT_HEADER = 24;
+    private static final int ROW_RECENT_SLIDER = 25;
+    private static final int ROW_RECENT_INFO = 26;
+    private static final int ROW_TOOLS_HEADER = 27;
+    private static final int ROW_REQUEST_LOG = 28;
+    private static final int ROW_REQUEST_LOG_OPEN = 29;
+    private static final int ROW_CRASH_LOG = 30;
+    private static final int ROW_SERVER_CONFIG = 31;
+    private static final int ROW_TOOLS_INFO = 32;
+    private static final int ROW_COUNT = 33;
 
     private RecyclerListView listView;
     private ListAdapter adapter;
@@ -111,6 +122,14 @@ public class RawgramSettingsActivity extends BaseFragment {
                 boolean value = !RawgramConfig.isHideKeyboardOnScroll();
                 RawgramConfig.setHideKeyboardOnScroll(value);
                 ((TextCheckCell) view).setChecked(value);
+            } else if (position == ROW_HIDE_CAMERA) {
+                boolean value = !RawgramConfig.isHideAttachCamera();
+                RawgramConfig.setHideAttachCamera(value);
+                ((TextCheckCell) view).setChecked(value);
+            } else if (position >= ROW_FEAT_DETAILS && position <= ROW_FEAT_WEBAPP) {
+                boolean value = !isFeatureOn(position);
+                setFeature(position, value);
+                ((TextCheckCell) view).setChecked(value);
             } else if (position == ROW_ID_FORMAT) {
                 CharSequence[] names = {"Не показывать", "MTProto (как в API)", "Bot API (-100… для каналов)"};
                 new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity())
@@ -126,12 +145,50 @@ public class RawgramSettingsActivity extends BaseFragment {
                 ((TextCheckCell) view).setChecked(value);
             } else if (position == ROW_REQUEST_LOG_OPEN) {
                 presentFragment(new RawRequestLogActivity());
+            } else if (position == ROW_CRASH_LOG) {
+                RawCrashLog.openViewer(this);
             } else if (position == ROW_SERVER_CONFIG) {
                 RawServerConfig.show(getParentActivity(), currentAccount, getResourceProvider());
             }
         });
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         return fragmentView;
+    }
+
+    private static String featureTitle(int position) {
+        switch (position) {
+            case ROW_FEAT_DETAILS: return "Подробности в меню сообщения";
+            case ROW_FEAT_INLINE_RAW: return "Raw инлайн-результатов по долгому нажатию";
+            case ROW_FEAT_TRAY: return "Лоток инлайн-выдачи";
+            case ROW_FEAT_BOT_BUTTONS: return "Отладка кнопок ботов";
+            case ROW_FEAT_PREVIEW_RAW: return "Raw в предпросмотре стикеров и эмодзи";
+            case ROW_FEAT_OBJECT_RAW: return "Raw в профилях, наборах и диалогах";
+            default: return "rawGram-данные веб-приложений";
+        }
+    }
+
+    private static boolean isFeatureOn(int position) {
+        switch (position) {
+            case ROW_FEAT_DETAILS: return RawgramConfig.isMessageDetails();
+            case ROW_FEAT_INLINE_RAW: return RawgramConfig.isInlineRaw();
+            case ROW_FEAT_TRAY: return RawgramConfig.isInlineTray();
+            case ROW_FEAT_BOT_BUTTONS: return RawgramConfig.isBotButtonDebug();
+            case ROW_FEAT_PREVIEW_RAW: return RawgramConfig.isPreviewRaw();
+            case ROW_FEAT_OBJECT_RAW: return RawgramConfig.isObjectRaw();
+            default: return RawgramConfig.isWebAppData();
+        }
+    }
+
+    private static void setFeature(int position, boolean value) {
+        switch (position) {
+            case ROW_FEAT_DETAILS: RawgramConfig.setMessageDetails(value); break;
+            case ROW_FEAT_INLINE_RAW: RawgramConfig.setInlineRaw(value); break;
+            case ROW_FEAT_TRAY: RawgramConfig.setInlineTray(value); break;
+            case ROW_FEAT_BOT_BUTTONS: RawgramConfig.setBotButtonDebug(value); break;
+            case ROW_FEAT_PREVIEW_RAW: RawgramConfig.setPreviewRaw(value); break;
+            case ROW_FEAT_OBJECT_RAW: RawgramConfig.setObjectRaw(value); break;
+            default: RawgramConfig.setWebAppData(value); break;
+        }
     }
 
     private class ListAdapter extends RecyclerListView.SelectionAdapter {
@@ -157,13 +214,23 @@ public class RawgramSettingsActivity extends BaseFragment {
             switch (position) {
                 case ROW_FULL_NUMBERS:
                 case ROW_HIDE_KEYBOARD:
+                case ROW_HIDE_CAMERA:
                 case ROW_REQUEST_LOG:
+                case ROW_FEAT_DETAILS:
+                case ROW_FEAT_INLINE_RAW:
+                case ROW_FEAT_TRAY:
+                case ROW_FEAT_BOT_BUTTONS:
+                case ROW_FEAT_PREVIEW_RAW:
+                case ROW_FEAT_OBJECT_RAW:
+                case ROW_FEAT_WEBAPP:
                     return TYPE_CHECK;
                 case ROW_ID_FORMAT:
                 case ROW_REQUEST_LOG_OPEN:
+                case ROW_CRASH_LOG:
                 case ROW_SERVER_CONFIG:
                     return TYPE_VALUE;
                 case ROW_DATA_HEADER:
+                case ROW_FEAT_HEADER:
                 case ROW_CHAT_HEADER:
                 case ROW_PRESS_HEADER:
                 case ROW_STICKER_HEADER:
@@ -207,16 +274,21 @@ public class RawgramSettingsActivity extends BaseFragment {
             switch (holder.getItemViewType()) {
                 case TYPE_HEADER:
                     ((HeaderCell) holder.itemView).setText(position == ROW_DATA_HEADER ? "Данные"
+                            : position == ROW_FEAT_HEADER ? "Функции rawGram"
                             : position == ROW_CHAT_HEADER ? "Чат"
                             : position == ROW_PRESS_HEADER ? "Задержка зажатия"
                             : position == ROW_RECENT_HEADER ? "Недавние стикеры"
                             : position == ROW_TOOLS_HEADER ? "Инструменты" : "Размер стикеров");
                     break;
                 case TYPE_CHECK:
-                    if (position == ROW_REQUEST_LOG) {
+                    if (position >= ROW_FEAT_DETAILS && position <= ROW_FEAT_WEBAPP) {
+                        ((TextCheckCell) holder.itemView).setTextAndCheck(featureTitle(position), isFeatureOn(position), position != ROW_FEAT_WEBAPP);
+                    } else if (position == ROW_REQUEST_LOG) {
                         ((TextCheckCell) holder.itemView).setTextAndCheck("Журнал запросов MTProto", RawRequestLog.enabled, true);
                     } else if (position == ROW_HIDE_KEYBOARD) {
-                        ((TextCheckCell) holder.itemView).setTextAndCheck("Сворачивать клавиатуру при прокрутке чата", RawgramConfig.isHideKeyboardOnScroll(), false);
+                        ((TextCheckCell) holder.itemView).setTextAndCheck("Сворачивать клавиатуру при прокрутке чата", RawgramConfig.isHideKeyboardOnScroll(), true);
+                    } else if (position == ROW_HIDE_CAMERA) {
+                        ((TextCheckCell) holder.itemView).setTextAndCheck("Камера во вложениях — кнопкой", RawgramConfig.isHideAttachCamera(), false);
                     } else {
                         ((TextCheckCell) holder.itemView).setTextAndCheck("Не сокращать числа (100 000 вместо 100K)", RawgramConfig.isFullNumbers(), true);
                     }
@@ -228,6 +300,10 @@ public class RawgramSettingsActivity extends BaseFragment {
                     }
                     if (position == ROW_REQUEST_LOG_OPEN) {
                         ((TextSettingsCell) holder.itemView).setText("Открыть журнал", true);
+                        break;
+                    }
+                    if (position == ROW_CRASH_LOG) {
+                        ((TextSettingsCell) holder.itemView).setText("Журнал крашей", true);
                         break;
                     }
                     int format = RawgramConfig.getIdFormat();
@@ -259,8 +335,12 @@ public class RawgramSettingsActivity extends BaseFragment {
                     if (position == ROW_DATA_INFO) {
                         cell.setText("Числа: просмотры, реакции, подписчики, рейтинг — полностью. Изменения видны при следующем открытии экрана. "
                                 + "ID в профилях: Bot API — пользователи как есть, группы -id, каналы и супергруппы -100id; нажатие копирует.");
+                    } else if (position == ROW_FEAT_INFO) {
+                        cell.setText("Выключенная функция не показывается, и Telegram там ведёт себя как обычно: например, без отладки кнопок "
+                                + "долгое нажатие на кнопку бота работает как в Telegram. Отложенные в лоток результаты сохраняются, пока он выключен.");
                     } else if (position == ROW_CHAT_INFO) {
-                        cell.setText("Клавиатура прячется, как только начинаешь листать сообщения; поле ввода и набранный текст остаются.");
+                        cell.setText("Клавиатура прячется, как только начинаешь листать сообщения; поле ввода и набранный текст остаются. "
+                                + "Камера во вложениях — кнопкой: вместо большой плитки камеры в галерее круглая кнопка справа снизу.");
                     } else if (position == ROW_PRESS_INFO) {
                         cell.setText("Сколько держать палец, чтобы открыть raw-просмотр инлайн-результата или превью стикера / GIF. "
                                 + "Системная задержка на этом устройстве: " + ViewConfiguration.getLongPressTimeout() + " мс.");
@@ -268,6 +348,7 @@ public class RawgramSettingsActivity extends BaseFragment {
                         cell.setText("Журнал запросов: последние " + RawRequestLog.CAPACITY + " RPC-вызовов всех аккаунтов — метод, время, "
                                 + "ответ или ошибка (FLOOD_WAIT_…); полные объекты запроса и ответа — для последних " + RawRequestLog.KEEP_OBJECTS
                                 + ". Выключенный журнал ничего не стоит.\n\n"
+                                + "Журнал крашей: сохранённые падения приложения со стеком.\n\n"
                                 + "Конфиг сервера: свежие help.getConfig и help.getAppConfig этого аккаунта — все лимиты "
                                 + "(обычные и премиум), DC и флаги клиента.");
                     } else if (position == ROW_RECENT_INFO) {

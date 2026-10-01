@@ -95,6 +95,7 @@ public class PushListenerController {
 
     public static void processRemoteMessage(@PushType int pushType, String data, long time) {
         String tag = pushType == PUSH_TYPE_FIREBASE ? "FCM" : "HCM";
+        org.telegram.rawgram.RawPushDiag.onRemotePush(pushType);
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d(tag + " PRE START PROCESSING");
         }

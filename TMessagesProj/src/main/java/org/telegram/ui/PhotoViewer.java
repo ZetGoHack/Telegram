@@ -2194,6 +2194,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     private final static int gallery_menu_chromecast = 24;
     private final static int gallery_menu_create_sticker = 25;
     private final static int gallery_menu_delete2 = 26;
+    private final static int gallery_menu_rawgram_copy = 100;
 
     private final static int ads_sponsor_info = 101;
     private final static int ads_about = 102;
@@ -4911,6 +4912,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                         return;
                     }
                     closePhoto(true, false);
+                } else if (id == gallery_menu_rawgram_copy) {
+                    org.telegram.rawgram.RawPhotoCopy.copy(rawgramPhotoItem(), containerView, resourcesProvider);
                 } else if (id == gallery_menu_save) {
                     if (Build.VERSION.SDK_INT >= 23 && (Build.VERSION.SDK_INT <= 28 || BuildVars.NO_SCOPED_STORAGE) && parentActivity.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                         parentActivity.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
@@ -5896,6 +5899,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 menuItem.toggleSubMenu();
             }
         });
+        // rawGram: copy the current photo to the clipboard; shown in onShowSubMenu
+        menuItem.addSubItem(gallery_menu_rawgram_copy, R.drawable.msg_copy, "Скопировать фото").setColors(0xfffafafa, 0xfffafafa);
+        menuItem.hideSubItem(gallery_menu_rawgram_copy);
         galleryGap = menuItem.addColoredGap();
         galleryGap.setColor(0xff181818);
         menuItem.addSubItem(gallery_menu_openin, R.drawable.msg_openin, getString(R.string.OpenInExternalApp)).setColors(0xfffafafa, 0xfffafafa);
@@ -5927,6 +5933,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 if (videoPlayerControlVisible && isPlaying) {
                     AndroidUtilities.cancelRunOnUIThread(hideActionBarRunnable);
                 }
+                // rawGram: "Скопировать фото" only where saving is allowed and the item is a still image
+                menuItem.setSubItemShown(gallery_menu_rawgram_copy, galleryButton.getVisibility() == View.VISIBLE && org.telegram.rawgram.RawPhotoCopy.isPhoto(rawgramPhotoItem()));
             }
 
             @Override
@@ -5934,6 +5942,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 if (videoPlayerControlVisible && isPlaying) {
                     scheduleActionBarHide();
                 }
+                menuItem.hideSubItem(gallery_menu_rawgram_copy);
             }
         });
 
@@ -15597,6 +15606,12 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             return null;
         }
         return "mp4";
+    }
+
+    // rawGram: current item for "Скопировать фото" (resolved like gallery_menu_save)
+    private org.telegram.rawgram.RawPhotoCopy.Item rawgramPhotoItem() {
+        return new org.telegram.rawgram.RawPhotoCopy.Item(currentAccount, currentMessageObject, currentFileLocation,
+                avatarsDialogId != 0 || isEvent, getFileLocation(currentIndex, null), pageBlocksAdapter, currentIndex);
     }
 
     private void setImageIndex(int index) {

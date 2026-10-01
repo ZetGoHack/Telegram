@@ -34,17 +34,18 @@ public class LauncherIconController {
     }
 
     public enum LauncherIcon {
-        DEFAULT("DefaultIcon", R.drawable.icon_background_sa, R.mipmap.icon_foreground_sa, R.string.AppIconDefault),
-        VINTAGE("VintageIcon", R.drawable.icon_6_background_sa, R.mipmap.icon_6_foreground_sa, R.string.AppIconVintage),
-        AQUA("AquaIcon", R.drawable.icon_4_background_sa, R.mipmap.icon_foreground_sa, R.string.AppIconAqua),
-        PREMIUM("PremiumIcon", R.drawable.icon_3_background_sa, R.mipmap.icon_3_foreground_sa, R.string.AppIconPremium, true),
-        TURBO("TurboIcon", R.drawable.icon_5_background_sa, R.mipmap.icon_5_foreground_sa, R.string.AppIconTurbo, true),
-        NOX("NoxIcon", R.mipmap.icon_2_background_sa, R.mipmap.icon_foreground_sa, R.string.AppIconNox, true);
+        // rawGram: the six launcher aliases carry rawGram's own vector icons (none premium-locked)
+        DEFAULT("DefaultIcon", R.drawable.rawgram_icon_bg_slate, R.drawable.rawgram_icon_fg_white, "rawGram"),
+        VINTAGE("VintageIcon", R.drawable.rawgram_icon_bg_blue, R.drawable.rawgram_icon_fg_white, "Telegram"),
+        AQUA("AquaIcon", R.drawable.rawgram_icon_bg_terminal, R.drawable.rawgram_icon_fg_green, "Terminal"),
+        PREMIUM("PremiumIcon", R.drawable.rawgram_icon_bg_light, R.drawable.rawgram_icon_fg_slate, "Light"),
+        TURBO("TurboIcon", R.drawable.rawgram_icon_bg_neon, R.drawable.rawgram_icon_fg_pink, "Neon"),
+        NOX("NoxIcon", R.drawable.rawgram_icon_bg_json, R.drawable.rawgram_icon_fg_braces, "JSON");
 
         public final String key;
         public final int background;
         public final int foreground;
-        public final int title;
+        public final String label;
         public final boolean premium;
 
         private ComponentName componentName;
@@ -56,15 +57,15 @@ public class LauncherIconController {
             return componentName;
         }
 
-        LauncherIcon(String key, int background, int foreground, int title) {
-            this(key, background, foreground, title, false);
+        LauncherIcon(String key, int background, int foreground, String label) {
+            this(key, background, foreground, label, false);
         }
 
-        LauncherIcon(String key, int background, int foreground, int title, boolean premium) {
+        LauncherIcon(String key, int background, int foreground, String label, boolean premium) {
             this.key = key;
             this.background = background;
             this.foreground = foreground;
-            this.title = title;
+            this.label = label;
             this.premium = premium;
         }
     }

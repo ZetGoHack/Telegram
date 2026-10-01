@@ -12368,7 +12368,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         if (selfUser && !myProfile) {
             otherItem.addSubItem(logout, R.drawable.msg_leave, LocaleController.getString(R.string.LogOut));
         }
-        otherItem.addSubItem(rawgram_raw, R.drawable.msg_info, "Raw"); // rawGram
+        if (org.telegram.rawgram.RawgramConfig.isObjectRaw()) {
+            otherItem.addSubItem(rawgram_raw, R.drawable.msg_info, "Raw"); // rawGram
+        }
         if (!isPulledDown) {
             otherItem.hideSubItem(gallery_menu_save);
             otherItem.hideSubItem(set_as_main);

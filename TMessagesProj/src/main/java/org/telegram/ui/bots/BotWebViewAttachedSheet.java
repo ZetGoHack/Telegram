@@ -1021,7 +1021,7 @@ public class BotWebViewAttachedSheet implements NotificationCenter.NotificationC
         settingsItem = otherItem.addSubItem(R.id.menu_settings, R.drawable.msg_settings, LocaleController.getString(R.string.BotWebViewSettings));
         settingsItem.setVisibility(View.GONE);
         otherItem.addSubItem(R.id.menu_reload_page, R.drawable.msg_retry, LocaleController.getString(R.string.BotWebViewReloadPage));
-        otherItem.addSubItem(org.telegram.rawgram.RawWebAppLog.MENU_ID, R.drawable.msg_info, org.telegram.rawgram.RawWebAppLog.MENU_TEXT); // rawGram
+        if (org.telegram.rawgram.RawgramConfig.isWebAppData()) otherItem.addSubItem(org.telegram.rawgram.RawWebAppLog.MENU_ID, R.drawable.msg_info, org.telegram.rawgram.RawWebAppLog.MENU_TEXT); // rawGram
         if (userbot != null && userbot.bot_has_main_app) {
             otherItem.addSubItem(R.id.menu_add_to_home_screen_bot, R.drawable.msg_home, LocaleController.getString(R.string.AddShortcut));
         }

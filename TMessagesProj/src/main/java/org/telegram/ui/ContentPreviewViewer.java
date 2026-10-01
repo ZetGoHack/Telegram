@@ -786,10 +786,12 @@ public class ContentPreviewViewer {
                     }
                 }
                 // rawGram
-                items.add("Raw");
-                icons.add(R.drawable.msg_info);
-                actions.add(ACTION_RAWGRAM_RAW);
-                items.add("Скопировать ID документа"); icons.add(R.drawable.msg_copy); actions.add(ACTION_RAWGRAM_COPY_ID);
+                if (RawgramConfig.isPreviewRaw()) {
+                    items.add("Raw");
+                    icons.add(R.drawable.msg_info);
+                    actions.add(ACTION_RAWGRAM_RAW);
+                    items.add("Скопировать ID документа"); icons.add(R.drawable.msg_copy); actions.add(ACTION_RAWGRAM_COPY_ID);
+                }
 
                 if (items.isEmpty()) {
                     return;
@@ -945,8 +947,10 @@ public class ContentPreviewViewer {
                     actions.add(5);
                 }
                 // rawGram
-                items.add("Raw"); icons.add(R.drawable.msg_info); actions.add(ACTION_RAWGRAM_RAW);
-                items.add("Скопировать ID документа"); icons.add(R.drawable.msg_copy); actions.add(ACTION_RAWGRAM_COPY_ID);
+                if (RawgramConfig.isPreviewRaw()) {
+                    items.add("Raw"); icons.add(R.drawable.msg_info); actions.add(ACTION_RAWGRAM_RAW);
+                    items.add("Скопировать ID документа"); icons.add(R.drawable.msg_copy); actions.add(ACTION_RAWGRAM_COPY_ID);
+                }
                 if (items.isEmpty()) {
                     return;
                 }
@@ -1085,10 +1089,12 @@ public class ContentPreviewViewer {
                     canDelete = false;
                 }
                 // rawGram
-                items.add(0, "Raw");
-                icons.add(0, R.drawable.msg_info);
-                actions.add(0, ACTION_RAWGRAM_RAW);
-                if (RawDocInfo.docOf(currentDocument, inlineResult) != null) { items.add(1, "Скопировать ID документа"); icons.add(1, R.drawable.msg_copy); actions.add(1, ACTION_RAWGRAM_COPY_ID); }
+                if (RawgramConfig.isPreviewRaw()) {
+                    items.add(0, "Raw");
+                    icons.add(0, R.drawable.msg_info);
+                    actions.add(0, ACTION_RAWGRAM_RAW);
+                    if (RawDocInfo.docOf(currentDocument, inlineResult) != null) { items.add(1, "Скопировать ID документа"); icons.add(1, R.drawable.msg_copy); actions.add(1, ACTION_RAWGRAM_COPY_ID); }
+                }
                 if (items.isEmpty()) {
                     return;
                 }

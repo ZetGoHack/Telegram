@@ -1121,7 +1121,9 @@ public class StickersAlert extends BottomSheet implements NotificationCenter.Not
         containerView.addView(optionsButton, LayoutHelper.createFrame(40, 40, Gravity.TOP | Gravity.RIGHT, 0, 5, 5, 0));
         optionsButton.addSubItem(1, R.drawable.msg_share, LocaleController.getString(R.string.StickersShare));
         optionsButton.addSubItem(2, R.drawable.msg_link, LocaleController.getString(R.string.CopyLink));
-        optionsButton.addSubItem(RAWGRAM_RAW, R.drawable.msg_info, "Raw"); // rawGram
+        if (org.telegram.rawgram.RawgramConfig.isObjectRaw()) {
+            optionsButton.addSubItem(RAWGRAM_RAW, R.drawable.msg_info, "Raw"); // rawGram
+        }
 
         optionsButton.setOnClickListener(v -> {
             checkOptions();

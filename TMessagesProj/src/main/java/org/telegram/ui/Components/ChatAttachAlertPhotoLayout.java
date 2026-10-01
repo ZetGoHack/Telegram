@@ -131,7 +131,16 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
     private static final float RADIUS = 16f;
     private static final int VIEW_TYPE_AVATAR_CONSTRUCTOR = 4;
     private static final int SHOW_FAST_SCROLL_MIN_COUNT = 30;
-    private final boolean needCamera;
+    private boolean needCamera;
+    private final boolean rawgramNeedCameraOrig; // rawGram: value requested by the caller, before "hide attach camera"
+    private ImageView rawgramCameraBubble; // rawGram: small floating camera button replacing the live tile
+    private boolean rawgramBubbleShown;
+    private final int[] rawgramTmpLoc = new int[2];
+    private final Runnable rawgramBubbleAfterInit = () -> {
+        if (!parentAlert.destroyed && parentAlert.isShowing() && rawgramBubbleShown) {
+            rawgramOnBubbleClick();
+        }
+    };
 
     private RecyclerListView cameraPhotoRecyclerView;
     private LinearLayoutManager cameraPhotoLayoutManager;
@@ -732,7 +741,8 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
     public ChatAttachAlertPhotoLayout(ChatAttachAlert alert, Context context, boolean forceDarkTheme, boolean needCamera, Theme.ResourcesProvider resourcesProvider) {
         super(alert, context, resourcesProvider);
         this.forceDarkTheme = forceDarkTheme;
-        this.needCamera = needCamera;
+        this.rawgramNeedCameraOrig = needCamera;
+        this.needCamera = needCamera && !org.telegram.rawgram.RawgramConfig.isHideAttachCamera();
         NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.albumsDidLoad);
         NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.cameraInitied);
         FrameLayout container = alert.getContainer();
@@ -1126,6 +1136,26 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
         progressView.setOnTouchListener(null);
         progressView.setTextSize(16);
         addView(progressView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+        if (rawgramNeedCameraOrig) {
+            rawgramCameraBubble = new ImageView(context);
+            rawgramCameraBubble.setScaleType(ImageView.ScaleType.CENTER);
+            rawgramCameraBubble.setImageResource(R.drawable.msg_camera);
+            rawgramCameraBubble.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_dialogFloatingIcon), PorterDuff.Mode.MULTIPLY));
+            rawgramCameraBubble.setBackground(Theme.createSimpleSelectorCircleDrawable(dp(52), getThemedColor(Theme.key_dialogFloatingButton), getThemedColor(Theme.key_dialogFloatingButtonPressed)));
+            rawgramCameraBubble.setOutlineProvider(new ViewOutlineProvider() {
+                @Override
+                public void getOutline(View view, Outline outline) {
+                    outline.setOval(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight());
+                }
+            });
+            rawgramCameraBubble.setElevation(dp(3));
+            rawgramCameraBubble.setContentDescription(LocaleController.getString(R.string.AccDescrInstantCamera));
+            rawgramCameraBubble.setVisibility(GONE);
+            rawgramCameraBubble.setAlpha(0f);
+            rawgramCameraBubble.setOnClickListener(v -> rawgramOnBubbleClick());
+            addView(rawgramCameraBubble, LayoutHelper.createFrame(52, 52, Gravity.LEFT | Gravity.TOP));
+        }
 
         if (loading) {
             progressView.showProgress();
@@ -2325,6 +2355,7 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
     }
 
     protected void updatePhotosCounter(boolean added) {
+        rawgramUpdateBubble();
         if (counterTextView == null || parentAlert.avatarPicker != 0 || parentAlert.storyMediaPicker || parentAlert.isPollAttach) {
             return;
         }
@@ -2894,6 +2925,7 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
                         cameraView.setFpsLimit(30);
                         cameraView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
                     }
+                    rawgramOnCameraClosed();
                 }
             });
             animatorSet.start();
@@ -2925,6 +2957,7 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
             if (gridView != null) {
                 gridView.invalidate();
             }
+            rawgramOnCameraClosed();
         }
         if (cameraView != null) {
             cameraView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
@@ -3017,6 +3050,7 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
     }
 
     protected void checkCameraViewPosition() {
+        rawgramUpdateBubble();
         if (PhotoViewer.hasInstance() && PhotoViewer.getInstance().stickerMakerView != null && PhotoViewer.getInstance().stickerMakerView.isThanosInProgress) {
             return;
         }
@@ -3108,8 +3142,12 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
             }
         }
 
-        cameraViewLocation[0] = dp(-400);
-        cameraViewLocation[1] = 0;
+        if (rawgramIsBubbleMode() && cameraView != null) {
+            rawgramSetCameraLocationFromBubble(); // rawGram: camera opens from / closes into the bubble
+        } else {
+            cameraViewLocation[0] = dp(-400);
+            cameraViewLocation[1] = 0;
+        }
 
         applyCameraViewPosition();
     }
@@ -3693,8 +3731,153 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
         Theme.setDrawableColor(dropDownDrawable, getThemedColor(textColor));
     }
 
+    // rawGram: re-read "hide attach camera" on every alert open (init() -> onInit()).
+    private void rawgramApplyHideCamera() {
+        final boolean want = rawgramNeedCameraOrig && !org.telegram.rawgram.RawgramConfig.isHideAttachCamera();
+        if (want == needCamera) {
+            rawgramUpdateBubble();
+            return;
+        }
+        if (!want) {
+            rawgramDetachCameraView();
+            deviceHasGoodCamera = false;
+            noCameraPermissions = false;
+        }
+        needCamera = want;
+        if (adapter != null) {
+            adapter.needCamera = want;
+            adapter.notifyDataSetChanged();
+        }
+        rawgramUpdateBubble();
+    }
+
+    private boolean rawgramIsBubbleMode() {
+        return rawgramNeedCameraOrig && !needCamera;
+    }
+
+    // rawGram: drop the (tile-less) preview immediately so nothing invisible keeps a touch area.
+    private void rawgramDetachCameraView() {
+        if (cameraView == null || cameraOpened || cameraAnimationInProgress) {
+            return;
+        }
+        final CameraViewInternal view = cameraView;
+        cameraView = null;
+        view.setVisibility(GONE);
+        if (cameraInitAnimation != null) {
+            cameraInitAnimation.cancel();
+            cameraInitAnimation = null;
+        }
+        canSaveCameraPreview = false;
+        view.destroy(true, null);
+        AndroidUtilities.runOnUIThread(() -> parentAlert.getContainer().removeView(view), 300);
+    }
+
+    // rawGram: called after the full-screen camera was closed
+    private void rawgramOnCameraClosed() {
+        if (!rawgramIsBubbleMode()) {
+            return;
+        }
+        rawgramDetachCameraView();
+        deviceHasGoodCamera = false;
+        rawgramUpdateBubble();
+    }
+
+    private void rawgramUpdateBubble() {
+        if (rawgramCameraBubble == null) {
+            return;
+        }
+        final boolean show = rawgramIsBubbleMode() && mediaEnabled && !parentAlert.destroyed && !isHidden
+            && selectedAlbumEntry == galleryAlbumEntry && selectedPhotos.isEmpty()
+            && !cameraOpened && !cameraAnimationInProgress;
+        if (show != rawgramBubbleShown) {
+            rawgramBubbleShown = show;
+            rawgramCameraBubble.animate().cancel();
+            rawgramCameraBubble.setClickable(show);
+            if (show) {
+                rawgramCameraBubble.setVisibility(VISIBLE);
+                rawgramCameraBubble.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(180).setInterpolator(CubicBezierInterpolator.EASE_OUT).start();
+            } else {
+                rawgramCameraBubble.animate().alpha(0f).scaleX(0.6f).scaleY(0.6f).setDuration(150).setInterpolator(CubicBezierInterpolator.EASE_OUT).withEndAction(() -> {
+                    if (!rawgramBubbleShown) {
+                        rawgramCameraBubble.setVisibility(GONE);
+                    }
+                }).start();
+            }
+        }
+        if (!rawgramBubbleShown || getMeasuredWidth() <= 0) {
+            return;
+        }
+        final int size = dp(52);
+        float y = getMeasuredHeight() - size - dp(16);
+        final View tabs = parentAlert.buttonsRecyclerView;
+        if (tabs != null && tabs.isShown() && tabs.getMeasuredHeight() > 0) {
+            tabs.getLocationInWindow(rawgramTmpLoc);
+            final int tabsTop = rawgramTmpLoc[1] + dp(7); // glass pill is inset by 7dp
+            getLocationInWindow(rawgramTmpLoc);
+            y = Math.min(y, tabsTop - rawgramTmpLoc[1] - dp(12) - size);
+        }
+        rawgramCameraBubble.setTranslationX(getMeasuredWidth() - size - dp(16));
+        rawgramCameraBubble.setTranslationY(y);
+    }
+
+    // rawGram: camera start rect = tile-sized rect whose bottom-right corner is the bubble's
+    private void rawgramSetCameraLocationFromBubble() {
+        if (rawgramCameraBubble == null) {
+            return;
+        }
+        getLocationInWindow(rawgramTmpLoc);
+        final float bx = rawgramTmpLoc[0] + rawgramCameraBubble.getLeft() + rawgramCameraBubble.getTranslationX();
+        final float by = rawgramTmpLoc[1] + rawgramCameraBubble.getTop() + rawgramCameraBubble.getTranslationY();
+        final ViewGroup container = parentAlert.getContainer();
+        container.getLocationInWindow(rawgramTmpLoc);
+        final float baseX = rawgramTmpLoc[0] + container.getPaddingLeft();
+        final float baseY = rawgramTmpLoc[1] + container.getPaddingTop();
+        final int size = dp(52);
+        cameraViewLocation[0] = bx - baseX + size - itemSize;
+        cameraViewLocation[1] = by - baseY + size - (itemSize * 2 + dp(GAP));
+    }
+
+    private void rawgramOnBubbleClick() {
+        if (!rawgramBubbleShown || parentAlert.destroyed || !mediaEnabled || cameraOpened || cameraAnimationInProgress) {
+            return;
+        }
+        if (!SharedConfig.inappCamera || !CameraView.isCameraAllowed()) {
+            if (parentAlert.delegate != null) {
+                parentAlert.delegate.didPressedButton(0, false, true, 0, 0, 0, parentAlert.isCaptionAbove(), false, 0);
+            }
+            return;
+        }
+        final Activity activity = parentAlert.baseFragment != null ? parentAlert.baseFragment.getParentActivity() : null;
+        if (activity == null) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && activity.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            try {
+                activity.requestPermissions(new String[]{Manifest.permission.CAMERA}, 18);
+            } catch (Exception ignore) {}
+            return;
+        }
+        if (!CameraController.getInstance().isCameraInitied()) {
+            CameraController.getInstance().initCamera(rawgramBubbleAfterInit);
+            return;
+        }
+        deviceHasGoodCamera = true;
+        if (cameraView == null) {
+            showCamera();
+        }
+        if (cameraView == null) {
+            return;
+        }
+        cameraView.setVisibility(VISIBLE);
+        cameraView.setAlpha(1f);
+        rawgramSetCameraLocationFromBubble();
+        openCamera(true);
+        rawgramUpdateBubble();
+    }
+
     @Override
     public void onInit(boolean hasVideo, boolean hasPhoto, boolean hasDocuments) {
+        rawgramApplyHideCamera();
         mediaEnabled = hasVideo || hasPhoto;
         videoEnabled = hasVideo;
         photoEnabled = hasPhoto;
@@ -3844,6 +4027,7 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
     @Override
     public void onShown() {
         isHidden = false;
+        rawgramUpdateBubble();
         if (cameraView != null) {
             cameraView.setVisibility(VISIBLE);
         }
@@ -3872,6 +4056,7 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
     @Override
     public void onHide() {
         isHidden = true;
+        rawgramUpdateBubble();
         int count = gridView.getChildCount();
         for (int a = 0; a < count; a++) {
             View child = gridView.getChildAt(a);
@@ -4274,7 +4459,7 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
         private static final int VIEW_TYPE_EMPTY = 7;
 
         private final Context mContext;
-        private final boolean needCamera;
+        private boolean needCamera;
         private boolean hasCamera;
         private boolean hasCameraSpaceRow;
         private final ArrayList<RecyclerListView.Holder> viewsCache = new ArrayList<>(8);

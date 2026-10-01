@@ -23,6 +23,8 @@ public class NotificationsService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        // rawGram: run in the foreground so the MTProto push connection survives (no FCM for a custom api_id)
+        org.telegram.rawgram.RawPushDiag.onServiceStart(this);
         return START_STICKY;
     }
 
@@ -33,6 +35,7 @@ public class NotificationsService extends Service {
 
     public void onDestroy() {
         super.onDestroy();
+        org.telegram.rawgram.RawPushDiag.onServiceDestroy(this);
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
         if (preferences.getBoolean("pushService", true)) {
             Intent intent = new Intent("org.telegram.start");

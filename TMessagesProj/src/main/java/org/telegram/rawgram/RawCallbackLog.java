@@ -218,7 +218,7 @@ public class RawCallbackLog {
     }
 
     private static void maybeNotify(Entry entry) {
-        if (!showSilentAnswers) {
+        if (!showSilentAnswers || !RawgramConfig.isBotButtonDebug()) {
             return;
         }
         boolean silentError = entry.error != null && !isHandledError(entry.error);

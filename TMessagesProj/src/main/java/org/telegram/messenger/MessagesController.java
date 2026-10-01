@@ -16214,6 +16214,7 @@ public class MessagesController extends BaseController implements NotificationCe
             }
         }
         getConnectionsManager().sendRequest(req, (response, error) -> {
+            org.telegram.rawgram.RawPushDiag.onRegisterResult(currentAccount, pushType, response instanceof TLRPC.TL_boolTrue, error);
             if (response instanceof TLRPC.TL_boolTrue) {
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("account " + currentAccount + " registered for push, push type: " + pushType);

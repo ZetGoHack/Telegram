@@ -322,6 +322,7 @@ public class ApplicationLoader extends Application {
         if (applicationContext == null) {
             applicationContext = getApplicationContext();
         }
+        org.telegram.rawgram.RawCrashLog.install(this); // rawGram: after BuildVars' handler, so ours runs first
 
         NativeLoader.initNativeLibs(ApplicationLoader.applicationContext);
 
@@ -370,14 +371,12 @@ public class ApplicationLoader extends Application {
         if (preferences.contains("pushService")) {
             enabled = preferences.getBoolean("pushService", true);
         } else {
-            enabled = MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("keepAliveService", false);
+            // rawGram: Telegram has no FCM credentials for our api_id, so keep-alive + push connection are on by default
+            enabled = true;
+            preferences.edit().putBoolean("pushService", true).putBoolean("pushConnection", true).apply();
         }
         if (enabled) {
-            try {
-                applicationContext.startService(new Intent(applicationContext, NotificationsService.class));
-            } catch (Throwable ignore) {
-
-            }
+            org.telegram.rawgram.RawPushDiag.startService(applicationContext);
         } else {
             applicationContext.stopService(new Intent(applicationContext, NotificationsService.class));
         }

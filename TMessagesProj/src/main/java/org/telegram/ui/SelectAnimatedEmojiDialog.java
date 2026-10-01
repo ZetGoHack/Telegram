@@ -6021,7 +6021,7 @@ public class SelectAnimatedEmojiDialog extends FrameLayout implements Notificati
                         animateMenuShow(false, null);
                     });
             // rawGram: the status picker has no sticker-style preview menu, so the emoji's id is offered here
-            if (imageViewEmoji != null && imageViewEmoji.span != null && imageViewEmoji.span.documentId != 0) {
+            if (org.telegram.rawgram.RawgramConfig.isPreviewRaw() && imageViewEmoji != null && imageViewEmoji.span != null && imageViewEmoji.span.documentId != 0) {
                 final long rawgramDocId = imageViewEmoji.span.documentId;
                 ActionBarMenuItem.addItem(false, true, menuView, R.drawable.msg_copy, "Скопировать ID документа", false, resourcesProvider)
                         .setOnClickListener(e -> org.telegram.rawgram.RawDocInfo.copyId(rawgramDocId));

@@ -200,7 +200,7 @@ public class ChatAttachAlertBotWebViewLayout extends ChatAttachAlert.AttachAlert
         settingsItem = otherItem.addSubItem(R.id.menu_settings, R.drawable.msg_settings, LocaleController.getString(R.string.BotWebViewSettings));
         settingsItem.setVisibility(View.GONE);
         otherItem.addSubItem(R.id.menu_reload_page, R.drawable.msg_retry, LocaleController.getString(R.string.BotWebViewReloadPage));
-        otherItem.addSubItem(org.telegram.rawgram.RawWebAppLog.MENU_ID, R.drawable.msg_info, org.telegram.rawgram.RawWebAppLog.MENU_TEXT); // rawGram
+        if (org.telegram.rawgram.RawgramConfig.isWebAppData()) otherItem.addSubItem(org.telegram.rawgram.RawWebAppLog.MENU_ID, R.drawable.msg_info, org.telegram.rawgram.RawWebAppLog.MENU_TEXT); // rawGram
         addToHomeScreenItem = otherItem.addSubItem(R.id.menu_add_to_home_screen_bot, R.drawable.msg_home, LocaleController.getString(R.string.AddShortcut));
         addToHomeScreenItem.setVisibility(View.GONE);
         otherItem.addSubItem(R.id.menu_tos_bot, R.drawable.menu_intro, LocaleController.getString(R.string.BotWebViewToS));

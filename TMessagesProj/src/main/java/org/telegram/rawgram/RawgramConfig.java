@@ -154,6 +154,116 @@ public class RawgramConfig {
         prefs().edit().putInt("idFormat", value).apply();
     }
 
+    // ---- feature switches: off means Telegram behaves as stock there (cached: some are read on hot paths) ----
+
+    /** A cached boolean preference. */
+    private static final class Flag {
+        final String key;
+        final boolean def;
+        int cached = -1;
+
+        Flag(String key, boolean def) {
+            this.key = key;
+            this.def = def;
+        }
+
+        boolean get() {
+            if (cached < 0) {
+                if (ApplicationLoader.applicationContext == null) {
+                    return def;
+                }
+                cached = prefs().getBoolean(key, def) ? 1 : 0;
+            }
+            return cached == 1;
+        }
+
+        void set(boolean value) {
+            cached = value ? 1 : 0;
+            prefs().edit().putBoolean(key, value).apply();
+        }
+    }
+
+    private static final Flag messageDetails = new Flag("featMessageDetails", true);
+    private static final Flag inlineRaw = new Flag("featInlineRaw", true);
+    private static final Flag inlineTray = new Flag("featInlineTray", true);
+    private static final Flag botButtonDebug = new Flag("featBotButtonDebug", true);
+    private static final Flag previewRaw = new Flag("featPreviewRaw", true);
+    private static final Flag objectRaw = new Flag("featObjectRaw", true);
+    private static final Flag webAppData = new Flag("featWebAppData", true);
+    private static final Flag hideAttachCamera = new Flag("hideAttachCamera", false);
+
+    /** "Подробности" submenu in the message menu. */
+    public static boolean isMessageDetails() {
+        return messageDetails.get();
+    }
+
+    public static void setMessageDetails(boolean value) {
+        messageDetails.set(value);
+    }
+
+    /** Long press raw viewer for inline results (with reroll and the send chooser). */
+    public static boolean isInlineRaw() {
+        return inlineRaw.get();
+    }
+
+    public static void setInlineRaw(boolean value) {
+        inlineRaw.set(value);
+    }
+
+    /** "Put aside" button over inline results and the side button that brings them back. */
+    public static boolean isInlineTray() {
+        return inlineTray.get();
+    }
+
+    public static void setInlineTray(boolean value) {
+        inlineTray.set(value);
+    }
+
+    /** Long press sheet on inline keyboard buttons and notices about silent callback answers. */
+    public static boolean isBotButtonDebug() {
+        return botButtonDebug.get();
+    }
+
+    public static void setBotButtonDebug(boolean value) {
+        botButtonDebug.set(value);
+    }
+
+    /** Raw / copy document id items in sticker, GIF and emoji previews. */
+    public static boolean isPreviewRaw() {
+        return previewRaw.get();
+    }
+
+    public static void setPreviewRaw(boolean value) {
+        previewRaw.set(value);
+    }
+
+    /** Raw items in profiles, sticker/emoji set sheets and the chat list preview menu. */
+    public static boolean isObjectRaw() {
+        return objectRaw.get();
+    }
+
+    public static void setObjectRaw(boolean value) {
+        objectRaw.set(value);
+    }
+
+    /** "rawGram: данные" item in web app menus. */
+    public static boolean isWebAppData() {
+        return webAppData.get();
+    }
+
+    public static void setWebAppData(boolean value) {
+        webAppData.set(value);
+    }
+
+    /** Hide the camera tile in the attach menu (read by ChatAttachAlert). Default off. */
+    public static boolean isHideAttachCamera() {
+        return hideAttachCamera.get();
+    }
+
+    public static void setHideAttachCamera(boolean value) {
+        hideAttachCamera.set(value);
+    }
+
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }
