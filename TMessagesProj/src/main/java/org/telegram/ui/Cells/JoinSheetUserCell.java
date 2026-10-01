@@ -35,7 +35,7 @@ public class JoinSheetUserCell extends FrameLayout {
         super(context);
 
         imageView = new BackupImageView(context);
-        imageView.setRoundRadius(AndroidUtilities.dp(27));
+        imageView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(AndroidUtilities.dp(27))); // rawGram: avatar corners
         addView(imageView, LayoutHelper.createFrame(54, 54, Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 7, 0, 0));
 
         nameTextView = new TextView(context);

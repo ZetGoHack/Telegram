@@ -7198,6 +7198,7 @@ public class ChatActivity extends BaseFragment implements
         // contentView.addView(topButtonsLayout, LayoutHelper.createFrame(57, 300, Gravity.RIGHT | Gravity.TOP));
 
         sideControlsButtonsLayout = new ChatActivitySideControlsButtonsLayout(context, resourceProvider, blurredBackgroundColorProvider, glassBackgroundDrawableFactory);
+        sideControlsButtonsLayout.rawClassic = rawClassic;
         sideControlsButtonsLayout.setOnClickListener(this::onSideControlButtonOnClick);
         sideControlsButtonsLayout.setOnLongClickListener(this::onSideControlButtonOnLongClick);
         {
@@ -8145,6 +8146,7 @@ public class ChatActivity extends BaseFragment implements
         }
 
         actionsButtonsLayout = new ChatActivityActionsButtonsLayout(context, resourceProvider, blurredBackgroundColorProvider, glassBackgroundDrawableFactory);
+        if (rawClassic) actionsButtonsLayout.setRawClassic();
         actionsButtonsLayout.setForwardButtonOnClickListener(v -> openForward(false));
         actionsButtonsLayout.setReplyButtonOnClickListener(v -> {
             MessageObject messageObject = null;
@@ -8415,6 +8417,7 @@ public class ChatActivity extends BaseFragment implements
                 bottomViewsVisibilityController.setViewVisible(BOTTOM_OVERLAY_CHAT_CONTAINER, visibility == VISIBLE, getMeasuredWidth() > 0);
             }
         };
+        bottomChannelButtonsLayout.rawClassic = rawClassic;
         bottomChannelButtonsLayout.setVisibility(View.INVISIBLE);
         bottomChannelButtonsLayout.setClipChildren(false);
         bottomChannelButtonsLayout.setAccentColor(getThemedColor(Theme.key_featuredStickers_addButton));
@@ -10967,7 +10970,7 @@ public class ChatActivity extends BaseFragment implements
             float baseTranslationY2 = -windowInsetsStateHolder.getAnimatedMaxBottomInset()
                 - chatInputViewsContainer.getInputBubbleHeight()
                 - getTopicTabsSideSize(TopicsTabsView.Position.BOTTOM)
-                - dp(ChatInputViewsContainer.INPUT_BUBBLE_BOTTOM + 4);
+                - dp(ChatInputViewsContainer.INPUT_BUBBLE_BOTTOM + (rawClassic ? 4 + org.telegram.rawgram.RawClassicUi.InputPanel.EXTRA_TOP : 4));
             sideControlsButtonsLayout.setTranslationY(baseTranslationY2);
         }
 
@@ -28119,7 +28122,7 @@ public class ChatActivity extends BaseFragment implements
 
 
 
-        bottomOverlayChatText.setTextColorKey(accentTextButton ? Theme.key_featuredStickers_buttonText : Theme.key_glass_defaultText);
+        bottomOverlayChatText.setTextColorKey(rawClassic ? Theme.key_chat_fieldOverlayText : accentTextButton ? Theme.key_featuredStickers_buttonText : Theme.key_glass_defaultText);
 
         bottomChannelButtonsLayout.setCenterAccentBackground(accentTextButton, animated);
         bottomChannelButtonsLayout.updateWrappingVisible(animated);
@@ -31886,6 +31889,7 @@ public class ChatActivity extends BaseFragment implements
                 if (rawgramDetails) {
                     rawgram.addDetails(popupLayout, message);
                 }
+                final org.telegram.rawgram.RawMessageMenu.Quick rawgramQuick = suggestEdit ? null : org.telegram.rawgram.RawMessageMenu.extract(selectedObject, options, items, icons, showWelcomeMessageRevertOption(selectedObject));
                 scrimPopupWindowItems = new ActionBarMenuSubItem[items.size()];
                 for (int a = 0, N = items.size(); a < N; a++) {
                     final Integer option = options.get(a);
@@ -32129,6 +32133,7 @@ public class ChatActivity extends BaseFragment implements
                     layout.addView(infoText, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.FILL));
                     popupLayout.addView(layout);
                 }
+                org.telegram.rawgram.RawMessageMenu.addRow(popupLayout, rawgramQuick, themeDelegate, option -> { if (selectedObject != null) processSelectedOption(option); });
             }
 
             if (selectedObject != null && selectedObject.isEphemeral() && chatMode != MODE_WELCOME_MESSAGES && !showWelcomeMessageRevertOption(selectedObject)) {
@@ -46776,8 +46781,10 @@ public class ChatActivity extends BaseFragment implements
             bottomOverlay.setTranslationY(dp(54) * hideFactor);
         }
         if (chatInputViewsContainer != null) {
-            chatInputViewsContainer.setInputBubbleAlpha((int) (255 * (1f - hideFactor)));
-            chatInputViewsContainer.setInputBubbleTranslationY(dp(54) * hideFactor);
+            // rawGram: classic look keeps the solid panel under the Reply / Forward selection buttons
+            final float panelHideFactor = rawClassic ? pollAddOptionVisibility : hideFactor;
+            chatInputViewsContainer.setInputBubbleAlpha((int) (255 * (1f - panelHideFactor)));
+            chatInputViewsContainer.setInputBubbleTranslationY(dp(54) * panelHideFactor);
         }
 
 

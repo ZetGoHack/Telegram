@@ -392,6 +392,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     // private RefreshRateController refreshRateController;
 
     @Override
+    public android.content.res.Resources getResources() { return org.telegram.rawgram.RawIcons.wrap(super.getResources()); } // rawGram: icon pack
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         isActive = true;
         activeInstanceCount++;

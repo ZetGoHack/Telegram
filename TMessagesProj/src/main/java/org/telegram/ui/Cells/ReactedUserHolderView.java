@@ -118,7 +118,7 @@ public class ReactedUserHolderView extends FrameLayout {
                 return params.checkOnTouchEvent(event, this);
             }
         };
-        avatarView.setRoundRadius(AndroidUtilities.dp(avatarSize));
+        avatarView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(AndroidUtilities.dp(avatarSize / 2f))); // rawGram: avatar corners
         addView(avatarView, LayoutHelper.createFrameRelatively(avatarSize, avatarSize, Gravity.START | Gravity.CENTER_VERTICAL, 10, 0, 0, 0));
         if (style == STYLE_STORY) {
             setClipChildren(false);

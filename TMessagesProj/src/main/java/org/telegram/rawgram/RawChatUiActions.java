@@ -101,6 +101,17 @@ public class RawChatUiActions {
                         && message.type != MessageObject.TYPE_JOINED_CHANNEL && message.messageOwner.action == null;
             case RawChatUiConfig.TAP_EDIT:
                 return message.isOutOwner() && message.canEditMessage(chat.getCurrentChat()) && message.type != MessageObject.TYPE_POLL;
+            case RawChatUiConfig.TAP_DELETE: {
+                // same rule as the message menu's «Удалить»; the confirmation dialog offers what the rights allow
+                MessageObject thread = chat.isThreadChat() ? chat.getThreadMessage() : null;
+                if (thread != null && thread.getId() == message.getId()) {
+                    return false;
+                }
+                if (message.messageOwner != null && message.messageOwner.action instanceof TLRPC.TL_messageActionTopicCreate) {
+                    return false;
+                }
+                return message.canDeleteMessage(chat.isInScheduleMode(), chat.getCurrentChat());
+            }
             default:
                 return false;
         }
@@ -142,6 +153,10 @@ public class RawChatUiActions {
                 break;
             case RawChatUiConfig.TAP_SAVE:
                 host.runMessageOption(target, OPTION_SAVE_TO_SAVED);
+                break;
+            case RawChatUiConfig.TAP_DELETE:
+                // Telegram's own confirmation (OPTION_DELETE → createDeleteMessagesAlert), album-aware
+                host.runMessageOption(target, ChatActivity.OPTION_DELETE);
                 break;
         }
         try {

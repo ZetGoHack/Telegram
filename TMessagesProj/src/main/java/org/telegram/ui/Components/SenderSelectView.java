@@ -45,7 +45,7 @@ public class SenderSelectView extends View {
 
     public SenderSelectView(Context context) {
         super(context);
-        avatarImage.setRoundRadius(AndroidUtilities.dp(28));
+        avatarImage.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(AndroidUtilities.dp(18))); // rawGram: avatar corners
         menuPaint.setStrokeWidth(AndroidUtilities.dp(2));
         menuPaint.setStrokeCap(Paint.Cap.ROUND);
         menuPaint.setStyle(Paint.Style.STROKE);

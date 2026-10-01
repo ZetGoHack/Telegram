@@ -15,6 +15,9 @@ public class NativeByteBuffer extends AbstractSerializedData {
     private boolean justCalc;
     private int len;
     public boolean reused = true;
+    // rawGram: set once this wrapper's native buffer went back to the pool; a second reuse() would
+    // hand the same native buffer out twice (native crashes in storageQueue writes)
+    private boolean rawgramReleased;
 
     private static final ThreadLocal<LinkedList<NativeByteBuffer>> addressWrappers = new ThreadLocal<LinkedList<NativeByteBuffer>>() {
         @Override
@@ -32,6 +35,7 @@ public class NativeByteBuffer extends AbstractSerializedData {
             }
             result.address = address;
             result.reused = false;
+            result.rawgramReleased = false;
             result.buffer = native_getJavaByteBuffer(address);
             result.buffer.limit(native_limit(address));
             int position = native_position(address);
@@ -648,7 +652,8 @@ public class NativeByteBuffer extends AbstractSerializedData {
     }
 
     public void reuse() {
-        if (address != 0) {
+        if (address != 0 && !rawgramReleased) {
+            rawgramReleased = true;
             addressWrappers.get().add(this);
             reused = true;
             native_reuse(address);

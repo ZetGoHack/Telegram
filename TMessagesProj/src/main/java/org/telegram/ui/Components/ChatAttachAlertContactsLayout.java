@@ -118,7 +118,7 @@ public class ChatAttachAlertContactsLayout extends ChatAttachAlert.AttachAlertLa
             avatarDrawable = new AvatarDrawable(resourcesProvider);
 
             avatarImageView = new BackupImageView(context);
-            avatarImageView.setRoundRadius(AndroidUtilities.dp(23));
+            avatarImageView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(AndroidUtilities.dp(23))); // rawGram: avatar corners
             addView(avatarImageView, LayoutHelper.createFrame(46, 46, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, LocaleController.isRTL ? 0 : 14, 9, LocaleController.isRTL ? 14 : 0, 0));
 
             nameTextView = new SimpleTextView(context) {

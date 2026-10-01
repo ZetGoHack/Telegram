@@ -2236,7 +2236,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
 
             setOrientation(HORIZONTAL);
             imageView = new BackupImageView(context);
-            imageView.setRoundRadius(dp(28));
+            imageView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(dp(14))); // rawGram: avatar corners
             addView(imageView, LayoutHelper.createLinear(28, 28, Gravity.CENTER_VERTICAL | Gravity.LEFT, 12, 0, 12, 0));
 
             textLayout = new LinearLayout(context);

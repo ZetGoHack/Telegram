@@ -48,7 +48,9 @@ public class RawUiConfig {
     private static boolean folderNameAsTitle;
     private static boolean showSeconds;
     private static int avatarCorners = AVATAR_CORNERS_DEFAULT;
+    private static boolean hidePhone;
     private static int snowMode;
+    private static int iconPack;
 
     private static SharedPreferences prefs() {
         return ApplicationLoader.applicationContext.getSharedPreferences("rawgram_ui", Context.MODE_PRIVATE);
@@ -79,7 +81,9 @@ public class RawUiConfig {
             folderNameAsTitle = p.getBoolean("folderNameAsTitle", false);
             showSeconds = p.getBoolean("showSeconds", false);
             avatarCorners = Math.max(0, Math.min(100, p.getInt("avatarCorners", AVATAR_CORNERS_DEFAULT)));
+            hidePhone = p.getBoolean("hidePhone", false);
             snowMode = p.getInt("snowMode", SNOW_BY_DATE);
+            iconPack = p.getInt("iconPack", 0);
             loaded = true;
         }
     }
@@ -151,9 +155,17 @@ public class RawUiConfig {
     public static int avatarCorners() { ensureLoaded(); return avatarCorners; }
     public static void setAvatarCorners(int v) { ensureLoaded(); avatarCorners = Math.max(0, Math.min(100, v)); put("avatarCorners", avatarCorners); }
 
+    // ---- hide own phone number ("Номер скрыт") ----
+    public static boolean isHidePhone() { ensureLoaded(); return hidePhone; }
+    public static void setHidePhone(boolean v) { ensureLoaded(); hidePhone = v; put("hidePhone", v); }
+
     // ---- snow on the main screen ----
     public static int snowMode() { ensureLoaded(); return snowMode; }
     public static void setSnowMode(int v) { ensureLoaded(); snowMode = v; put("snowMode", v); }
+
+    // ---- icon pack: 0 = Telegram, 1 = Solar (RawIcons; applies after restart) ----
+    public static int getIconPack() { ensureLoaded(); return iconPack; }
+    public static void setIconPack(int v) { ensureLoaded(); iconPack = v; put("iconPack", v); }
 
     /** Snow decision for the main-screen action bar: by date = stock holiday check. */
     public static boolean snow(boolean stockHoliday) {

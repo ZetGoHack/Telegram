@@ -5426,7 +5426,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             protected void onDraw(Canvas canvas) {
                 if (avatarImage != null && avatarImage.getImageReceiver().hasNotThumb()) {
                     paint.setAlpha((int) (0x55 * avatarImage.getImageReceiver().getCurrentAlpha()));
-                    canvas.drawCircle(getMeasuredWidth() / 2.0f, getMeasuredHeight() / 2.0f, getMeasuredWidth() / 2.0f, paint);
+                    org.telegram.rawgram.RawUi.drawAvatarShape(canvas, getMeasuredWidth(), getMeasuredHeight(), avatarImage.getImageReceiver().getRoundRadius()[0], paint); // rawGram: avatar corners
                 }
                 super.onDraw(canvas);
             }
@@ -6444,7 +6444,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 return dp(needInsetForStories() ? 24 : 38);
             }
         }
-        return dp(50);
+        return org.telegram.rawgram.RawUi.avatarR(dp(50)); // rawGram: avatar corners
     }
 
     private void updateTtlIcon() {
@@ -7421,6 +7421,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             final TLRPC.User user = getMessagesController().getUser(userId);
             if (user == null || user.phone == null || user.phone.length() == 0 || getParentActivity() == null) {
                 return false;
+            }
+            if (org.telegram.rawgram.RawUi.hidePhone(user)) { // rawGram: hide phone
+                android.widget.Toast.makeText(getParentActivity(), org.telegram.rawgram.RawUi.PHONE_HIDDEN, android.widget.Toast.LENGTH_SHORT).show();
+                return true;
             }
 
             if (position == phoneRow && user.phone.startsWith("888")) {
@@ -13523,7 +13527,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         String text;
                         TLRPC.User user = getMessagesController().getUser(userId);
                         String phoneNumber;
-                        if (user != null && !TextUtils.isEmpty(vcardPhone)) {
+                        if (org.telegram.rawgram.RawUi.hidePhone(user)) { // rawGram: hide phone
+                            text = org.telegram.rawgram.RawUi.PHONE_HIDDEN;
+                            phoneNumber = null;
+                        } else if (user != null && !TextUtils.isEmpty(vcardPhone)) {
                             text = PhoneFormat.getInstance().format("+" + vcardPhone);
                             phoneNumber = vcardPhone;
                         } else if (user != null && !TextUtils.isEmpty(user.phone)) {
@@ -13620,7 +13627,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     } else if (position == numberRow) {
                         TLRPC.User user = UserConfig.getInstance(currentAccount).getCurrentUser();
                         String value;
-                        if (user != null && user.phone != null && user.phone.length() != 0) {
+                        if (org.telegram.rawgram.RawUi.hidePhone(user)) { // rawGram: hide phone
+                            value = org.telegram.rawgram.RawUi.PHONE_HIDDEN;
+                        } else if (user != null && user.phone != null && user.phone.length() != 0) {
                             value = PhoneFormat.getInstance().format("+" + user.phone);
                         } else {
                             value = LocaleController.getString(R.string.NumberUnknown);
@@ -16358,7 +16367,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (textToCopy != null) textToCopy = "@" + textToCopy;
             copyButton = getString(R.string.ProfileCopyUsername);
         } else if (position == phoneRow) {
-            textToCopy = user.phone;
+            textToCopy = org.telegram.rawgram.RawUi.hidePhone(user) ? null : user.phone; // rawGram: hide phone
         } else if (position == birthdayRow) {
             textToCopy = UserInfoActivity.birthdayString(userInfo.birthday);
         }

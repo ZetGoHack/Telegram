@@ -39,6 +39,26 @@ public class RawUi {
         return Math.max(1, Math.round(circleRadius * pct / 100f));
     }
 
+    /** Fills a {@code w}x{@code h} avatar overlay with the avatar's round radius (a circle when it covers half the size). */
+    public static void drawAvatarShape(android.graphics.Canvas canvas, int w, int h, int radius, android.graphics.Paint paint) {
+        float half = Math.min(w, h) / 2f;
+        if (radius <= 0 || radius >= half) {
+            canvas.drawCircle(w / 2f, h / 2f, w / 2f, paint);
+            return;
+        }
+        AndroidUtilities.rectTmp.set(0, 0, w, h);
+        canvas.drawRoundRect(AndroidUtilities.rectTmp, radius, radius, paint);
+    }
+
+    // ---- hide phone number ----
+
+    /** Whether the phone of {@code user} must be shown as {@link #PHONE_HIDDEN}: the option is on and it is the own account (Nagram's scope). */
+    public static boolean hidePhone(TLRPC.User user) {
+        return RawUiConfig.isHidePhone() && user != null && (user.self || user.id == UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId());
+    }
+
+    public static final String PHONE_HIDDEN = "Номер скрыт";
+
     // ---- chats list search field ----
 
     /** Height of the idle search field above the chats list (0 when hidden). */

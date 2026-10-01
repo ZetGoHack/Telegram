@@ -91,7 +91,7 @@ public class SharingLiveLocationCell extends FrameLayout {
         this.padding = padding;
 
         avatarImageView = new BackupImageView(context);
-        avatarImageView.setRoundRadius(dp(21));
+        avatarImageView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(dp(21))); // rawGram: avatar corners
 
         avatarDrawable = new AvatarDrawable();
 

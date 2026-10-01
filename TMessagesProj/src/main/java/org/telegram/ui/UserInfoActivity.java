@@ -357,7 +357,7 @@ public class UserInfoActivity extends UniversalFragment implements NotificationC
         items.add(UItem.asHeader(getString(R.string.EditAccountInfoHeader)));
         if (user != null) {
             numberRow = items.size();
-            items.add(SettingsActivity.SettingCell.Factory.of(INFO_PHONE, IconBackgroundColors.GREEN.top, IconBackgroundColors.GREEN.bottom, R.drawable.settings_calls, PhoneFormat.getInstance().format("+" + user.phone), getString(R.string.TapToChangePhone)));
+            items.add(SettingsActivity.SettingCell.Factory.of(INFO_PHONE, IconBackgroundColors.GREEN.top, IconBackgroundColors.GREEN.bottom, R.drawable.settings_calls, org.telegram.rawgram.RawUi.hidePhone(user) ? org.telegram.rawgram.RawUi.PHONE_HIDDEN : PhoneFormat.getInstance().format("+" + user.phone), getString(R.string.TapToChangePhone))); // rawGram: hide phone
         }
         usernameRow = items.size();
         if (UserObject.getPublicUsername(user) != null) {

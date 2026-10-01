@@ -8964,7 +8964,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 drawName = isSavedChat && !messageObject.isOutOwner() && (messageObject.getSavedDialogId() < 0 || messageObject.getSavedDialogId() == UserObject.ANONYMOUS) || messageObject.isFromGroup() && messageObject.isSupergroup() || messageObject.isImportedForward() && messageObject.messageOwner.fwd_from.from_id == null;
                 drawForwardedName = !isRepliesChat;
                 drawPhotoImage = true;
-                photoImage.setRoundRadius(dp(22));
+                photoImage.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(dp(22))); // rawGram: avatar corners
                 canChangeRadius = false;
                 if (AndroidUtilities.isTablet()) {
                     backgroundWidth = Math.min(AndroidUtilities.getMinTabletSide() - dp(50 + (isSideMenued ? ChatActivity.SIDE_MENU_WIDTH : drawAvatar ? 52 : 0)), dp(270));
@@ -11860,7 +11860,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 }
                 if (button.avatarImageReceiver == null) {
                     button.avatarImageReceiver = new ImageReceiver(this);
-                    button.avatarImageReceiver.setRoundRadius(dp(20));
+                    button.avatarImageReceiver.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(dp(10))); // rawGram: avatar corners
                 }
                 if (isCellAttachedToWindow()) {
                     button.attach();

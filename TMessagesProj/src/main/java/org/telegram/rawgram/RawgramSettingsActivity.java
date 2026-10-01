@@ -53,17 +53,17 @@ public class RawgramSettingsActivity extends BaseFragment {
     private static final int ROW_LOOK_HEADER = 0;
     private static final int ROW_LOOK_UI = 1;
     private static final int ROW_LOOK_CHAT = 2;
-    private static final int ROW_LOOK_CLASSIC = 3;
-    private static final int ROW_LOOK_INFO = 4;
-    private static final int ROW_DATA_HEADER = 5;
-    private static final int ROW_FULL_NUMBERS = 6;
-    private static final int ROW_ID_FORMAT = 7;
-    private static final int ROW_DATA_INFO = 8;
-    private static final int ROW_FEAT_HEADER = 9;
-    private static final int ROW_FEAT_DETAILS = 10;
-    private static final int ROW_FEAT_INLINE_RAW = 11;
-    private static final int ROW_FEAT_TRAY = 12;
-    private static final int ROW_FEAT_BOT_BUTTONS = 13;
+    private static final int ROW_LOOK_INFO = 3;
+    private static final int ROW_DATA_HEADER = 4;
+    private static final int ROW_FULL_NUMBERS = 5;
+    private static final int ROW_ID_FORMAT = 6;
+    private static final int ROW_DATA_INFO = 7;
+    private static final int ROW_FEAT_HEADER = 8;
+    private static final int ROW_FEAT_DETAILS = 9;
+    private static final int ROW_FEAT_INLINE_RAW = 10;
+    private static final int ROW_FEAT_TRAY = 11;
+    private static final int ROW_FEAT_BOT_BUTTONS = 12;
+    private static final int ROW_FEAT_BOT_ANSWERS = 13;
     private static final int ROW_FEAT_PREVIEW_RAW = 14;
     private static final int ROW_FEAT_OBJECT_RAW = 15;
     private static final int ROW_FEAT_WEBAPP = 16;
@@ -123,10 +123,6 @@ public class RawgramSettingsActivity extends BaseFragment {
                 presentFragment(new RawUiSettingsActivity());
             } else if (position == ROW_LOOK_CHAT) {
                 presentFragment(new RawChatUiSettingsActivity());
-            } else if (position == ROW_LOOK_CLASSIC) {
-                boolean value = !RawClassicUi.isEnabled();
-                RawClassicUi.setEnabled(value);
-                ((TextCheckCell) view).setChecked(value);
             } else if (position == ROW_FULL_NUMBERS) {
                 boolean value = !RawgramConfig.isFullNumbers();
                 RawgramConfig.setFullNumbers(value);
@@ -173,7 +169,8 @@ public class RawgramSettingsActivity extends BaseFragment {
             case ROW_FEAT_DETAILS: return "Подробности в меню сообщения";
             case ROW_FEAT_INLINE_RAW: return "Raw инлайн-результатов по долгому нажатию";
             case ROW_FEAT_TRAY: return "Лоток инлайн-выдачи";
-            case ROW_FEAT_BOT_BUTTONS: return "Отладка кнопок ботов";
+            case ROW_FEAT_BOT_BUTTONS: return "Данные кнопок ботов (долгое нажатие)";
+            case ROW_FEAT_BOT_ANSWERS: return "Ответы ботов на кнопки";
             case ROW_FEAT_PREVIEW_RAW: return "Raw в предпросмотре стикеров и эмодзи";
             case ROW_FEAT_OBJECT_RAW: return "Raw в профилях, наборах и диалогах";
             default: return "rawGram-данные веб-приложений";
@@ -186,6 +183,7 @@ public class RawgramSettingsActivity extends BaseFragment {
             case ROW_FEAT_INLINE_RAW: return RawgramConfig.isInlineRaw();
             case ROW_FEAT_TRAY: return RawgramConfig.isInlineTray();
             case ROW_FEAT_BOT_BUTTONS: return RawgramConfig.isBotButtonDebug();
+            case ROW_FEAT_BOT_ANSWERS: return RawgramConfig.isBotAnswerLog();
             case ROW_FEAT_PREVIEW_RAW: return RawgramConfig.isPreviewRaw();
             case ROW_FEAT_OBJECT_RAW: return RawgramConfig.isObjectRaw();
             default: return RawgramConfig.isWebAppData();
@@ -198,6 +196,7 @@ public class RawgramSettingsActivity extends BaseFragment {
             case ROW_FEAT_INLINE_RAW: RawgramConfig.setInlineRaw(value); break;
             case ROW_FEAT_TRAY: RawgramConfig.setInlineTray(value); break;
             case ROW_FEAT_BOT_BUTTONS: RawgramConfig.setBotButtonDebug(value); break;
+            case ROW_FEAT_BOT_ANSWERS: RawgramConfig.setBotAnswerLog(value); break;
             case ROW_FEAT_PREVIEW_RAW: RawgramConfig.setPreviewRaw(value); break;
             case ROW_FEAT_OBJECT_RAW: RawgramConfig.setObjectRaw(value); break;
             default: RawgramConfig.setWebAppData(value); break;
@@ -225,7 +224,6 @@ public class RawgramSettingsActivity extends BaseFragment {
         @Override
         public int getItemViewType(int position) {
             switch (position) {
-                case ROW_LOOK_CLASSIC:
                 case ROW_FULL_NUMBERS:
                 case ROW_HIDE_KEYBOARD:
                 case ROW_HIDE_CAMERA:
@@ -234,6 +232,7 @@ public class RawgramSettingsActivity extends BaseFragment {
                 case ROW_FEAT_INLINE_RAW:
                 case ROW_FEAT_TRAY:
                 case ROW_FEAT_BOT_BUTTONS:
+                case ROW_FEAT_BOT_ANSWERS:
                 case ROW_FEAT_PREVIEW_RAW:
                 case ROW_FEAT_OBJECT_RAW:
                 case ROW_FEAT_WEBAPP:
@@ -299,9 +298,7 @@ public class RawgramSettingsActivity extends BaseFragment {
                             : position == ROW_TOOLS_HEADER ? "Инструменты" : "Размер стикеров");
                     break;
                 case TYPE_CHECK:
-                    if (position == ROW_LOOK_CLASSIC) {
-                        ((TextCheckCell) holder.itemView).setTextAndCheck("Классический вид чата", RawClassicUi.isEnabled(), false);
-                    } else if (position >= ROW_FEAT_DETAILS && position <= ROW_FEAT_WEBAPP) {
+                    if (position >= ROW_FEAT_DETAILS && position <= ROW_FEAT_WEBAPP) {
                         ((TextCheckCell) holder.itemView).setTextAndCheck(featureTitle(position), isFeatureOn(position), position != ROW_FEAT_WEBAPP);
                     } else if (position == ROW_REQUEST_LOG) {
                         ((TextCheckCell) holder.itemView).setTextAndCheck("Журнал запросов MTProto", RawRequestLog.enabled, true);
@@ -319,7 +316,7 @@ public class RawgramSettingsActivity extends BaseFragment {
                         break;
                     }
                     if (position == ROW_LOOK_CHAT) {
-                        ((TextSettingsCell) holder.itemView).setText("Чаты: вид и поведение", true);
+                        ((TextSettingsCell) holder.itemView).setText("Чаты: вид и поведение", false);
                         break;
                     }
                     if (position == ROW_SERVER_CONFIG) {
@@ -361,14 +358,17 @@ public class RawgramSettingsActivity extends BaseFragment {
                 case TYPE_INFO: {
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
                     if (position == ROW_LOOK_INFO) {
-                        cell.setText("Классический вид: сплошная шапка, закреп под ней и поле ввода во всю ширину вместо плавающих «пилюль». "
-                                + "Применяется к чатам, открытым после переключения.");
+                        cell.setText("Интерфейс — список чатов, заголовок, вкладки, аватарки, переключатели, экран настроек. "
+                                + "Чаты — классический вид чата, заголовок, время и ID в сообщениях, двойное нажатие, меню сообщения. "
+                                + "На обоих экранах сверху — живой пример, как это будет выглядеть.");
                     } else if (position == ROW_DATA_INFO) {
                         cell.setText("Числа: просмотры, реакции, подписчики, рейтинг — полностью. Изменения видны при следующем открытии экрана. "
                                 + "ID в профилях: Bot API — пользователи как есть, группы -id, каналы и супергруппы -100id; нажатие копирует.");
                     } else if (position == ROW_FEAT_INFO) {
-                        cell.setText("Выключенная функция не показывается, и Telegram там ведёт себя как обычно: например, без отладки кнопок "
-                                + "долгое нажатие на кнопку бота работает как в Telegram. Отложенные в лоток результаты сохраняются, пока он выключен.");
+                        cell.setText("Выключенная функция не показывается, и Telegram там ведёт себя как обычно: например, без данных кнопок "
+                                + "долгое нажатие на кнопку бота работает как в Telegram. Ответы ботов на кнопки — журнал ответов на нажатия "
+                                + "(callback-ответы) и уведомления, когда бот ответил молча или не ответил. "
+                                + "Отложенные в лоток результаты сохраняются, пока он выключен.");
                     } else if (position == ROW_CHAT_INFO) {
                         cell.setText("Клавиатура прячется, как только начинаешь листать сообщения; поле ввода и набранный текст остаются. "
                                 + "Камера во вложениях — кнопкой: вместо большой плитки камеры в галерее круглая кнопка справа снизу.");

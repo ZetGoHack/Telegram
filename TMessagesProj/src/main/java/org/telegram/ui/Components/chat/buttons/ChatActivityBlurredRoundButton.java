@@ -57,8 +57,34 @@ public class ChatActivityBlurredRoundButton extends FrameLayout implements Facto
 
     @Override
     public void draw(@NonNull Canvas canvas) {
+        if (rawClassicIconKey >= 0) {
+            if (rawClassicSolidPaint != null) {
+                final float r = Math.min(getWidth(), getHeight()) / 2f - dp(CLICK_ZONE_MARGIN);
+                canvas.drawCircle(getWidth() / 2f, getHeight() / 2f, r, rawClassicSolidPaint);
+            }
+        } else
         backgroundDrawable.draw(canvas);
         super.draw(canvas);
+    }
+
+    /* rawGram: classic look, no glass. Flat = icon only on the solid panel, solid = old-style round FAB. */
+    private int rawClassicIconKey = -1;
+    private android.graphics.Paint rawClassicSolidPaint;
+
+    public void setRawClassic(boolean solid) {
+        rawClassicIconKey = Theme.key_chat_messagePanelIcons;
+        if (solid) {
+            rawClassicSolidPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        }
+        updateColors();
+    }
+
+    public boolean isRawClassic() {
+        return rawClassicIconKey >= 0;
+    }
+
+    private int iconColorKey() {
+        return rawClassicIconKey >= 0 ? rawClassicIconKey : Theme.key_glass_defaultIcon;
     }
 
     @Override
@@ -207,8 +233,12 @@ public class ChatActivityBlurredRoundButton extends FrameLayout implements Facto
             invalidate();
         }
 
-        final int color = Theme.getColor(Theme.key_glass_defaultIcon, resourcesProvider);
-        setIconColor(Theme.getColor(Theme.key_glass_defaultIcon, resourcesProvider));
+        if (rawClassicSolidPaint != null) {
+            rawClassicSolidPaint.setColor(Theme.getColor(Theme.key_chat_goDownButton, resourcesProvider));
+            rawClassicSolidPaint.setShadowLayer(dp(1.66f), 0, dp(0.66f), 0x2f000000);
+        }
+        final int color = Theme.getColor(iconColorKey(), resourcesProvider);
+        setIconColor(color);
         int rad = dp(22);
         int pressedColor = Theme.multAlpha(color, .15f);
         setBackground(Theme.createInsetRoundRectDrawable(pressedColor, rad, dp(6)));

@@ -3849,7 +3849,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             avatarDrawable.setTextSize(dp(12));
 
             BackupImageView imageView = new BackupImageView(context);
-            imageView.setRoundRadius(dp(18));
+            imageView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(dp(18))); // rawGram: avatar corners
             switchItem.addView(imageView, LayoutHelper.createFrame(36, 36, Gravity.CENTER));
             switchItem.setOnClickListener(this::openAccountSelector);
             switchItem.setOnLongClickListener(this::openAccountSelector);
@@ -14366,7 +14366,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             avatarView.setScaleX(0.833f);
             avatarView.setScaleY(0.833f);
         }
-        avatarView.setRoundRadius(dp(16));
+        avatarView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(dp(16))); // rawGram: avatar corners
         avatarView.getImageReceiver().setCurrentAccount(account);
         avatarView.setForUserOrChat(user, avatarDrawable);
         avatarContainer.addView(avatarView, LayoutHelper.createLinear(32, 32, Gravity.CENTER, 1, 1, 1, 1));

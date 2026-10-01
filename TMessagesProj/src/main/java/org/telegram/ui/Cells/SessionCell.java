@@ -197,7 +197,7 @@ public class SessionCell extends FrameLayout {
             final TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(bot.bot_id);
 
             avatarDrawable.setInfo(user);
-            imageView.setRoundRadius(dp(21));
+            imageView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(dp(21))); // rawGram: avatar corners
             imageView.setForUserOrChat(user, avatarDrawable);
 
             nameTextView.setText(UserObject.getUserName(user));

@@ -127,6 +127,34 @@ public class ChatActivityActionsButtonsLayout extends LinearLayout {
     public void updateColors() {
         replyButton.button.updateColors();
         forwardButton.button.updateColors();
+        if (rawClassic) {
+            applyRawClassicColors(replyButton);
+            applyRawClassicColors(forwardButton);
+        }
+    }
+
+    /* rawGram: classic look - flat Reply / Forward buttons on the solid bottom panel. */
+    private boolean rawClassic;
+
+    public void setRawClassic() {
+        rawClassic = true;
+        replyButton.button.setRawClassic(false);
+        forwardButton.button.setRawClassic(false);
+        applyRawClassicColors(replyButton);
+        applyRawClassicColors(forwardButton);
+    }
+
+    private void applyRawClassicColors(ButtonHolder holder) {
+        if (holder.textView == null) {
+            return;
+        }
+        final int color = Theme.getColor(Theme.key_actionBarActionModeDefaultIcon, resourcesProvider);
+        holder.textView.setTextColor(color);
+        for (Drawable d : holder.textView.getCompoundDrawables()) {
+            if (d != null) {
+                d.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.MULTIPLY));
+            }
+        }
     }
 
     @Override

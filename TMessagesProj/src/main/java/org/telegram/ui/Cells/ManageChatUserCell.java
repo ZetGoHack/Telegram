@@ -101,7 +101,7 @@ public class ManageChatUserCell extends FrameLayout {
                 }
             }
         };
-        avatarImageView.setRoundRadius(AndroidUtilities.dp(23));
+        avatarImageView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(AndroidUtilities.dp(23))); // rawGram: avatar corners
         addView(avatarImageView, LayoutHelper.createFrame(46, 46, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, LocaleController.isRTL ? 0 : 7 + avatarPadding, 8, LocaleController.isRTL ? 7 + avatarPadding : 0, 0));
 
         nameTextView = new SimpleTextView(context);

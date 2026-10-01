@@ -411,7 +411,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
 
         avatarDrawable = new AvatarDrawable();
         avatarView = new BackupImageView(context);
-        avatarView.setRoundRadius(dp(90));
+        avatarView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(dp(45))); // rawGram: avatar corners
         avatarContainer.addView(avatarView, LayoutHelper.createFrame(90, 90, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 15, 0, 0));
 
         avatarProgressView = new RadialProgressView(context) {
@@ -425,7 +425,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             protected void onDraw(Canvas canvas) {
                 if (avatarView != null && avatarView.getImageReceiver().hasNotThumb()) {
                     paint.setAlpha((int) (0x55 * avatarView.getImageReceiver().getCurrentAlpha()));
-                    canvas.drawCircle(getMeasuredWidth() / 2.0f, getMeasuredHeight() / 2.0f, getMeasuredWidth() / 2.0f, paint);
+                    org.telegram.rawgram.RawUi.drawAvatarShape(canvas, getMeasuredWidth(), getMeasuredHeight(), avatarView.getImageReceiver().getRoundRadius()[0], paint); // rawGram: avatar corners
                 }
                 super.onDraw(canvas);
             }
@@ -534,7 +534,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         titleView.setText(UserObject.getUserName(user));
         final StringBuilder sb = new StringBuilder();
         if (user != null) {
-            sb.append(PhoneFormat.getInstance().format("+" + user.phone));
+            sb.append(org.telegram.rawgram.RawUi.hidePhone(user) ? org.telegram.rawgram.RawUi.PHONE_HIDDEN : PhoneFormat.getInstance().format("+" + user.phone)); // rawGram: hide phone
         }
         final String username = UserObject.getPublicUsername(user);
         if (username != null) {
@@ -652,7 +652,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             items.add(UItem.asShadow(null));
         } else if (suggestions.contains("VALIDATE_PHONE_NUMBER") && getUserConfig().getCurrentUser() != null) {
             items.add(SuggestionCell.Factory.of(
-                formatString(R.string.CheckPhoneNumber, PhoneFormat.getInstance().format("+" + getUserConfig().getCurrentUser().phone)),
+                formatString(R.string.CheckPhoneNumber, org.telegram.rawgram.RawUi.hidePhone(getUserConfig().getCurrentUser()) ? org.telegram.rawgram.RawUi.PHONE_HIDDEN : PhoneFormat.getInstance().format("+" + getUserConfig().getCurrentUser().phone)),
                 replaceSingleTag(getString(R.string.CheckPhoneNumberInfo), () -> {
                     Browser.openUrl(getContext(), getString(R.string.CheckPhoneNumberLearnMoreUrl));
                 }),
@@ -999,7 +999,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
 
             avatarDrawable = new AvatarDrawable();
             avatarView = new BackupImageView(context);
-            avatarView.setRoundRadius(dp(14));
+            avatarView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(dp(14))); // rawGram: avatar corners
 
             textView = new SimpleTextView(context);
             textView.setTextSize(15);

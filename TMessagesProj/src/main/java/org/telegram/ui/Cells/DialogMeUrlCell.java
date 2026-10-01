@@ -61,7 +61,7 @@ public class DialogMeUrlCell extends BaseCell {
         super(context);
 
         Theme.createDialogsResources(context);
-        avatarImage.setRoundRadius(AndroidUtilities.dp(26));
+        avatarImage.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(AndroidUtilities.dp(26))); // rawGram: avatar corners
     }
 
     public void setRecentMeUrl(TLRPC.RecentMeUrl url) {

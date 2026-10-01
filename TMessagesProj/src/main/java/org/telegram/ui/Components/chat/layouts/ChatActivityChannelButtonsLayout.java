@@ -50,6 +50,9 @@ public class ChatActivityChannelButtonsLayout extends FrameLayout implements Fac
 
     private final HashSet<View> wrapContentButtons = new HashSet<>();
 
+    /** rawGram: classic look - flat icon buttons on the solid panel, no accent pill. */
+    public boolean rawClassic;
+
     private static final @DrawableRes int[] buttonIcons = new int[] {
         R.drawable.msg_search,
         R.drawable.input_gift_s,
@@ -135,6 +138,7 @@ public class ChatActivityChannelButtonsLayout extends FrameLayout implements Fac
                 button.setContentDescription(getString(R.string.BroadcastGroupInfo));
             }
 
+            if (rawClassic) button.setRawClassic(false);
             ScaleStateListAnimator.apply(button, .13f, 2f);
             button.setVisibility(GONE);
             button.setOnClickListener(v -> {
@@ -429,7 +433,7 @@ public class ChatActivityChannelButtonsLayout extends FrameLayout implements Fac
 
     @Override
     protected void dispatchDraw(@NonNull Canvas canvas) {
-        final int accentAlpha = (int) (255 * totalVisibilityFactor * animatorCenterAccentBackground.getFloatValue());
+        final int accentAlpha = rawClassic ? 0 : (int) (255 * totalVisibilityFactor * animatorCenterAccentBackground.getFloatValue());
         if (accentAlpha > 0) {
             tmpRect.set(
                 totalWidthLeft + dp(10),

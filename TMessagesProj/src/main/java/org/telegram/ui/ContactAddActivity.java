@@ -242,7 +242,7 @@ public class ContactAddActivity extends BaseFragment implements NotificationCent
         infoLayout.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
 
         avatarImage = new BackupImageView(context);
-        avatarImage.setRoundRadius(dp(32));
+        avatarImage.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(dp(32))); // rawGram: avatar corners
         infoLayout.addView(avatarImage, LayoutHelper.createFrame(64, 64, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, 16, 13, 16, 13));
 
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);

@@ -141,6 +141,7 @@ public class RawChatUiConfig {
     public static final int TAP_EDIT = 4;
     public static final int TAP_SAVE = 5;
     public static final int TAP_NONE = 6;
+    public static final int TAP_DELETE = 7;
     public static final Choice doubleTapIn = new Choice("doubleTapIn", TAP_REACTION);
     public static final Choice doubleTapOut = new Choice("doubleTapOut", TAP_REACTION);
 
@@ -151,6 +152,7 @@ public class RawChatUiConfig {
             case TAP_FORWARD: return "Переслать";
             case TAP_EDIT: return "Редактировать";
             case TAP_SAVE: return "В Избранное";
+            case TAP_DELETE: return "Удалить";
             case TAP_NONE: return "Ничего";
             default: return "Реакция";
         }
@@ -168,6 +170,8 @@ public class RawChatUiConfig {
     public static final Flag menuHideFactCheck = new Flag("menuHideFactCheck", false);
     public static final Flag menuRepeat = new Flag("menuRepeat", false);
     public static final Flag menuSaveToSaved = new Flag("menuSaveToSaved", false);
+    /** Reply / delete / copy / edit as an icon row at the bottom of the message menu (RawMessageMenu). */
+    public static final Flag menuCompact = new Flag("menuCompact", false);
 
     // ---- helpers for the hooks ----
 

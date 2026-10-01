@@ -75,6 +75,10 @@ public class ChatActivityBlurredRoundPageDownButton extends FrameLayout {
         buttonView.setEnabled(enabled, animated);
     }
 
+    public void setRawClassic(boolean solid) {
+        buttonView.setRawClassic(solid);
+    }
+
     public void reverseIconByY() {
         buttonView.reverseIconByY();
     }

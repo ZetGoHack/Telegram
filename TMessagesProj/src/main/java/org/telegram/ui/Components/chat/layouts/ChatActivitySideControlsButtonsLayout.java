@@ -83,6 +83,9 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
         this.resourcesProvider = resourcesProvider;
     }
 
+    /** rawGram: classic look - solid round buttons instead of glass. */
+    public boolean rawClassic;
+
     private int gravity = Gravity.LEFT | Gravity.BOTTOM;
     public void setGravity(int gravity) {
         this.gravity = gravity;
@@ -250,6 +253,7 @@ public class ChatActivitySideControlsButtonsLayout extends FrameLayout implement
                 buttonIcons[buttonId]
             );
 
+            if (rawClassic) button.setRawClassic(true);
             button.setPivotX(dp(size / 2f));
             button.setPivotY(dp(size / 2f + 8));
             button.setVisibility(GONE);

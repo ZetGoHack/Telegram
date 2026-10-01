@@ -52,7 +52,7 @@ public class AccountSelectCell extends FrameLayout {
         avatarDrawable.setTextSize(dp(12));
 
         imageView = new BackupImageView(context);
-        imageView.setRoundRadius(dp(18));
+        imageView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(dp(18))); // rawGram: avatar corners
         addView(imageView, LayoutHelper.createFrame(36, 36, Gravity.LEFT | Gravity.TOP, 10, 10, 0, 0));
 
         textView = new SimpleTextView(context);

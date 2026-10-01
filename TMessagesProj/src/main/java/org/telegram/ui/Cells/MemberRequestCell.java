@@ -35,7 +35,7 @@ public class MemberRequestCell extends FrameLayout {
     public MemberRequestCell(@NonNull Context context, OnClickListener clickListener, boolean isChannel) {
         super(context);
 
-        avatarImageView.setRoundRadius(AndroidUtilities.dp(23));
+        avatarImageView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(AndroidUtilities.dp(23))); // rawGram: avatar corners
         addView(avatarImageView, LayoutHelper.createFrame(46, 46, LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT, 12, 8, 12, 0));
 
         nameTextView.setGravity(LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT);

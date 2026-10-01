@@ -220,7 +220,7 @@ public class CheckBoxCell extends FrameLayout {
         } else if (type == TYPE_CHECK_BOX_USER) {
             avatarDrawable = new AvatarDrawable();
             avatarImageView = new BackupImageView(context);
-            avatarImageView.setRoundRadius(dp(17));
+            avatarImageView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(dp(17))); // rawGram: avatar corners
             addView(avatarImageView, LayoutHelper.createFrameRelatively(34, 34, Gravity.START | Gravity.CENTER_VERTICAL, 56, 0, 0, 0));
         }
 

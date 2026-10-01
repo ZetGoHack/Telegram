@@ -49,7 +49,7 @@ public class AdminedChannelCell extends FrameLayout {
 
         avatarDrawable = new AvatarDrawable();
         avatarImageView = new BackupImageView(context);
-        avatarImageView.setRoundRadius(AndroidUtilities.dp(24));
+        avatarImageView.setRoundRadius(org.telegram.rawgram.RawUi.avatarR(AndroidUtilities.dp(24))); // rawGram: avatar corners
         addView(avatarImageView, LayoutHelper.createFrame(48, 48, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, LocaleController.isRTL ? 0 : 12 + padding, 6, LocaleController.isRTL ? 12 + padding : 0, 6));
 
         if (needCheck) {

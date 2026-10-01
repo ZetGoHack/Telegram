@@ -228,6 +228,17 @@ public class RawgramConfig {
         botButtonDebug.set(value);
     }
 
+    // logging of bot callback answers + notices about silent/failed answers, separate from the button sheet
+    private static final Flag botAnswerLog = new Flag("featBotAnswerLog", true);
+
+    public static boolean isBotAnswerLog() {
+        return botAnswerLog.get();
+    }
+
+    public static void setBotAnswerLog(boolean value) {
+        botAnswerLog.set(value);
+    }
+
     /** Raw / copy document id items in sticker, GIF and emoji previews. */
     public static boolean isPreviewRaw() {
         return previewRaw.get();

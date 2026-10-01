@@ -136,7 +136,7 @@ public class RawCallbackLog {
      * (after Telegram's own handling, which also posts there). Other button types pass through.
      */
     public static RequestDelegate wrap(int account, MessageObject messageObject, TL_keyboard.KeyboardButtonProto button, boolean fromCache, RequestDelegate delegate) {
-        if (messageObject == null || button == null || delegate == null) {
+        if (messageObject == null || button == null || delegate == null || !RawgramConfig.isBotAnswerLog()) {
             return delegate;
         }
         TL_keyboard.TL_inlineButtonTypeCallback callback = TLKeyboardHelper.getType(button, TL_keyboard.TL_inlineButtonTypeCallback.class);
@@ -218,7 +218,7 @@ public class RawCallbackLog {
     }
 
     private static void maybeNotify(Entry entry) {
-        if (!showSilentAnswers || !RawgramConfig.isBotButtonDebug()) {
+        if (!showSilentAnswers || !RawgramConfig.isBotAnswerLog()) {
             return;
         }
         boolean silentError = entry.error != null && !isHandledError(entry.error);

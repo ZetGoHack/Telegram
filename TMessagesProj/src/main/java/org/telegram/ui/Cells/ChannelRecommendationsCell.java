@@ -537,7 +537,7 @@ public class ChannelRecommendationsCell {
             avatarImageReceiver = new ImageReceiver[1];
             avatarImageReceiver[0] = new ImageReceiver(cell);
             avatarImageReceiver[0].setParentView(cell);
-            avatarImageReceiver[0].setRoundRadius(avatarSize());
+            avatarImageReceiver[0].setRoundRadius(org.telegram.rawgram.RawUi.avatarR(avatarSize() / 2)); // rawGram: avatar corners
             if (cell.isCellAttachedToWindow()) {
                 attach();
             }
