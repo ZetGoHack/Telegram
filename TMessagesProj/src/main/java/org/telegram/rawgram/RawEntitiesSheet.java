@@ -163,6 +163,7 @@ public class RawEntitiesSheet extends BottomSheet {
         }
 
         setCustomView(root);
+        RawMotion.reveal(root);
     }
 
     // ---- text overlay ----
@@ -285,12 +286,14 @@ public class RawEntitiesSheet extends BottomSheet {
         row.setOnClickListener(v -> {
             if (textView == null) {
                 copy(copyValue, "Скопировано");
+                RawMotion.copied(v);
             } else {
                 select(index);
             }
         });
         row.setOnLongClickListener(v -> {
             copy(copyValue, "Скопировано: " + ellipsize(copyValue, 60));
+            RawMotion.copied(v);
             return true;
         });
         entityRows.add(row);
@@ -393,7 +396,10 @@ public class RawEntitiesSheet extends BottomSheet {
         label.setText(sb);
         row.addView(label, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
         final String copyValue = value != null ? value : "";
-        row.setOnClickListener(v -> copy(copyValue, "Скопировано: " + ellipsize(copyValue, 60)));
+        row.setOnClickListener(v -> {
+            copy(copyValue, "Скопировано: " + ellipsize(copyValue, 60));
+            RawMotion.copied(v);
+        });
         row.setOnLongClickListener(v -> {
             RawObjectSheet sheet = new RawObjectSheet(getContext(), account, "Кнопка [" + r + ":" + c + "]", button, rp);
             sheet.addObjectTab("Button", () -> sheet.setObject(null, button));

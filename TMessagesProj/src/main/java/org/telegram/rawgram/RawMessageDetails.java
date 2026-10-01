@@ -166,10 +166,12 @@ public class RawMessageDetails {
                 r.action.run();
             } else {
                 copy(r);
+                RawMotion.copied(v);
             }
         });
         item.setOnLongClickListener(v -> {
             copy(r);
+            RawMotion.copied(v);
             return true;
         });
         return item;

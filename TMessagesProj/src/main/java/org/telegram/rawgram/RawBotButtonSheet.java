@@ -131,6 +131,7 @@ public class RawBotButtonSheet extends BottomSheet {
         }
 
         setCustomView(root);
+        RawMotion.reveal(root);
     }
 
     // ---- fields ----
@@ -244,7 +245,9 @@ public class RawBotButtonSheet extends BottomSheet {
         row.setOnClickListener(v -> {
             AndroidUtilities.addToClipboard(value);
             RawNotify.show(this, R.drawable.msg_copy, label + " скопировано");
+            RawMotion.copied(copy);
         });
+        RawMotion.pressable(row, 0.98f);
         list.addView(row, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
     }
 

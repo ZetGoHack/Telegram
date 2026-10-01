@@ -58,6 +58,29 @@ public class RawUi {
     }
 
     public static final String PHONE_HIDDEN = "Номер скрыт";
+    public static final String COPY_PHONE = "Скопировать номер";
+
+    /** Copies the real (hidden) number of {@code user} and shows the stock "Phone copied" bulletin. */
+    public static void copyHiddenPhone(org.telegram.ui.ActionBar.BaseFragment fragment, TLRPC.User user) {
+        if (user == null || TextUtils.isEmpty(user.phone)) {
+            return;
+        }
+        AndroidUtilities.addToClipboard("+" + user.phone);
+        if (fragment != null) {
+            org.telegram.ui.Components.BulletinFactory.of(fragment).createCopyBulletin(LocaleController.getString(R.string.PhoneCopied)).show();
+        }
+    }
+
+    /** Menu for a tap / long press on a hidden phone row: «Скопировать номер» (the row keeps showing {@link #PHONE_HIDDEN}). */
+    public static void showHiddenPhoneMenu(org.telegram.ui.ActionBar.BaseFragment fragment, android.view.View anchor, TLRPC.User user) {
+        if (fragment == null || anchor == null || user == null || TextUtils.isEmpty(user.phone)) {
+            return;
+        }
+        org.telegram.ui.Components.ItemOptions.makeOptions(fragment, anchor)
+                .setLongPressSelectionEnabled(false)
+                .add(R.drawable.msg_copy, COPY_PHONE, () -> copyHiddenPhone(fragment, user))
+                .show();
+    }
 
     // ---- chats list search field ----
 

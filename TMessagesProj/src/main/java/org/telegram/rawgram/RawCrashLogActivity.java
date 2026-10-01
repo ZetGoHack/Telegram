@@ -494,9 +494,28 @@ public class RawCrashLogActivity extends BaseFragment {
             }
         }
         rows.add(new Row(ROW_GAP));
+        ArrayList<String> keys = rowKeys();
         if (reportAdapter != null) {
-            reportAdapter.notifyDataSetChanged();
+            // rows that stay keep their views and slide, new ones fade in (stock: a plain refresh)
+            RawMotion.dispatch(reportAdapter, shownKeys, keys);
         }
+        shownKeys = keys;
+    }
+
+    private ArrayList<String> shownKeys;
+
+    /** A key per row that survives rebuilds: kind, section, item and the row's ordinal among its kind there. */
+    private ArrayList<String> rowKeys() {
+        ArrayList<String> keys = new ArrayList<>(rows.size());
+        HashMap<String, Integer> counters = new HashMap<>();
+        for (Row r : rows) {
+            String base = r.type + "|" + (r.state != null ? r.state.section.id : "") + "|" + (r.item != null ? System.identityHashCode(r.item) : 0);
+            Integer n = counters.get(base);
+            n = n == null ? 0 : n + 1;
+            counters.put(base, n);
+            keys.add(base + "|" + n);
+        }
+        return keys;
     }
 
     private void addLines(SectionState st, RawCrashLog.Item item, List<String> lines, int shown) {
@@ -642,7 +661,7 @@ public class RawCrashLogActivity extends BaseFragment {
         listView = new RecyclerListView(context);
         listView.setLayoutManager(new LinearLayoutManager(context));
         listView.setVerticalScrollBarEnabled(true);
-        listView.setItemAnimator(null);
+        listView.setItemAnimator(RawMotion.active() ? RawMotion.listAnimator() : null);
         listView.setAdapter(reportAdapter = new ReportAdapter(context));
         listView.setOnItemClickListener((view, position) -> {
             if (position < 0 || position >= rows.size()) {
@@ -809,6 +828,7 @@ public class RawCrashLogActivity extends BaseFragment {
                 if (state != null) {
                     AndroidUtilities.addToClipboard(RawCrashLog.forClipboard(sectionText(state)));
                     BulletinFactory.of(RawCrashLogActivity.this).createCopyBulletin("Раздел «" + displayTitle(state.section) + "» скопирован").show();
+                    RawMotion.copied(v);
                 }
             });
             addView(copyView, LayoutHelper.createLinear(40, 40, Gravity.CENTER_VERTICAL));
@@ -822,10 +842,20 @@ public class RawCrashLogActivity extends BaseFragment {
         }
 
         void bind(SectionState state) {
+            boolean same = this.state == state;
             this.state = state;
             titleView.setText(displayTitle(state.section));
             metaView.setText(sectionMeta(state));
-            arrow.setRotation(state.expanded ? 90 : 0);
+            float rotation = state.expanded ? 90 : 0;
+            if (same && isAttachedToWindow() && RawMotion.active()) {
+                // the same card toggled: turn the chevron instead of snapping it
+                if (arrow.getRotation() != rotation) {
+                    arrow.animate().rotation(rotation).setDuration(300).setInterpolator(RawMotion.EMPHASIZED).start();
+                }
+            } else {
+                arrow.animate().cancel();
+                arrow.setRotation(rotation);
+            }
         }
     }
 

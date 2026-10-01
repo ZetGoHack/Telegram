@@ -47,7 +47,12 @@ public class ChatActivityEnterViewAnimatedIconView extends RLottieImageView {
         }
         State fromState = currentState;
         currentState = state;
-        if (!animate || fromState == null || getState(fromState, currentState) == null) {
+        int rawSolarIcon = org.telegram.rawgram.RawIcons.inputStateIcon(state.name()); // rawGram: Solar icons instead of Lottie morphs
+        if (rawSolarIcon != 0) {
+            animatingState = null;
+            setScaleType(ScaleType.CENTER);
+            setImageResource(rawSolarIcon);
+        } else if (!animate || fromState == null || getState(fromState, currentState) == null) {
             RLottieDrawable drawable = stateMap.get(getAnyState(currentState));
             drawable.stop();
 

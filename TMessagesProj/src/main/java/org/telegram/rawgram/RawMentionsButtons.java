@@ -50,6 +50,8 @@ public class RawMentionsButtons {
     private final RectF hideBounds = new RectF();
     private boolean hideTouch;
     private final AnimatedFloat hideAppear;
+    // rawGram motion: smooth press on the "put aside" button
+    private final AnimatedFloat hidePress;
     private Paint hideBg, hideIcon;
 
     // both buttons leave to the right while the results are parked
@@ -60,6 +62,7 @@ public class RawMentionsButtons {
         this.host = host;
         bubbleAppear = new AnimatedFloat(view, 0, 320, CubicBezierInterpolator.EASE_OUT_QUINT);
         hideAppear = new AnimatedFloat(view, 0, 320, CubicBezierInterpolator.EASE_OUT_QUINT);
+        hidePress = new AnimatedFloat(view, 0, 180, CubicBezierInterpolator.EASE_OUT_QUINT);
     }
 
     public void setBubble(RawRerollController controller, Runnable onClick) {
@@ -137,7 +140,10 @@ public class RawMentionsButtons {
         float cx = right - size / 2;
         float cy = buttonsCy(bubbleSize);
         hideBounds.set(cx - size / 2, cy - size / 2, cx + size / 2, cy + size / 2);
-        float s = (0.4f + 0.6f * appear) * (hideTouch ? 0.92f : 1f);
+        boolean motion = RawMotion.active();
+        float s = motion
+                ? appearScale(appear) * (1f - 0.1f * hidePress.set(hideTouch ? 1f : 0f))
+                : (0.4f + 0.6f * appear) * (hideTouch ? 0.92f : 1f);
         canvas.save();
         canvas.scale(s, s, cx, cy);
         hideBg.setColor(host.getThemedColor(Theme.key_chat_messagePanelBackground));
@@ -150,9 +156,15 @@ public class RawMentionsButtons {
         canvas.drawLine(cx - w, cy + dp(2), cx - w, cy + dp(7), hideIcon);
         canvas.drawLine(cx - w, cy + dp(7), cx + w, cy + dp(7), hideIcon);
         canvas.drawLine(cx + w, cy + dp(7), cx + w, cy + dp(2), hideIcon);
-        canvas.drawLine(cx, cy - dp(8), cx, cy + dp(2), hideIcon);
-        canvas.drawLine(cx - dp(4), cy - dp(2), cx, cy + dp(2), hideIcon);
-        canvas.drawLine(cx + dp(4), cy - dp(2), cx, cy + dp(2), hideIcon);
+        // with motion the arrow dips into the tray as the results are put aside
+        float dip = 0;
+        if (motion && slideStart != 0) {
+            float t = Math.min(1f, (SystemClock.elapsedRealtime() - slideStart) / 260f);
+            dip = (float) Math.sin(Math.PI * t) * dp(3);
+        }
+        canvas.drawLine(cx, cy - dp(8) + dip, cx, cy + dp(2) + dip, hideIcon);
+        canvas.drawLine(cx - dp(4), cy - dp(2) + dip, cx, cy + dp(2) + dip, hideIcon);
+        canvas.drawLine(cx + dp(4), cy - dp(2) + dip, cx, cy + dp(2) + dip, hideIcon);
         canvas.restore();
     }
 
@@ -168,7 +180,8 @@ public class RawMentionsButtons {
         float cx = view.getMeasuredWidth() - dp(14) - size / 2;
         float cy = buttonsCy(size);
         canvas.save();
-        canvas.scale(0.4f + 0.6f * appear, 0.4f + 0.6f * appear, cx, cy);
+        float bs = RawMotion.active() ? appearScale(appear) : 0.4f + 0.6f * appear;
+        canvas.scale(bs, bs, cx, cy);
         canvas.saveLayerAlpha(cx - size, cy - size, cx + size, cy + size, (int) (255 * appear), Canvas.ALL_SAVE_FLAG);
         bubble.draw(canvas, view, cx, cy, lastReroll,
                 host.getThemedColor(Theme.key_featuredStickers_addButton),
@@ -176,6 +189,11 @@ public class RawMentionsButtons {
                 host.getThemedColor(Theme.key_featuredStickers_addButton));
         canvas.restore();
         canvas.restore();
+    }
+
+    /** Appear progress to scale: with rawGram motion the buttons land with a small overshoot. */
+    private static float appearScale(float appear) {
+        return 0.4f + 0.6f * RawMotion.SOFT_BACK.getInterpolation(appear);
     }
 
     /** Returns true if the touch belongs to one of the buttons. */

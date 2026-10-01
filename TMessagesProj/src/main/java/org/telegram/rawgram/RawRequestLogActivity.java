@@ -129,6 +129,9 @@ public class RawRequestLogActivity extends BaseFragment {
         listView = new RecyclerListView(context);
         listView.setLayoutManager(new LinearLayoutManager(context));
         listView.setVerticalScrollBarEnabled(true);
+        if (RawMotion.active()) {
+            listView.setItemAnimator(RawMotion.listAnimator());
+        }
         listView.setAdapter(adapter = new ListAdapter(context));
         listView.setOnItemClickListener((view, position) -> {
             if (position >= 0 && position < items.size()) {
@@ -175,6 +178,11 @@ public class RawRequestLogActivity extends BaseFragment {
         }
         ArrayList<RawRequestLog.Entry> all = RawRequestLog.snapshot();
         String q = TextUtils.isEmpty(query) ? null : query.toLowerCase(Locale.ROOT);
+        ArrayList<Long> oldKeys = new ArrayList<>(items.size());
+        for (RawRequestLog.Entry e : items) {
+            oldKeys.add(e.seq);
+        }
+        boolean atTop = !listView.canScrollVertically(-1);
         items.clear();
         int errors = 0;
         for (RawRequestLog.Entry e : all) {
@@ -190,7 +198,15 @@ public class RawRequestLogActivity extends BaseFragment {
             }
             items.add(e);
         }
-        adapter.notifyDataSetChanged();
+        ArrayList<Long> newKeys = new ArrayList<>(items.size());
+        for (RawRequestLog.Entry e : items) {
+            newKeys.add(e.seq);
+        }
+        // new requests slide in on top, filtered-out ones fold away (stock: a plain refresh)
+        RawMotion.dispatch(adapter, oldKeys, newKeys);
+        if (atTop && !items.isEmpty()) {
+            listView.scrollToPosition(0);
+        }
 
         String state = !RawRequestLog.enabled ? " · выключен" : RawRequestLog.paused ? " · пауза" : "";
         actionBar.setSubtitle(all.size() + " / " + RawRequestLog.CAPACITY + (errors > 0 ? " · ошибок " + errors : "") + state);

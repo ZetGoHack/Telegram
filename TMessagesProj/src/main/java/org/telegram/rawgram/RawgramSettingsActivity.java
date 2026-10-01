@@ -67,28 +67,29 @@ public class RawgramSettingsActivity extends BaseFragment {
     private static final int ROW_FEAT_PREVIEW_RAW = 14;
     private static final int ROW_FEAT_OBJECT_RAW = 15;
     private static final int ROW_FEAT_WEBAPP = 16;
-    private static final int ROW_FEAT_INFO = 17;
-    private static final int ROW_CHAT_HEADER = 18;
-    private static final int ROW_HIDE_KEYBOARD = 19;
-    private static final int ROW_HIDE_CAMERA = 20;
-    private static final int ROW_CHAT_INFO = 21;
-    private static final int ROW_PRESS_HEADER = 22;
-    private static final int ROW_PRESS_SLIDER = 23;
-    private static final int ROW_PRESS_INFO = 24;
-    private static final int ROW_STICKER_HEADER = 25;
-    private static final int ROW_STICKER_SLIDER = 26;
-    private static final int ROW_STICKER_PREVIEW = 27;
-    private static final int ROW_STICKER_INFO = 28;
-    private static final int ROW_RECENT_HEADER = 29;
-    private static final int ROW_RECENT_SLIDER = 30;
-    private static final int ROW_RECENT_INFO = 31;
-    private static final int ROW_TOOLS_HEADER = 32;
-    private static final int ROW_REQUEST_LOG = 33;
-    private static final int ROW_REQUEST_LOG_OPEN = 34;
-    private static final int ROW_CRASH_LOG = 35;
-    private static final int ROW_SERVER_CONFIG = 36;
-    private static final int ROW_TOOLS_INFO = 37;
-    private static final int ROW_COUNT = 38;
+    private static final int ROW_FEAT_MOTION = 17;
+    private static final int ROW_FEAT_INFO = 18;
+    private static final int ROW_CHAT_HEADER = 19;
+    private static final int ROW_HIDE_KEYBOARD = 20;
+    private static final int ROW_HIDE_CAMERA = 21;
+    private static final int ROW_CHAT_INFO = 22;
+    private static final int ROW_PRESS_HEADER = 23;
+    private static final int ROW_PRESS_SLIDER = 24;
+    private static final int ROW_PRESS_INFO = 25;
+    private static final int ROW_STICKER_HEADER = 26;
+    private static final int ROW_STICKER_SLIDER = 27;
+    private static final int ROW_STICKER_PREVIEW = 28;
+    private static final int ROW_STICKER_INFO = 29;
+    private static final int ROW_RECENT_HEADER = 30;
+    private static final int ROW_RECENT_SLIDER = 31;
+    private static final int ROW_RECENT_INFO = 32;
+    private static final int ROW_TOOLS_HEADER = 33;
+    private static final int ROW_REQUEST_LOG = 34;
+    private static final int ROW_REQUEST_LOG_OPEN = 35;
+    private static final int ROW_CRASH_LOG = 36;
+    private static final int ROW_SERVER_CONFIG = 37;
+    private static final int ROW_TOOLS_INFO = 38;
+    private static final int ROW_COUNT = 39;
 
     private RecyclerListView listView;
     private ListAdapter adapter;
@@ -135,7 +136,7 @@ public class RawgramSettingsActivity extends BaseFragment {
                 boolean value = !RawgramConfig.isHideAttachCamera();
                 RawgramConfig.setHideAttachCamera(value);
                 ((TextCheckCell) view).setChecked(value);
-            } else if (position >= ROW_FEAT_DETAILS && position <= ROW_FEAT_WEBAPP) {
+            } else if (position >= ROW_FEAT_DETAILS && position <= ROW_FEAT_MOTION) {
                 boolean value = !isFeatureOn(position);
                 setFeature(position, value);
                 ((TextCheckCell) view).setChecked(value);
@@ -166,6 +167,7 @@ public class RawgramSettingsActivity extends BaseFragment {
 
     private static String featureTitle(int position) {
         switch (position) {
+            case ROW_FEAT_MOTION: return "Анимации rawGram";
             case ROW_FEAT_DETAILS: return "Подробности в меню сообщения";
             case ROW_FEAT_INLINE_RAW: return "Raw инлайн-результатов по долгому нажатию";
             case ROW_FEAT_TRAY: return "Лоток инлайн-выдачи";
@@ -179,6 +181,7 @@ public class RawgramSettingsActivity extends BaseFragment {
 
     private static boolean isFeatureOn(int position) {
         switch (position) {
+            case ROW_FEAT_MOTION: return RawMotion.isEnabled();
             case ROW_FEAT_DETAILS: return RawgramConfig.isMessageDetails();
             case ROW_FEAT_INLINE_RAW: return RawgramConfig.isInlineRaw();
             case ROW_FEAT_TRAY: return RawgramConfig.isInlineTray();
@@ -192,6 +195,7 @@ public class RawgramSettingsActivity extends BaseFragment {
 
     private static void setFeature(int position, boolean value) {
         switch (position) {
+            case ROW_FEAT_MOTION: RawMotion.setEnabled(value); break;
             case ROW_FEAT_DETAILS: RawgramConfig.setMessageDetails(value); break;
             case ROW_FEAT_INLINE_RAW: RawgramConfig.setInlineRaw(value); break;
             case ROW_FEAT_TRAY: RawgramConfig.setInlineTray(value); break;
@@ -228,6 +232,7 @@ public class RawgramSettingsActivity extends BaseFragment {
                 case ROW_HIDE_KEYBOARD:
                 case ROW_HIDE_CAMERA:
                 case ROW_REQUEST_LOG:
+                case ROW_FEAT_MOTION:
                 case ROW_FEAT_DETAILS:
                 case ROW_FEAT_INLINE_RAW:
                 case ROW_FEAT_TRAY:
@@ -298,8 +303,8 @@ public class RawgramSettingsActivity extends BaseFragment {
                             : position == ROW_TOOLS_HEADER ? "Инструменты" : "Размер стикеров");
                     break;
                 case TYPE_CHECK:
-                    if (position >= ROW_FEAT_DETAILS && position <= ROW_FEAT_WEBAPP) {
-                        ((TextCheckCell) holder.itemView).setTextAndCheck(featureTitle(position), isFeatureOn(position), position != ROW_FEAT_WEBAPP);
+                    if (position >= ROW_FEAT_DETAILS && position <= ROW_FEAT_MOTION) {
+                        ((TextCheckCell) holder.itemView).setTextAndCheck(featureTitle(position), isFeatureOn(position), position != ROW_FEAT_MOTION);
                     } else if (position == ROW_REQUEST_LOG) {
                         ((TextCheckCell) holder.itemView).setTextAndCheck("Журнал запросов MTProto", RawRequestLog.enabled, true);
                     } else if (position == ROW_HIDE_KEYBOARD) {
@@ -490,10 +495,35 @@ public class RawgramSettingsActivity extends BaseFragment {
             if (stickerCell == null || stickerMessage == null) {
                 return;
             }
+            final int oldHeight = stickerCell.getMeasuredHeight();
+            final float oldScale = stickerCell.getScaleY();
             stickerMessage.forceUpdate = true;
             stickerCell.setMessageObject(stickerMessage, null, false, false, false);
             stickerCell.requestLayout();
             requestLayout();
+            if (oldHeight > 0 && stickerCell.isAttachedToWindow() && RawMotion.active()) {
+                // the sticker grows / shrinks smoothly to the new size instead of jumping step by step
+                final ChatMessageCell cell = stickerCell;
+                cell.getViewTreeObserver().addOnPreDrawListener(new android.view.ViewTreeObserver.OnPreDrawListener() {
+                    @Override
+                    public boolean onPreDraw() {
+                        if (cell.getViewTreeObserver().isAlive()) {
+                            cell.getViewTreeObserver().removeOnPreDrawListener(this);
+                        }
+                        int newHeight = cell.getMeasuredHeight();
+                        if (newHeight > 0 && newHeight != oldHeight) {
+                            float from = oldHeight * oldScale / newHeight;
+                            cell.animate().cancel();
+                            cell.setPivotX(cell.getWidth());
+                            cell.setPivotY(0);
+                            cell.setScaleX(from);
+                            cell.setScaleY(from);
+                            cell.animate().scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(RawMotion.EMPHASIZED).start();
+                        }
+                        return true;
+                    }
+                });
+            }
         }
 
         @Override

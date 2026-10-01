@@ -556,6 +556,10 @@ public class UserInfoActivity extends UniversalFragment implements NotificationC
 
     @Override
     protected boolean onLongClick(UItem item, View view, int position, float x, float y) {
+        if (item.id == INFO_PHONE && org.telegram.rawgram.RawUi.hidePhone(getUserConfig().getCurrentUser())) { // rawGram: hide phone (copy the real number)
+            org.telegram.rawgram.RawUi.showHiddenPhoneMenu(this, view, getUserConfig().getCurrentUser());
+            return true;
+        }
         return false;
     }
 

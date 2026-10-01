@@ -33,8 +33,15 @@ public class RawSwitchStyle {
     private static Drawable checkDrawable;
     private static int checkColor = Integer.MIN_VALUE;
 
+    /** Style forced while a settings preview draws its sample switch (-1 = the configured style). UI thread only. */
+    public static int previewStyle = -1;
+
+    private static int style() {
+        return previewStyle >= 0 ? previewStyle : RawUiConfig.switchStyle();
+    }
+
     public static boolean enabled() {
-        return RawUiConfig.switchStyle() != RawUiConfig.SWITCH_DEFAULT;
+        return style() != RawUiConfig.SWITCH_DEFAULT;
     }
 
     /** Draws the switch in the selected custom style; false = draw the stock switch. */
@@ -42,7 +49,7 @@ public class RawSwitchStyle {
                                int trackColorKey, int trackCheckedColorKey, int thumbColorKey, int thumbCheckedColorKey,
                                Drawable iconDrawable, float iconVisibility, int drawIconType, Drawable rippleDrawable,
                                Theme.ResourcesProvider resourcesProvider) {
-        int style = RawUiConfig.switchStyle();
+        int style = style();
         if (style == RawUiConfig.SWITCH_DEFAULT) {
             return false;
         }
@@ -103,7 +110,15 @@ public class RawSwitchStyle {
         int thumbOn = view.rawProcessColor(Theme.getColor(thumbCheckedColorKey, resourcesProvider));
         fillPaint.setColor(lerpColor(thumbOff, thumbOn, progress));
         float radius = AndroidUtilities.dp(isMd3 ? 8 : drawModernOffIcon ? 7 + progress : 6 + 2 * progress);
-        canvas.drawCircle(thumbTx, ty, radius, fillPaint);
+        // rawGram motion: the thumb stretches along its travel mid-way (squash and stretch), round at rest
+        float stretch = RawMotion.stretch(progress, AndroidUtilities.dp(6));
+        if (stretch > 0.5f) {
+            rectF.set(thumbTx - radius - stretch / 2f, ty - radius + stretch * 0.08f, thumbTx + radius + stretch / 2f, ty + radius - stretch * 0.08f);
+            float r = rectF.height() / 2f;
+            canvas.drawRoundRect(rectF, r, r, fillPaint);
+        } else {
+            canvas.drawCircle(thumbTx, ty, radius, fillPaint);
+        }
 
         if (isMd3) {
             int iconColor = isMd3PermissionStyle ? trackColor : md3OffTrackFill;

@@ -232,16 +232,34 @@ public class RawChatUiSettingsActivity extends BaseFragment {
     }
 
     private void pick(String title, CharSequence[] names, Runnable done, PickCallback callback) {
+        pick(title, names, null, done, callback);
+    }
+
+    private void pick(String title, CharSequence[] names, int[] icons, Runnable done, PickCallback callback) {
         if (getParentActivity() == null) {
             return;
         }
         new AlertDialog.Builder(getParentActivity())
                 .setTitle(title)
-                .setItems(names, (d, which) -> {
+                .setItems(names, icons, (d, which) -> {
                     callback.picked(which);
                     done.run();
                 })
                 .show();
+    }
+
+    private static int doubleTapIcon(int action) {
+        switch (action) {
+            case RawChatUiConfig.TAP_REACTION: return R.drawable.msg_reactions;
+            case RawChatUiConfig.TAP_REPLY: return R.drawable.menu_reply;
+            case RawChatUiConfig.TAP_COPY: return R.drawable.msg_copy;
+            case RawChatUiConfig.TAP_FORWARD: return R.drawable.msg_forward;
+            case RawChatUiConfig.TAP_EDIT: return R.drawable.msg_edit;
+            case RawChatUiConfig.TAP_SAVE: return R.drawable.msg_saved;
+            case RawChatUiConfig.TAP_DELETE: return R.drawable.msg_delete;
+            case RawChatUiConfig.TAP_NONE: return R.drawable.msg_cancel;
+            default: return 0;
+        }
     }
 
     private interface PickCallback {
@@ -277,11 +295,23 @@ public class RawChatUiSettingsActivity extends BaseFragment {
                 int[] actions = out
                         ? new int[]{RawChatUiConfig.TAP_REACTION, RawChatUiConfig.TAP_REPLY, RawChatUiConfig.TAP_COPY, RawChatUiConfig.TAP_FORWARD, RawChatUiConfig.TAP_EDIT, RawChatUiConfig.TAP_SAVE, RawChatUiConfig.TAP_DELETE, RawChatUiConfig.TAP_NONE}
                         : new int[]{RawChatUiConfig.TAP_REACTION, RawChatUiConfig.TAP_REPLY, RawChatUiConfig.TAP_COPY, RawChatUiConfig.TAP_FORWARD, RawChatUiConfig.TAP_SAVE, RawChatUiConfig.TAP_DELETE, RawChatUiConfig.TAP_NONE};
+                int current = (out ? RawChatUiConfig.doubleTapOut : RawChatUiConfig.doubleTapIn).get();
                 CharSequence[] names = new CharSequence[actions.length];
+                int[] icons = new int[actions.length];
                 for (int i = 0; i < actions.length; i++) {
-                    names[i] = RawChatUiConfig.doubleTapName(actions[i]);
+                    String name = RawChatUiConfig.doubleTapName(actions[i]);
+                    if (actions[i] == current) {
+                        // mark the current choice: accent colour, bold, trailing check
+                        android.text.SpannableString s = new android.text.SpannableString(name + "  ✓");
+                        s.setSpan(new android.text.style.ForegroundColorSpan(Theme.getColor(Theme.key_dialogTextBlue2)), 0, s.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        s.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, s.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        names[i] = s;
+                    } else {
+                        names[i] = name;
+                    }
+                    icons[i] = doubleTapIcon(actions[i]);
                 }
-                pick(out ? "Двойное нажатие: свои" : "Двойное нажатие: входящие", names, refresh,
+                pick(out ? "Двойное нажатие: свои" : "Двойное нажатие: входящие", names, icons, refresh,
                         which -> (out ? RawChatUiConfig.doubleTapOut : RawChatUiConfig.doubleTapIn).set(actions[which]));
                 break;
             }

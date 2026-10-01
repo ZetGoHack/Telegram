@@ -124,6 +124,7 @@ public class RawReactionsSheet extends BottomSheet {
         list.addView(hint, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 16, 4, 16, 0));
 
         setCustomView(root);
+        RawMotion.reveal(root);
     }
 
     private static String summary(TLRPC.MessageReactions reactions) {
@@ -169,7 +170,10 @@ public class RawReactionsSheet extends BottomSheet {
         }
         bindReaction(rc.reaction, emoji, details, true);
         String copyValue = copyValue(rc.reaction);
-        card.setOnClickListener(v -> copy(copyValue, "Скопировано: " + copyValue));
+        card.setOnClickListener(v -> {
+            copy(copyValue, "Скопировано: " + copyValue);
+            RawMotion.copied(v);
+        });
         card.setOnLongClickListener(v -> {
             openRaw(rc, rc.reaction);
             return true;
@@ -234,6 +238,7 @@ public class RawReactionsSheet extends BottomSheet {
                 openProfile(info);
             } else {
                 copy(Integer.toString(r.count), "Скопировано: " + r.count);
+                RawMotion.copied(v);
             }
         });
         card.setOnLongClickListener(v -> {
@@ -464,6 +469,7 @@ public class RawReactionsSheet extends BottomSheet {
         card.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(8), AndroidUtilities.dp(12), AndroidUtilities.dp(8));
         int base = getThemedColor(Theme.key_dialogTextBlack);
         card.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(10), Theme.multAlpha(base, 0.04f), Theme.multAlpha(base, 0.12f)));
+        RawMotion.pressable(card, 0.97f);
         return card;
     }
 

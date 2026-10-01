@@ -15,6 +15,7 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.Bulletin;
+import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.LaunchActivity;
 
@@ -77,14 +78,42 @@ public class RawNotify {
             super.onShow();
             bar.start();
         }
+
+        @NonNull
+        @Override
+        public Transition createTransition() {
+            return RawMotion.active() ? RawMotion.bulletinTransition() : super.createTransition();
+        }
+
+        @Override
+        protected void onEnterTransitionStart() {
+            super.onEnterTransitionStart();
+            if (!RawMotion.active()) {
+                return;
+            }
+            // the icon pops in with a small twist while the panel lands, the text follows it from the left
+            imageView.setRotation(0f);
+            RawMotion.popIn(imageView, 0.3f, -30f, 60, 420);
+            textView.animate().cancel();
+            textView.setAlpha(0f);
+            textView.setTranslationX(-AndroidUtilities.dp(10));
+            textView.animate().alpha(1f).translationX(0f)
+                    .setStartDelay(100).setDuration(360).setInterpolator(RawMotion.EMPHASIZED).start();
+        }
     }
 
-    /** Thin rounded line that shrinks from full width to zero over the bulletin duration. */
+    /**
+     * Thin rounded line that shrinks from full width to zero over the bulletin duration. With rawGram motion the
+     * line first draws itself out as the bulletin lands, then shrinks steadily (time stays linear) with a round
+     * head, fading over the last moments.
+     */
     private static class TimerBar extends View {
+        private static final long FILL = 360;
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint trackPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final int duration;
         private long startTime;
+        private boolean motion;
 
         TimerBar(Context context, int duration, int color) {
             super(context);
@@ -99,6 +128,7 @@ public class RawNotify {
 
         void start() {
             startTime = SystemClock.elapsedRealtime();
+            motion = RawMotion.active();
             invalidate();
         }
 
@@ -109,11 +139,25 @@ public class RawNotify {
             float right = getWidth() - AndroidUtilities.dp(1);
             canvas.drawLine(left, y, right, y, trackPaint);
             float progress = 1f;
+            long elapsed = startTime != 0 ? SystemClock.elapsedRealtime() - startTime : 0;
             if (startTime != 0) {
-                progress = 1f - Math.min(1f, (SystemClock.elapsedRealtime() - startTime) / (float) duration);
+                progress = 1f - Math.min(1f, elapsed / (float) duration);
+            }
+            if (motion && elapsed < FILL) {
+                // draw out to the current length first
+                progress *= CubicBezierInterpolator.EASE_OUT_QUINT.getInterpolation(elapsed / (float) FILL);
             }
             if (progress > 0) {
-                canvas.drawLine(left, y, left + (right - left) * progress, y, paint);
+                int alpha = paint.getAlpha();
+                if (motion && progress < 0.08f && elapsed >= FILL) {
+                    paint.setAlpha((int) (alpha * progress / 0.08f));
+                }
+                float end = left + (right - left) * progress;
+                canvas.drawLine(left, y, end, y, paint);
+                if (motion) {
+                    canvas.drawCircle(end, y, AndroidUtilities.dp(1.6f), paint);
+                }
+                paint.setAlpha(alpha);
                 invalidate();
             }
         }

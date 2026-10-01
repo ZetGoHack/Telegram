@@ -7423,7 +7423,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 return false;
             }
             if (org.telegram.rawgram.RawUi.hidePhone(user)) { // rawGram: hide phone
-                android.widget.Toast.makeText(getParentActivity(), org.telegram.rawgram.RawUi.PHONE_HIDDEN, android.widget.Toast.LENGTH_SHORT).show();
+                org.telegram.rawgram.RawUi.showHiddenPhoneMenu(this, view, user);
                 return true;
             }
 
@@ -16460,6 +16460,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 presentFragment(new UserInfoActivity());
             });
         } else if (position == phoneRow) {
+            if (org.telegram.rawgram.RawUi.hidePhone(user)) { // rawGram: hide phone (copy the real number)
+                itemOptions.add(R.drawable.msg_copy, org.telegram.rawgram.RawUi.COPY_PHONE, () -> org.telegram.rawgram.RawUi.copyHiddenPhone(this, user));
+            }
             itemOptions.add(R.drawable.menu_storage_path, getString(R.string.ProfilePhoneEdit), () -> {
                 presentFragment(new ActionIntroActivity(ActionIntroActivity.ACTION_TYPE_CHANGE_PHONE_NUMBER));
             });

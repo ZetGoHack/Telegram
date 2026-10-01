@@ -168,6 +168,7 @@ public class RawRerollStatusSheet extends BottomSheet {
         root.addView(historyFrame, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
         setCustomView(root);
+        RawMotion.reveal(root, historyList);
         controller.addListener(listener);
         setOnDismissListener(d -> controller.removeListener(listener));
         update();
@@ -332,6 +333,7 @@ public class RawRerollStatusSheet extends BottomSheet {
                 if (attached && !hold) {
                     card.setVisibility(View.GONE);
                     RawAnim.expand(card, true);
+                    RawMotion.settle(card);
                 }
             }
             if (hold) {
@@ -424,7 +426,7 @@ public class RawRerollStatusSheet extends BottomSheet {
     private void toggle(RawRerollController.Attempt a) {
         if (expanded != null && controlsOf.containsKey(expanded)) {
             RawAnim.expand(controlsOf.get(expanded), false);
-            cards.get(expanded).setBackground(cardBackground(true, false));
+            RawMotion.swapBackground(cards.get(expanded), cardBackground(true, false));
         }
         if (expanded == a) {
             expanded = null;
@@ -436,7 +438,12 @@ public class RawRerollStatusSheet extends BottomSheet {
         controls.removeAllViews();
         addExpandedControls(controls, a);
         RawAnim.expand(controls, true);
-        cards.get(a).setBackground(cardBackground(true, true));
+        // rows settle in as the card opens, the result chips pop in one by one
+        RawMotion.settle(controls);
+        if (controls.getChildAt(0) instanceof android.view.ViewGroup && ((android.view.ViewGroup) controls.getChildAt(0)).getChildAt(0) instanceof android.view.ViewGroup) {
+            RawMotion.popRow((android.view.ViewGroup) ((android.view.ViewGroup) controls.getChildAt(0)).getChildAt(0), 80, 30);
+        }
+        RawMotion.swapBackground(cards.get(a), cardBackground(true, true));
     }
 
 

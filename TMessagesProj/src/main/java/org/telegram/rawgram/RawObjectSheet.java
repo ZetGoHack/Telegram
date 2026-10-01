@@ -144,7 +144,10 @@ public class RawObjectSheet extends BottomSheet {
         copyButton.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_dialogTextGray2), PorterDuff.Mode.SRC_IN));
         copyButton.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector), Theme.RIPPLE_MASK_CIRCLE_20DP));
         copyButton.setContentDescription("Copy");
-        copyButton.setOnClickListener(v -> copy());
+        copyButton.setOnClickListener(v -> {
+            copy();
+            RawMotion.copied(v);
+        });
         headerRight.addView(copyButton, LayoutHelper.createLinear(34, 34, 4, 0, 0, 0));
 
         View divider = new View(context);
@@ -187,6 +190,10 @@ public class RawObjectSheet extends BottomSheet {
         root.addView(actionsSection, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 12, 0, 10));
 
         setCustomView(root);
+        RawMotion.reveal(root);
+        // object tabs and actions pop in after their sections arrive
+        RawMotion.popRowOnShow(tabsLayout, 200, 35);
+        RawMotion.popRowOnShow(actionsLayout, 260, 35);
         setObject(null, object);
     }
 

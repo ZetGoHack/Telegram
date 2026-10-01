@@ -146,9 +146,12 @@ public final class RawMessageMenu {
                     onClick.run(option);
                 }
             });
+            RawMotion.pressable(button, 0.86f);
             row.addView(button, LayoutHelper.createLinear(0, 48, 1f));
         }
         popupLayout.addView(row, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
+        // the icons pop in left to right as the menu finishes unfolding
+        RawMotion.popRowOnShow(row, 120, 40);
     }
 
     private static int locationX(View v) {

@@ -210,7 +210,10 @@ public class RawChatHooks {
         detailsCell.setTextAndIcon("Подробности", R.drawable.msg_info);
         detailsCell.setRightIcon(R.drawable.msg_arrowright);
         popupLayout.addView(detailsCell);
-        detailsCell.setOnClickListener(v -> popupLayout.getSwipeBack().openForeground(detailsIndex));
+        detailsCell.setOnClickListener(v -> {
+            popupLayout.getSwipeBack().openForeground(detailsIndex);
+            RawMotion.cascadeFromRight(details);
+        });
         popupLayout.addView(new ActionBarPopupWindow.GapView(activity, host.resources()), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8));
     }
 
@@ -384,8 +387,13 @@ public class RawChatHooks {
         container.setScaleX(0.3f);
         container.setScaleY(0.3f);
         container.setAlpha(0f);
-        container.animate().scaleX(1f).scaleY(1f).alpha(1f).setStartDelay(380).setDuration(300)
-                .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT).start();
+        // with rawGram motion it lands with a soft overshoot, like something let out of the button
+        if (RawMotion.active()) {
+            RawMotion.popIn(container, 0.3f, 0f, 380, 420);
+        } else {
+            container.animate().scaleX(1f).scaleY(1f).alpha(1f).setStartDelay(380).setDuration(300)
+                    .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT).start();
+        }
     }
 
     /** Side button tap; returns true if it was rawGram's. */

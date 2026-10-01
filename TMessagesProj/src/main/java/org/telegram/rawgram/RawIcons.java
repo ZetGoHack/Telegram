@@ -51,6 +51,30 @@ public final class RawIcons {
         return activePack;
     }
 
+    /** True when the Solar pack is active (fixed for the process lifetime). */
+    public static boolean isSolar() {
+        return activePack() == PACK_SOLAR;
+    }
+
+    /**
+     * Static Solar drawable for an input-field state (smile / sticker / gif / keyboard / mic / video),
+     * used instead of the stock Lottie morph animations; 0 when the Solar pack is not active.
+     */
+    public static int inputStateIcon(String state) {
+        if (!isSolar()) {
+            return 0;
+        }
+        switch (state) {
+            case "SMILE": return R.drawable.input_smile_solar;
+            case "STICKER": return R.drawable.msg_sticker_solar;
+            case "GIF": return R.drawable.msg_gif_solar;
+            case "KEYBOARD": return R.drawable.input_keyboard_solar;
+            case "VOICE": return R.drawable.input_mic_solar;
+            case "VIDEO": return R.drawable.input_video_solar;
+            default: return 0;
+        }
+    }
+
     /** Returns the base resources, or a drawable-substituting wrapper when an icon pack is active. */
     public static Resources wrap(Resources base) {
         if (base == null || activePack() != PACK_SOLAR) {
@@ -73,6 +97,16 @@ public final class RawIcons {
         if (activePack() != PACK_SOLAR) {
             return id;
         }
+        SparseIntArray m = map;
+        if (m == null) {
+            m = buildSolar();
+            map = m;
+        }
+        return m.get(id, id);
+    }
+
+    /** The Solar replacement of a Telegram drawable id regardless of the active pack (settings preview). */
+    public static int solarId(int id) {
         SparseIntArray m = map;
         if (m == null) {
             m = buildSolar();
@@ -171,6 +205,8 @@ public final class RawIcons {
         put(m, R.drawable.ic_send, R.drawable.ic_send_solar);
         put(m, R.drawable.input_attach, R.drawable.ayu_input_attach);
         put(m, R.drawable.msg_input_attach2, R.drawable.ayu_input_attach);
+        put(m, R.drawable.send_plane_24, R.drawable.attach_send_solar);
+        put(m, R.drawable.msg_input_gift, R.drawable.msg_gift_premium_solar);
         put(m, R.drawable.input_bot1, R.drawable.input_bot1_solar);
         put(m, R.drawable.input_bot2, R.drawable.input_bot2_solar);
         put(m, R.drawable.input_calendar1, R.drawable.input_calendar1_solar);
