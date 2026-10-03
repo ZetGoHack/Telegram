@@ -685,7 +685,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         }
 
         // rawGram: first, in its own section
-        items.add(SettingCell.Factory.of(100, 0xFF3A4556, 0xFF1E2530, R.drawable.settings_rawgram, "Настройки rawGram", "Задержка зажатия, размер стикеров"));
+        items.add(SettingCell.Factory.of(100, 0xFF3A4556, 0xFF1E2530, R.drawable.settings_rawgram, "Настройки rawGram", "Внешний вид, чаты, инструменты"));
         items.add(UItem.asShadow(null));
 
         if (accountNumbers.size() > 0) {

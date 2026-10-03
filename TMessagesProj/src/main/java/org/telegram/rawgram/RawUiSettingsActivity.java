@@ -106,6 +106,7 @@ public class RawUiSettingsActivity extends BaseFragment {
     private int lookHeaderRow;
     private int hideDividersRow;
     private int systemFontRow;
+    private int motionRow;
     private int lookInfoRow;
 
     private int settingsHeaderRow;
@@ -119,8 +120,6 @@ public class RawUiSettingsActivity extends BaseFragment {
     private int tabsHideContactsRow;
     private int bottomTabsInfoRow;
 
-    private int creditsRow;
-
     private RecyclerListView listView;
     private ListAdapter adapter;
     private boolean needRebuild;
@@ -130,17 +129,6 @@ public class RawUiSettingsActivity extends BaseFragment {
         previewRow = rowCount++;
         previewInfoRow = rowCount++;
 
-        avatarHeaderRow = rowCount++;
-        avatarPreviewRow = rowCount++;
-        avatarSliderRow = rowCount++;
-        avatarInfoRow = rowCount++;
-
-        foldersHeaderRow = rowCount++;
-        foldersPreviewRow = rowCount++;
-        tabsTitleTypeRow = rowCount++;
-        hideAllTabRow = rowCount++;
-        foldersInfoRow = rowCount++;
-
         titleHeaderRow = rowCount++;
         titleModeRow = rowCount++;
         customTitleRow = RawUiConfig.titleMode() == RawUiConfig.TITLE_CUSTOM ? rowCount++ : -1;
@@ -148,11 +136,27 @@ public class RawUiSettingsActivity extends BaseFragment {
         snowRow = rowCount++;
         titleInfoRow = rowCount++;
 
+        foldersHeaderRow = rowCount++;
+        foldersPreviewRow = rowCount++;
+        tabsTitleTypeRow = rowCount++;
+        hideAllTabRow = rowCount++;
+        foldersInfoRow = rowCount++;
+
         chatsHeaderRow = rowCount++;
         hideSearchRow = rowCount++;
         hideFabRow = rowCount++;
         showSecondsRow = rowCount++;
         chatsInfoRow = rowCount++;
+
+        bottomTabsHeaderRow = rowCount++;
+        tabsHideTitlesRow = rowCount++;
+        tabsHideContactsRow = rowCount++;
+        bottomTabsInfoRow = rowCount++;
+
+        avatarHeaderRow = rowCount++;
+        avatarPreviewRow = rowCount++;
+        avatarSliderRow = rowCount++;
+        avatarInfoRow = rowCount++;
 
         iconHeaderRow = rowCount++;
         iconTilesRow = rowCount++;
@@ -165,6 +169,7 @@ public class RawUiSettingsActivity extends BaseFragment {
         lookHeaderRow = rowCount++;
         hideDividersRow = rowCount++;
         systemFontRow = rowCount++;
+        motionRow = rowCount++;
         lookInfoRow = rowCount++;
 
         settingsHeaderRow = rowCount++;
@@ -172,13 +177,6 @@ public class RawUiSettingsActivity extends BaseFragment {
         hideHelpRow = rowCount++;
         hidePhoneRow = rowCount++;
         settingsInfoRow = rowCount++;
-
-        bottomTabsHeaderRow = rowCount++;
-        tabsHideTitlesRow = rowCount++;
-        tabsHideContactsRow = rowCount++;
-        bottomTabsInfoRow = rowCount++;
-
-        creditsRow = rowCount++;
     }
 
     @Override
@@ -201,7 +199,7 @@ public class RawUiSettingsActivity extends BaseFragment {
     public View createView(Context context) {
         actionBar.setBackButtonImage(R.drawable.ic_ab_back);
         actionBar.setAllowOverlayTitle(true);
-        actionBar.setTitle("Интерфейс");
+        actionBar.setTitle("Внешний вид");
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
             public void onItemClick(int id) {
@@ -238,6 +236,11 @@ public class RawUiSettingsActivity extends BaseFragment {
             RawUiConfig.setSystemFont(v);
             toggled(view, v);
             showRestartNotice(this);
+        } else if (position == motionRow) {
+            // affects only rawGram's own sheets and menus: no rebuild of other screens needed
+            boolean v = !RawMotion.isEnabled();
+            RawMotion.setEnabled(v);
+            ((TextCheckCell) view).setChecked(v);
         } else if (position == hidePremiumRow) {
             boolean v = !RawUiConfig.hidePremiumSection();
             RawUiConfig.setHidePremiumSection(v);
@@ -574,7 +577,7 @@ public class RawUiSettingsActivity extends BaseFragment {
             }
             if (position == previewInfoRow || position == lookInfoRow || position == avatarInfoRow || position == settingsInfoRow || position == bottomTabsInfoRow
                     || position == foldersInfoRow || position == chatsInfoRow || position == titleInfoRow || position == iconInfoRow
-                    || position == switchInfoRow || position == creditsRow) {
+                    || position == switchInfoRow) {
                 return TYPE_INFO;
             }
             return TYPE_CHECK;
@@ -650,7 +653,9 @@ public class RawUiSettingsActivity extends BaseFragment {
                     if (position == hideDividersRow) {
                         cell.setTextAndCheck("Скрыть разделители", RawUiConfig.hideDividers(), true);
                     } else if (position == systemFontRow) {
-                        cell.setTextAndCheck("Системный шрифт", RawUiConfig.systemFont(), false);
+                        cell.setTextAndCheck("Системный шрифт", RawUiConfig.systemFont(), true);
+                    } else if (position == motionRow) {
+                        cell.setTextAndCheck("Анимации rawGram", RawMotion.isEnabled(), false);
                     } else if (position == hidePremiumRow) {
                         cell.setTextAndCheck("Скрыть раздел Premium", RawUiConfig.hidePremiumSection(), true);
                     } else if (position == hideHelpRow) {
@@ -666,7 +671,7 @@ public class RawUiSettingsActivity extends BaseFragment {
                     } else if (position == hideSearchRow) {
                         cell.setTextAndCheck("Скрыть поле поиска", RawUiConfig.hideDialogsSearchField(), true);
                     } else if (position == hideFabRow) {
-                        cell.setTextAndCheck("Скрыть плавающую кнопку", RawUiConfig.disableDialogsFab(), true);
+                        cell.setTextAndCheck("Скрыть плавающие кнопки", RawUiConfig.disableDialogsFab(), true);
                     } else if (position == showSecondsRow) {
                         cell.setTextAndCheck("Секунды во времени сообщений", RawUiConfig.showSeconds(), false);
                     } else if (position == folderTitleRow) {
@@ -702,41 +707,26 @@ public class RawUiSettingsActivity extends BaseFragment {
                 case TYPE_INFO: {
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
                     if (position == previewInfoRow) {
-                        cell.setText("Копия главного экрана обновляется сразу: заголовок, снег, поле поиска, вкладки папок, "
-                                + "аватарки, разделители, время с секундами и плавающая кнопка. "
-                                + "Системный шрифт, набор иконок и скрытие вкладки «Контакты» применяются после перезапуска.");
-                    } else if (position == avatarInfoRow) {
-                        cell.setText("100% — круглые аватарки, как в Telegram; меньше — скруглённые квадраты. "
-                                + "Действует в списке чатов, в сообщениях групп и в шапке чата.");
-                    } else if (position == foldersInfoRow) {
-                        cell.setText("Без вкладки «Все чаты» список открывается на первой папке. "
-                                + "Иконки — значки по эмодзи папки (как в Nagram); эмодзи папок загружаются с сервера. "
-                                + "Если своих папок нет, показаны примеры.");
+                        cell.setText("Пример обновляется сразу. Системный шрифт, набор иконок и скрытие «Контактов» применяются после перезапуска.");
                     } else if (position == titleInfoRow) {
-                        cell.setText("Заголовок вместо логотипа Telegram: свой текст или имя аккаунта. "
-                                + "Название папки — показывает открытую папку, на «Всех чатах» — обычный заголовок. "
-                                + "Снег идёт в шапке главного экрана.");
+                        cell.setText("Название папки показывается вместо заголовка, пока открыта папка.");
+                    } else if (position == foldersInfoRow) {
+                        cell.setText("Без «Все чаты» список открывается на первой папке. Иконки подбираются по эмодзи папки.");
                     } else if (position == chatsInfoRow) {
-                        cell.setText("Без поля поиска поиск открывается кнопкой-лупой в шапке. "
-                                + "Без плавающей кнопки нет кнопок «Новое сообщение» и «История». "
-                                + "Секунды — в сообщениях и в списке чатов; уже открытые чаты обновятся при повторном открытии.");
-                    } else if (position == iconInfoRow) {
-                        cell.setText("Solar (480 Design, CC BY 4.0, через exteraGram/Nagram) — альтернативный набор иконок "
-                                + "для меню, настроек, папок и поля ввода. Применяется после перезапуска.");
-                    } else if (position == switchInfoRow) {
-                        cell.setText("Стиль применяется ко всем переключателям сразу. Нажмите на образец, чтобы переключить его.");
-                    } else if (position == lookInfoRow) {
-                        cell.setText("Скрыть разделители — убирает линии между пунктами списков и тени под разделами. "
-                                + "Системный шрифт — шрифты прошивки вместо встроенного Roboto; применяется после перезапуска приложения.");
-                    } else if (position == settingsInfoRow) {
-                        cell.setText("Убирает из Настроек блок Premium (Звёзды, TON, Business, подарки) и/или блок «Помощь» "
-                                + "(вопрос, FAQ, возможности, политика). Пункт «Настройки rawGram» остаётся первым.\n\n"
-                                + "Скрыть номер телефона — вместо своего номера показывается «Номер скрыт» (удобно для скриншотов и стримов).");
+                        cell.setText("Без поля поиска поиск открывается лупой в шапке. Плавающие кнопки — «Новое сообщение» и «История».");
                     } else if (position == bottomTabsInfoRow) {
-                        cell.setText("Без подписей остаются только значки. Скрытие вкладки «Контакты» применяется после перезапуска приложения.");
-                    } else if (position == creditsRow) {
-                        cell.setText("Часть настроек перенесена из Nagram, NekoX и Nekogram (GPLv3); "
-                                + "идея скругления аватарок и вид этого экрана — из exteraGram и Nagram.");
+                        cell.setText("Скрытие «Контактов» применяется после перезапуска.");
+                    } else if (position == avatarInfoRow) {
+                        cell.setText("100% — круглые, как в Telegram. Действует в списке чатов, группах и шапке чата.");
+                    } else if (position == iconInfoRow) {
+                        cell.setText("Solar — альтернативные иконки меню, настроек и поля ввода. Нужен перезапуск.");
+                    } else if (position == switchInfoRow) {
+                        cell.setText("Нажми на образец, чтобы увидеть оба положения.");
+                    } else if (position == lookInfoRow) {
+                        cell.setText("Разделители — линии между пунктами и тени под разделами. Системный шрифт — после перезапуска. "
+                                + "Анимации — плавные переходы в окнах и меню rawGram; сами отключаются в режиме энергосбережения.");
+                    } else if (position == settingsInfoRow) {
+                        cell.setText("Premium — Звёзды, TON, Business, подарки. Вместо номера будет «Номер скрыт» — удобно для скриншотов.");
                     }
                     break;
                 }
@@ -744,8 +734,8 @@ public class RawUiSettingsActivity extends BaseFragment {
         }
     }
 
-    /** Seek bar with the current value drawn on the right. */
-    private static class SliderCell extends FrameLayout {
+    /** Seek bar with the current value drawn on the right (also used by RawChatUiSettingsActivity). */
+    static class SliderCell extends FrameLayout {
         private final SeekBarView seekBar;
         private final TextView valueView;
         private int min, max, step;

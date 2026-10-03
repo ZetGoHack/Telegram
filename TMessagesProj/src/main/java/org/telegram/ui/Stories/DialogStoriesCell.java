@@ -1305,7 +1305,9 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
             titleView.setText(currentTitle, !LocaleController.isRTL);
         }
 
-        animatorHasTitleText.setValue(hasOverlayText, true);
+        // rawGram: keep showing a non-empty title (custom title / stories count) after the overlay goes away,
+        // instead of falling back to the logo
+        animatorHasTitleText.setValue(hasOverlayText || !TextUtils.isEmpty(currentTitle), true);
         if (hasEllipsizedText) {
             ellipsizeSpanAnimator.addView(titleView);
         } else {

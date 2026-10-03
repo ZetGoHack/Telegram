@@ -104,7 +104,7 @@ public class TLDumper {
         }
     }
 
-    private static String constructorOf(Class<?> cls) {
+    static String constructorOf(Class<?> cls) {
         try {
             Field field = cls.getField("constructor");
             if (Modifier.isStatic(field.getModifiers())) {

@@ -1858,7 +1858,7 @@ public class ContentPreviewViewer {
                 }
                 if ((newSet != null || contentType == CONTENT_TYPE_EMOJI) && (delegate == null || delegate.needMenu())) {
                     AndroidUtilities.cancelRunOnUIThread(showSheetRunnable);
-                    AndroidUtilities.runOnUIThread(showSheetRunnable, menuOpenDelay > 0 ? menuOpenDelay : 1300);
+                    AndroidUtilities.runOnUIThread(showSheetRunnable, menuOpenDelay > 0 ? menuOpenDelay : RawgramConfig.getPreviewMenuDelay()); // rawGram: was 1300
                 }
                 TLRPC.TL_messages_stickerSet stickerSet = MediaDataController.getInstance(currentAccount).getStickerSet(newSet, true);
                 if (stickerSet != null && stickerSet.documents.isEmpty()) {
@@ -1909,7 +1909,7 @@ public class ContentPreviewViewer {
                 }
                 if (delegate.needMenu()) {
                     AndroidUtilities.cancelRunOnUIThread(showSheetRunnable);
-                    AndroidUtilities.runOnUIThread(showSheetRunnable, menuOpenDelay > 0 ? menuOpenDelay : 1300);
+                    AndroidUtilities.runOnUIThread(showSheetRunnable, menuOpenDelay > 0 ? menuOpenDelay : RawgramConfig.getPreviewMenuDelay()); // rawGram: was 1300
                 }
             }
         } else {
@@ -1936,7 +1936,7 @@ public class ContentPreviewViewer {
                 return;
             }
             AndroidUtilities.cancelRunOnUIThread(showSheetRunnable);
-            AndroidUtilities.runOnUIThread(showSheetRunnable, 2000);
+            AndroidUtilities.runOnUIThread(showSheetRunnable, RawgramConfig.getPreviewMenuDelay()); // rawGram: was 2000 for GIFs
         }
 
         if (centerImage.getLottieAnimation() != null) {

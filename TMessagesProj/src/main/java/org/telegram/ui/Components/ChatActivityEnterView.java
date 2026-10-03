@@ -13188,6 +13188,11 @@ public class ChatActivityEnterView extends FrameLayout implements
         return emojiViewVisible || botKeyboardViewVisible;
     }
 
+    // rawGram: the emoji / sticker / GIF panel (not the bot keyboard) is open
+    public boolean rawgramIsEmojiPanelShowing() {
+        return emojiViewVisible && !botKeyboardViewVisible;
+    }
+
     public boolean closeCreationLinkDialog(boolean invoked) {
         return messageEditText != null && messageEditText.closeCreationLinkDialog(invoked);
     }

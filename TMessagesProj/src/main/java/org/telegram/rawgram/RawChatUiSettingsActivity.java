@@ -11,6 +11,7 @@ import android.text.InputType;
 import android.text.TextPaint;
 import android.util.TypedValue;
 import android.view.MotionEvent;
+import android.view.ViewConfiguration;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -24,6 +25,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaDataController;
+import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
@@ -46,8 +48,8 @@ import org.telegram.ui.Stories.recorder.StoryEntry;
 import java.util.ArrayList;
 
 /**
- * "Чаты: вид и поведение": chat look and behaviour switches (RawChatUiConfig). Every option is off by default,
- * which is stock Telegram. Option set ported from Nagram / NekoX / exteraGram settings.
+ * "Чаты": chat look and behaviour (RawChatUiConfig, classic look, input panel, stickers, message menu).
+ * Every switch is off by default, which is stock Telegram. Option set ported from Nagram / NekoX / exteraGram settings.
  */
 public class RawChatUiSettingsActivity extends BaseFragment {
 
@@ -56,8 +58,10 @@ public class RawChatUiSettingsActivity extends BaseFragment {
     private static final int TYPE_VALUE = 2;
     private static final int TYPE_INFO = 3;
     private static final int TYPE_PREVIEW = 4;
+    private static final int TYPE_SLIDER = 5;
+    private static final int TYPE_STICKER = 6;
 
-    /** One list row: a header, a switch bound to a flag, a value (picker) or an info line. */
+    /** One list row: a header, a switch bound to a flag, a value (picker), a slider, a preview or an info line. */
     private static class Row {
         final int type;
         final String text;
@@ -80,11 +84,21 @@ public class RawChatUiSettingsActivity extends BaseFragment {
 
     /** Switches not stored in RawChatUiConfig (Row.flag == null, Row.id says which). */
     private static final int CHECK_CLASSIC = 100;
+    private static final int CHECK_FULL_NUMBERS = 101;
+    private static final int CHECK_HIDE_KEYBOARD = 102;
+    private static final int CHECK_CAMERA_BUTTON = 103;
+
+    /** Sliders (Row.id), stored in RawgramConfig. */
+    private static final int SLIDER_STICKER_SIZE = 1;
+    private static final int SLIDER_RECENT_STICKERS = 2;
+    private static final int SLIDER_LONG_PRESS = 3;
+    private static final int SLIDER_PREVIEW_MENU = 4;
 
     private final ArrayList<Row> rows = new ArrayList<>();
     private RecyclerListView listView;
     private ListAdapter adapter;
     private ChatPreviewCell previewCell;
+    private StickerPreviewCell stickerPreviewCell;
 
     private void header(String text) {
         rows.add(new Row(TYPE_HEADER, text, null, 0));
@@ -99,12 +113,21 @@ public class RawChatUiSettingsActivity extends BaseFragment {
     }
 
     private static boolean customCheck(int id) {
-        return id == CHECK_CLASSIC && RawClassicUi.isEnabled();
+        switch (id) {
+            case CHECK_CLASSIC: return RawClassicUi.isEnabled();
+            case CHECK_FULL_NUMBERS: return RawgramConfig.isFullNumbers();
+            case CHECK_HIDE_KEYBOARD: return RawgramConfig.isHideKeyboardOnScroll();
+            case CHECK_CAMERA_BUTTON: return RawgramConfig.isHideAttachCamera();
+            default: return false;
+        }
     }
 
     private static void toggleCustomCheck(int id) {
-        if (id == CHECK_CLASSIC) {
-            RawClassicUi.setEnabled(!RawClassicUi.isEnabled());
+        switch (id) {
+            case CHECK_CLASSIC: RawClassicUi.setEnabled(!RawClassicUi.isEnabled()); break;
+            case CHECK_FULL_NUMBERS: RawgramConfig.setFullNumbers(!RawgramConfig.isFullNumbers()); break;
+            case CHECK_HIDE_KEYBOARD: RawgramConfig.setHideKeyboardOnScroll(!RawgramConfig.isHideKeyboardOnScroll()); break;
+            case CHECK_CAMERA_BUTTON: RawgramConfig.setHideAttachCamera(!RawgramConfig.isHideAttachCamera()); break;
         }
     }
 
@@ -122,18 +145,20 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         rows.add(new Row(TYPE_INFO, text, null, 0));
     }
 
+    private void slider(int id) {
+        rows.add(new Row(TYPE_SLIDER, null, null, id));
+    }
+
     private void buildRows() {
         rows.clear();
         rows.add(new Row(TYPE_PREVIEW, null, null, 0));
-        info("Пример обновляется сразу: вид шапки и поля ввода, заголовок по центру, время у стикера, ID сообщения "
-                + "и метка «изменено» (у первого сообщения). Стикер — из недавних.");
+        info("Пример обновляется сразу. Стикер — из недавних.");
 
         header("Вид чата");
         check("Классический вид чата", CHECK_CLASSIC);
-        info("Сплошная шапка, закреп под ней и поле ввода во всю ширину вместо плавающих «пилюль». "
-                + "Применяется к чатам, открытым после переключения.");
+        info("Сплошная шапка и поле ввода во всю ширину вместо «пилюль». Действует на чаты, открытые после переключения.");
 
-        header("Заголовок и сообщения");
+        header("Сообщения");
         check("Заголовок чата по центру", RawChatUiConfig.centerTitle);
         check("Скрыть время у стикеров", RawChatUiConfig.hideStickerTime);
         check("ID сообщения в пузыре", RawChatUiConfig.showMessageId);
@@ -141,31 +166,47 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         if (RawChatUiConfig.editedMode.get() == RawChatUiConfig.EDITED_CUSTOM) {
             value("Текст метки", VALUE_EDITED_TEXT);
         }
+        check("Полные числа (100 000 вместо 100K)", CHECK_FULL_NUMBERS);
         check("Скрыть «Поделиться» у постов каналов", RawChatUiConfig.hideChannelShare);
         value("Снег в чате", VALUE_SNOW);
-        info("Время стикера видно, пока сообщение выделено. ID сообщения добавляется к времени: «12:30 | 4821». "
-                + "Изменения видны при следующем открытии чата.");
+        info("Время стикера видно, пока сообщение выделено. Полные числа — в просмотрах, реакциях и подписчиках. "
+                + "Применяется при следующем открытии чата.");
+
+        header("Размер стикеров");
+        slider(SLIDER_STICKER_SIZE);
+        rows.add(new Row(TYPE_STICKER, null, null, 0));
+        header("Недавние стикеры в панели");
+        slider(SLIDER_RECENT_STICKERS);
+        info("Telegram показывает 20 недавних стикеров, хотя сервер хранит до "
+                + MessagesController.getInstance(currentAccount).maxRecentStickersCount + ".");
+
+        header("Долгое нажатие");
+        slider(SLIDER_LONG_PRESS);
+        info("Задержка до превью стикера или GIF и до raw инлайн-результата. Системная — "
+                + ViewConfiguration.getLongPressTimeout() + " мс.");
+
+        header("Меню под превью");
+        slider(SLIDER_PREVIEW_MENU);
+        info("Через сколько после открытия превью появляются кнопки («Отправить», «В избранное»…). В Telegram — 1,3 с, у GIF 2 с.");
+
+        header("Поле ввода");
+        check("Сворачивать клавиатуру при прокрутке", CHECK_HIDE_KEYBOARD);
+        check("Камера во вложениях — кнопкой", CHECK_CAMERA_BUTTON);
+        info("Клавиатура и панель эмодзи прячутся, как только листаешь чат; набранный текст остаётся. "
+                + "Камера — круглой кнопкой вместо большой плитки в галерее.");
 
         header("Поведение");
         check("Без свайпа к следующему каналу", RawChatUiConfig.noSwipeNextChannel);
         check("Без свайпа к следующей теме", RawChatUiConfig.noSwipeNextTopic);
         value("Двойное нажатие: входящие", VALUE_TAP_IN);
         value("Двойное нажатие: свои", VALUE_TAP_OUT);
-        info("«Реакция» — как в Telegram (быстрая реакция). «Удалить» открывает обычное окно удаления Telegram "
-                + "(с выбором «удалить у всех», где это можно). Действие, которое к сообщению неприменимо "
-                + "(например, копирование в чате с запретом копирования или удаление чужого сообщения без прав), просто не срабатывает.");
+        info("Если действие к сообщению неприменимо (например, удалить чужое без прав), двойное нажатие ничего не делает.");
 
-        header("Ярлыки администратора в меню чата");
-        check("Разрешения / чёрный список", RawChatUiConfig.shortcutPermissions);
-        check("Администраторы", RawChatUiConfig.shortcutAdmins);
-        check("Участники / подписчики", RawChatUiConfig.shortcutMembers);
-        check("Недавние действия", RawChatUiConfig.shortcutRecentActions);
-        info("Пункты появляются в меню «⋮» групп и каналов, где у тебя есть права администратора.");
-
-        header("Вид меню сообщения");
-        check("Компактное меню сообщения", RawChatUiConfig.menuCompact);
-        info("Ответить, Удалить, Копировать и Изменить — строкой иконок внизу меню (удержание показывает подпись), "
-                + "остальные пункты — списком над ней. Если из них доступно меньше двух, меню остаётся обычным.");
+        header("Меню сообщения");
+        check("Компактное меню", RawChatUiConfig.menuCompact);
+        check("Повторить (отправить копию сюда же)", RawChatUiConfig.menuRepeat);
+        check("В Избранное", RawChatUiConfig.menuSaveToSaved);
+        info("Компактное меню: Ответить, Удалить, Копировать и Изменить — строкой иконок внизу, остальное — списком.");
 
         header("Скрыть из меню сообщения");
         check("Перевести", RawChatUiConfig.menuHideTranslate);
@@ -176,19 +217,21 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         check("Копировать ссылку", RawChatUiConfig.menuHideCopyLink);
         check("Статистика", RawChatUiConfig.menuHideStatistics);
         check("Факт-чек", RawChatUiConfig.menuHideFactCheck);
+        info("«Подробности» включаются в Инструментах разработчика.");
 
-        header("Добавить в меню сообщения");
-        check("Повторить (отправить копию сюда же)", RawChatUiConfig.menuRepeat);
-        check("В Избранное", RawChatUiConfig.menuSaveToSaved);
-        info("«Подробности» rawGram настраиваются в основных настройках.\n\n"
-                + "Идеи и часть кода — из Nagram, NekoX и exteraGram (GPLv3).");
+        header("Ярлыки администратора");
+        check("Разрешения / чёрный список", RawChatUiConfig.shortcutPermissions);
+        check("Администраторы", RawChatUiConfig.shortcutAdmins);
+        check("Участники / подписчики", RawChatUiConfig.shortcutMembers);
+        check("Недавние действия", RawChatUiConfig.shortcutRecentActions);
+        info("Появляются в меню «⋮» групп и каналов, где ты администратор.");
     }
 
     @Override
     public View createView(Context context) {
         actionBar.setBackButtonImage(R.drawable.ic_ab_back);
         actionBar.setAllowOverlayTitle(true);
-        actionBar.setTitle("Чаты: вид и поведение");
+        actionBar.setTitle("Чаты");
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
             public void onItemClick(int id) {
@@ -381,9 +424,34 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         }
     }
 
+    private void bindSlider(RawUiSettingsActivity.SliderCell cell, int id) {
+        if (id == SLIDER_PREVIEW_MENU) {
+            cell.bind(RawgramConfig.PREVIEW_MENU_MIN, RawgramConfig.PREVIEW_MENU_MAX, RawgramConfig.PREVIEW_MENU_STEP,
+                    RawgramConfig.getPreviewMenuDelay(), " мс", RawgramConfig::setPreviewMenuDelay);
+        } else if (id == SLIDER_LONG_PRESS) {
+            cell.bind(RawgramConfig.LONG_PRESS_MIN, RawgramConfig.LONG_PRESS_MAX, RawgramConfig.LONG_PRESS_STEP,
+                    RawgramConfig.getLongPressDelay(), " мс", RawgramConfig::setLongPressDelay);
+        } else if (id == SLIDER_RECENT_STICKERS) {
+            cell.bind(RawgramConfig.RECENT_STICKERS_MIN, RawgramConfig.RECENT_STICKERS_MAX, RawgramConfig.RECENT_STICKERS_STEP,
+                    RawgramConfig.getRecentStickersShown(), "", RawgramConfig::setRecentStickersShown);
+        } else {
+            cell.bind(RawgramConfig.STICKER_SCALE_MIN, RawgramConfig.STICKER_SCALE_MAX, RawgramConfig.STICKER_SCALE_STEP,
+                    RawgramConfig.getStickerScalePercent(), "%", value -> {
+                        RawgramConfig.setStickerScalePercent(value);
+                        if (stickerPreviewCell != null) {
+                            stickerPreviewCell.updateSticker();
+                        }
+                        updatePreview();
+                    });
+        }
+    }
+
     private boolean needDivider(int position) {
-        return position + 1 < rows.size() && rows.get(position + 1).type != TYPE_INFO && rows.get(position + 1).type != TYPE_HEADER
-                && rows.get(position + 1).type != TYPE_PREVIEW;
+        if (position + 1 >= rows.size()) {
+            return false;
+        }
+        int next = rows.get(position + 1).type;
+        return next == TYPE_CHECK || next == TYPE_VALUE;
     }
 
     private class ListAdapter extends RecyclerListView.SelectionAdapter {
@@ -421,6 +489,10 @@ public class RawChatUiSettingsActivity extends BaseFragment {
                 view = new TextSettingsCell(context);
             } else if (viewType == TYPE_PREVIEW) {
                 view = previewCell = new ChatPreviewCell(context);
+            } else if (viewType == TYPE_SLIDER) {
+                view = new RawUiSettingsActivity.SliderCell(context);
+            } else if (viewType == TYPE_STICKER) {
+                view = stickerPreviewCell = new StickerPreviewCell(context);
             } else {
                 view = new TextInfoPrivacyCell(context);
             }
@@ -444,6 +516,11 @@ public class RawChatUiSettingsActivity extends BaseFragment {
                 case TYPE_VALUE:
                     ((TextSettingsCell) holder.itemView).setTextAndValue(row.text, valueText(row.id), needDivider(position));
                     break;
+                case TYPE_SLIDER:
+                    bindSlider((RawUiSettingsActivity.SliderCell) holder.itemView, row.id);
+                    break;
+                case TYPE_STICKER:
+                    break;
                 default:
                     ((TextInfoPrivacyCell) holder.itemView).setText(row.text);
                     break;
@@ -456,8 +533,8 @@ public class RawChatUiSettingsActivity extends BaseFragment {
     /**
      * A small chat over the current wallpaper: header (classic solid bar or floating pills, title centered or not),
      * an incoming edited message, an outgoing message and an outgoing sticker (from recent stickers) laid out by real
-     * {@link ChatMessageCell}s, and the input panel. Built from fake MessageObjects like the sticker-size preview in
-     * RawgramSettingsActivity; nothing is loaded from the network.
+     * {@link ChatMessageCell}s, and the input panel. Built from fake MessageObjects like {@link StickerPreviewCell};
+     * nothing is loaded from the network.
      */
     private class ChatPreviewCell extends FrameLayout {
         private static final int HEADER_H = 56;
@@ -677,6 +754,95 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         private int pillColor() {
             int color = Theme.getColor(Theme.key_chat_messagePanelBackground);
             return (color & 0x00ffffff) | 0xE6000000;
+        }
+    }
+
+    /** Chat wallpaper with an incoming text message and an outgoing sticker that follows the sticker size slider. */
+    private class StickerPreviewCell extends FrameLayout {
+        private ChatMessageCell stickerCell;
+        private MessageObject stickerMessage;
+
+        StickerPreviewCell(Context context) {
+            super(context);
+            setWillNotDraw(false);
+            LinearLayout messagesLayout = new LinearLayout(context);
+            messagesLayout.setOrientation(LinearLayout.VERTICAL);
+            messagesLayout.setPadding(0, AndroidUtilities.dp(11), 0, AndroidUtilities.dp(11));
+            addView(messagesLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+            int account = currentAccount;
+            int now = (int) (System.currentTimeMillis() / 1000);
+            TLRPC.Document sticker = pickSticker(account);
+            messagesLayout.addView(createCell(context, buildMessage(account, 1, sticker != null ? "Покажи стикер"
+                    : "Нет недавних стикеров: отправь любой стикер, и он появится здесь", null, false, false, now - 60)));
+            if (sticker != null) {
+                stickerMessage = buildMessage(account, 2, "", sticker, true, false, now - 60);
+                stickerCell = createCell(context, stickerMessage);
+                messagesLayout.addView(stickerCell);
+            }
+        }
+
+        private ChatMessageCell createCell(Context context, MessageObject messageObject) {
+            ChatMessageCell cell = new ChatMessageCell(context, currentAccount);
+            cell.setDelegate(new ChatMessageCell.ChatMessageCellDelegate() {});
+            cell.setFullyDraw(true);
+            cell.setMessageObject(messageObject, null, false, false, false);
+            cell.setLayoutParams(LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+            return cell;
+        }
+
+        void updateSticker() {
+            if (stickerCell == null || stickerMessage == null) {
+                return;
+            }
+            final int oldHeight = stickerCell.getMeasuredHeight();
+            final float oldScale = stickerCell.getScaleY();
+            stickerMessage.forceUpdate = true;
+            stickerCell.setMessageObject(stickerMessage, null, false, false, false);
+            stickerCell.requestLayout();
+            requestLayout();
+            if (oldHeight > 0 && stickerCell.isAttachedToWindow() && RawMotion.active()) {
+                // the sticker grows / shrinks smoothly to the new size instead of jumping step by step
+                final ChatMessageCell cell = stickerCell;
+                cell.getViewTreeObserver().addOnPreDrawListener(new android.view.ViewTreeObserver.OnPreDrawListener() {
+                    @Override
+                    public boolean onPreDraw() {
+                        if (cell.getViewTreeObserver().isAlive()) {
+                            cell.getViewTreeObserver().removeOnPreDrawListener(this);
+                        }
+                        int newHeight = cell.getMeasuredHeight();
+                        if (newHeight > 0 && newHeight != oldHeight) {
+                            float from = oldHeight * oldScale / newHeight;
+                            cell.animate().cancel();
+                            cell.setPivotX(cell.getWidth());
+                            cell.setPivotY(0);
+                            cell.setScaleX(from);
+                            cell.setScaleY(from);
+                            cell.animate().scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(RawMotion.EMPHASIZED).start();
+                        }
+                        return true;
+                    }
+                });
+            }
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            Drawable wallpaper = Theme.getCachedWallpaperNonBlocking();
+            if (wallpaper != null) {
+                canvas.save();
+                canvas.clipRect(0, 0, getWidth(), getHeight());
+                // lay the wallpaper out as in a full-screen chat and show its middle band
+                int fullHeight = Math.max(getHeight(), AndroidUtilities.displaySize.y);
+                canvas.translate(0, -(fullHeight - getHeight()) / 2f);
+                StoryEntry.drawBackgroundDrawable(canvas, wallpaper, getWidth(), fullHeight);
+                canvas.restore();
+            } else {
+                canvas.drawColor(Theme.getColor(Theme.key_chat_wallpaper));
+            }
+            if (Theme.wallpaperLoadTask != null) {
+                invalidate();
+            }
         }
     }
 

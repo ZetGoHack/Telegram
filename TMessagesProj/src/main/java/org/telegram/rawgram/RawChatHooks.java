@@ -128,8 +128,14 @@ public class RawChatHooks {
     /** The user started dragging the message list. */
     public void onChatListDragged() {
         ChatActivityEnterView enterView = host.enterView();
-        if (RawgramConfig.isHideKeyboardOnScroll() && enterView != null && !enterView.isPopupShowing()
-                && enterView.getEditField() != null && enterView.getEditField().isFocused() && host.isTypingInChat()) {
+        if (!RawgramConfig.isHideKeyboardOnScroll() || enterView == null) {
+            return;
+        }
+        if (enterView.rawgramIsEmojiPanelShowing()) {
+            // emoji / sticker / GIF panel: fold it the same way as the keyboard (the bot keyboard stays)
+            enterView.hidePopup(false);
+        } else if (!enterView.isPopupShowing() && enterView.getEditField() != null && enterView.getEditField().isFocused()
+                && host.isTypingInChat()) {
             enterView.closeKeyboard();
         }
     }

@@ -1,13 +1,23 @@
 package org.telegram.rawgram;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.os.SystemClock;
+import android.text.SpannableString;
+import android.text.Spanned;
 import android.text.TextUtils;
+import android.text.style.RelativeSizeSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -16,7 +26,11 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.BottomSheet;
@@ -32,10 +46,20 @@ import java.util.ArrayList;
  * a row of object tabs (what is shown), a code block (type label, view toggle,
  * copy in the top-right corner, highlighted dump) and, separately, an actions
  * row for things that actually send requests.
+ * <p>
+ * Swipe to dismiss: a drag that starts outside the scrolling code body (title, preview, tabs, code
+ * header, actions) dismisses as usual. A drag that starts inside a scrollable body never lets the sheet
+ * intercept it; the body scrolls on its own and only pulls the sheet down through nested scrolling when
+ * the gesture began with the body settled at the very top and the content hasn't moved during the
+ * gesture (so an upward scroll, or a fling that just reached the top, never dismisses).
  */
 public class RawObjectSheet extends BottomSheet {
 
     private static final int MAX_TEXT = 300_000;
+
+    public static final int MODE_TREE = 0, MODE_JSON = 1, MODE_FIELDS = 2;
+    /** A body that scrolled this recently is still moving (fling) and must not start a pull-to-dismiss. */
+    private static final long SETTLE_MS = 300;
 
     private final int currentAccount;
     private final Theme.ResourcesProvider resourcesProvider;
@@ -47,8 +71,11 @@ public class RawObjectSheet extends BottomSheet {
     private final LinearLayout tabsLayout;
     private final ArrayList<TextView> tabs = new ArrayList<>();
     private final TextView typeLabel;
-    private final TextView viewToggle;
+    private final ModeSwitch modeSwitch;
+    private final FrameLayout bodyFrame;
+    private final ScrollView scrollView;
     private final TextView bodyView;
+    private final RawTreeView treeView;
     private final LinearLayout actionsSection;
     private final LinearLayout actionsLayout;
 
@@ -56,14 +83,20 @@ public class RawObjectSheet extends BottomSheet {
     private Object object;
     private String json;
     private String fields;
-    private boolean showJson;
+    private int mode;
+
+    // swipe-to-dismiss gating, decided at ACTION_DOWN
+    private long scrollViewLastScroll;
+    private boolean touchInScrollableBody;
+    private boolean pullArmed;
+    private int pullDownOffset;
 
     public RawObjectSheet(Context context, int currentAccount, CharSequence title, Object object, Theme.ResourcesProvider resourcesProvider) {
         super(context, false, resourcesProvider);
         this.currentAccount = currentAccount;
         this.resourcesProvider = resourcesProvider;
         fixNavigationBar(getThemedColor(Theme.key_dialogBackground));
-        showJson = RawgramConfig.isRawViewJson();
+        mode = loadMode();
 
         LinearLayout root = new LinearLayout(context);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -110,7 +143,9 @@ public class RawObjectSheet extends BottomSheet {
         codeBlock.setBackground(codeBg);
         root.addView(codeBlock, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 10, 12, 0));
 
-        FrameLayout header = new FrameLayout(context);
+        LinearLayout header = new LinearLayout(context);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
         codeBlock.addView(header, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 38));
 
         typeLabel = new TextView(context);
@@ -120,23 +155,14 @@ public class RawObjectSheet extends BottomSheet {
         typeLabel.setSingleLine(true);
         typeLabel.setEllipsize(TextUtils.TruncateAt.END);
         typeLabel.setGravity(Gravity.CENTER_VERTICAL);
-        header.addView(typeLabel, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.LEFT, 12, 0, 132, 0));
+        header.addView(typeLabel, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1f, 12, 0, 8, 0));
 
-        LinearLayout headerRight = new LinearLayout(context);
-        headerRight.setOrientation(LinearLayout.HORIZONTAL);
-        headerRight.setGravity(Gravity.CENTER_VERTICAL);
-        header.addView(headerRight, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT, Gravity.RIGHT, 0, 0, 4, 0));
-
-        viewToggle = new TextView(context);
-        viewToggle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
-        viewToggle.setTypeface(AndroidUtilities.bold());
-        viewToggle.setGravity(Gravity.CENTER);
-        viewToggle.setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(10), 0);
         int accent = getThemedColor(Theme.key_featuredStickers_addButton);
-        viewToggle.setTextColor(accent);
-        viewToggle.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(12), Theme.multAlpha(accent, 0.12f), Theme.multAlpha(accent, 0.24f)));
-        viewToggle.setOnClickListener(v -> toggleView());
-        headerRight.addView(viewToggle, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 26));
+        SpannableString treeLabel = new SpannableString("Дерево (beta)");
+        treeLabel.setSpan(new RelativeSizeSpan(0.8f), 7, treeLabel.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        modeSwitch = new ModeSwitch(context, accent, getThemedColor(Theme.key_featuredStickers_buttonText),
+                new CharSequence[]{treeLabel, "JSON", "Поля"}, this::switchMode);
+        header.addView(modeSwitch, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 26));
 
         ImageView copyButton = new ImageView(context);
         copyButton.setImageResource(R.drawable.msg_copy);
@@ -148,19 +174,32 @@ public class RawObjectSheet extends BottomSheet {
             copy();
             RawMotion.copied(v);
         });
-        headerRight.addView(copyButton, LayoutHelper.createLinear(34, 34, 4, 0, 0, 0));
+        header.addView(copyButton, LayoutHelper.createLinear(34, 34, 4, 0, 4, 0));
 
         View divider = new View(context);
         divider.setBackgroundColor(Theme.multAlpha(text, 0.10f));
         codeBlock.addView(divider, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 1));
 
-        ScrollView scrollView = new ScrollView(context) {
+        int maxBodyHeight = (int) (AndroidUtilities.displaySize.y * 0.42f);
+        bodyFrame = new FrameLayout(context);
+        codeBlock.addView(bodyFrame, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+        scrollView = new ScrollView(context) {
             @Override
             protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-                int max = (int) (AndroidUtilities.displaySize.y * 0.42f);
-                super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(max, MeasureSpec.AT_MOST));
+                super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(maxBodyHeight, MeasureSpec.AT_MOST));
+            }
+
+            @Override
+            protected void onScrollChanged(int l, int t, int oldl, int oldt) {
+                super.onScrollChanged(l, t, oldl, oldt);
+                if (t != oldt) {
+                    scrollViewLastScroll = SystemClock.uptimeMillis();
+                }
             }
         };
+        // nested scrolling is switched on per gesture, only when a pull-to-dismiss is allowed
+        scrollView.setNestedScrollingEnabled(false);
         bodyView = new TextView(context);
         bodyView.setTypeface(Typeface.MONOSPACE);
         bodyView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
@@ -168,7 +207,16 @@ public class RawObjectSheet extends BottomSheet {
         bodyView.setTextIsSelectable(true);
         bodyView.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(8), AndroidUtilities.dp(12), AndroidUtilities.dp(10));
         scrollView.addView(bodyView, LayoutHelper.createScroll(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP));
-        codeBlock.addView(scrollView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+        bodyFrame.addView(scrollView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+        treeView = new RawTreeView(context, currentAccount, resourcesProvider);
+        treeView.setMaxHeight(maxBodyHeight);
+        treeView.setNestedScrollingEnabled(false);
+        treeView.setCopyHandler((value, toast) -> {
+            AndroidUtilities.addToClipboard(value);
+            RawNotify.show(this, R.drawable.msg_copy, toast);
+        });
+        bodyFrame.addView(treeView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
         // 3. actions: things that really talk to the server / chat
         actionsSection = new LinearLayout(context);
@@ -194,6 +242,7 @@ public class RawObjectSheet extends BottomSheet {
         // object tabs and actions pop in after their sections arrive
         RawMotion.popRowOnShow(tabsLayout, 200, 35);
         RawMotion.popRowOnShow(actionsLayout, 260, 35);
+        modeSwitch.select(mode, false);
         setObject(null, object);
     }
 
@@ -289,21 +338,32 @@ public class RawObjectSheet extends BottomSheet {
         this.json = json;
         this.fields = fields;
         setSubtitle(subtitle != null ? subtitle : TLDumper.typeName(object));
-        RawAnim.crossfade(bodyView, () -> {
+        RawAnim.crossfade(bodyFrame, () -> {
             typeLabel.setText(TLDumper.typeName(object));
-            setShowJson(showJson);
+            try {
+                treeView.setObject(object);
+            } catch (Throwable e) {
+                treeView.setObject("tree failed: " + e);
+            }
+            applyMode(mode);
         });
     }
 
-    private void setShowJson(boolean value) {
-        showJson = value;
-        viewToggle.setText(value ? "JSON ⇄" : "Fields ⇄");
-        String text = value ? json : fields;
+    private void applyMode(int value) {
+        mode = value;
+        boolean tree = value == MODE_TREE;
+        treeView.setVisibility(tree ? View.VISIBLE : View.GONE);
+        scrollView.setVisibility(tree ? View.GONE : View.VISIBLE);
+        if (tree) {
+            return;
+        }
+        boolean showJson = value == MODE_JSON;
+        String text = showJson ? json : fields;
         boolean truncated = text != null && text.length() > MAX_TEXT;
         if (truncated) {
             text = text.substring(0, MAX_TEXT);
         }
-        CharSequence rendered = text == null ? "" : value
+        CharSequence rendered = text == null ? "" : showJson
                 ? RawSyntax.json(text, RawSyntax.Palette.of(Theme.isCurrentThemeDark()))
                 : RawSyntax.fields(text, RawSyntax.Palette.of(Theme.isCurrentThemeDark()));
         if (truncated) {
@@ -313,20 +373,112 @@ public class RawObjectSheet extends BottomSheet {
         }
     }
 
-    private void toggleView() {
-        boolean json = !showJson;
-        RawgramConfig.setRawViewJson(json);
-        RawAnim.pop(viewToggle);
-        RawAnim.crossfade(bodyView, () -> setShowJson(json));
+    private void switchMode(int value) {
+        if (value == mode) {
+            return;
+        }
+        saveMode(value);
+        RawAnim.crossfade(bodyFrame, () -> applyMode(value));
     }
 
     private void copy() {
-        String text = showJson ? json : fields;
+        boolean asFields = mode == MODE_FIELDS;
+        String text = asFields ? fields : json;
         if (text == null) {
             return;
         }
         AndroidUtilities.addToClipboard(text);
-        RawNotify.show(this, R.drawable.msg_copy, showJson ? "JSON скопирован" : "Поля скопированы");
+        RawNotify.show(this, R.drawable.msg_copy, asFields ? "Поля скопированы" : "JSON скопирован");
+    }
+
+    // ---- view mode, remembered across sheets ----
+
+    private static SharedPreferences sheetPrefs() {
+        return ApplicationLoader.applicationContext.getSharedPreferences("rawgram_object_sheet", Context.MODE_PRIVATE);
+    }
+
+    /** Tree lives in this sheet's own prefs; JSON vs Fields stays in {@link RawgramConfig#isRawViewJson()}. */
+    private static int loadMode() {
+        try {
+            if (sheetPrefs().getBoolean("viewTree", false)) {
+                return MODE_TREE;
+            }
+        } catch (Throwable ignore) {
+        }
+        return RawgramConfig.isRawViewJson() ? MODE_JSON : MODE_FIELDS;
+    }
+
+    private static void saveMode(int mode) {
+        try {
+            sheetPrefs().edit().putBoolean("viewTree", mode == MODE_TREE).apply();
+        } catch (Throwable ignore) {
+        }
+        if (mode != MODE_TREE) {
+            RawgramConfig.setRawViewJson(mode == MODE_JSON);
+        }
+    }
+
+    // ---- swipe to dismiss vs. scrolling the code body ----
+
+    private View activeBody() {
+        return mode == MODE_TREE ? treeView : scrollView;
+    }
+
+    private int bodyOffset(View body) {
+        return body == treeView ? treeView.computeVerticalScrollOffset() : scrollView.getScrollY();
+    }
+
+    private static boolean hit(View view, float rawX, float rawY) {
+        if (view == null || !view.isShown()) {
+            return false;
+        }
+        int[] loc = new int[2];
+        view.getLocationOnScreen(loc);
+        return rawX >= loc[0] && rawX < loc[0] + view.getWidth() && rawY >= loc[1] && rawY < loc[1] + view.getHeight();
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(@NonNull MotionEvent ev) {
+        // runs before the sheet's container sees the event, so canDismissWithSwipe() is already up to date
+        int action = ev.getActionMasked();
+        View body = activeBody();
+        if (action == MotionEvent.ACTION_DOWN) {
+            boolean inBody = hit(body, ev.getRawX(), ev.getRawY());
+            touchInScrollableBody = inBody && (body.canScrollVertically(-1) || body.canScrollVertically(1));
+            boolean atTop = !body.canScrollVertically(-1);
+            long lastScroll = body == treeView ? treeView.getLastScrollTime() : scrollViewLastScroll;
+            boolean settled = SystemClock.uptimeMillis() - lastScroll > SETTLE_MS
+                    && (body != treeView || treeView.getScrollState() == RecyclerView.SCROLL_STATE_IDLE);
+            pullArmed = touchInScrollableBody && atTop && settled;
+            pullDownOffset = bodyOffset(body);
+            setBodyPull(body, pullArmed);
+        } else if (action == MotionEvent.ACTION_MOVE) {
+            if (pullArmed && bodyOffset(body) != pullDownOffset) {
+                // the content moved during this gesture: from here on it's a plain scroll, reaching the top won't pull the sheet
+                pullArmed = false;
+                setBodyPull(body, false);
+            }
+        } else if (action == MotionEvent.ACTION_POINTER_DOWN) {
+            if (pullArmed) {
+                pullArmed = false;
+                setBodyPull(body, false);
+            }
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+    private void setBodyPull(View body, boolean enabled) {
+        scrollView.setNestedScrollingEnabled(enabled && body == scrollView);
+        treeView.setNestedScrollingEnabled(enabled && body == treeView);
+    }
+
+    /**
+     * The sheet's own drag tracking (which would grab any downward drag past the touch slop) is off for
+     * gestures that start inside a scrollable body; those reach the sheet only via nested scrolling.
+     */
+    @Override
+    protected boolean canDismissWithSwipe() {
+        return super.canDismissWithSwipe() && !touchInScrollableBody;
     }
 
     /** Renders the message exactly like a chat cell would; null hides the preview. */
@@ -355,5 +507,104 @@ public class RawObjectSheet extends BottomSheet {
         previewCell.requestLayout();
         previewCell.invalidate();
         previewContainer.setVisibility(View.VISIBLE);
+    }
+
+    /** Segmented "Дерево (beta) / JSON / Поля" choice with a sliding accent thumb. */
+    private static class ModeSwitch extends LinearLayout {
+
+        interface Listener {
+            void onSelect(int index);
+        }
+
+        private final TextView[] items;
+        private final int accent;
+        private final int selectedText;
+        private final Paint thumbPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint trackPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF rect = new RectF();
+        private int selected = -1;
+        private float position;
+        private ValueAnimator animator;
+
+        ModeSwitch(Context context, int accent, int selectedText, CharSequence[] labels, Listener listener) {
+            super(context);
+            this.accent = accent;
+            this.selectedText = selectedText;
+            setOrientation(HORIZONTAL);
+            setWillNotDraw(false);
+            thumbPaint.setColor(accent);
+            trackPaint.setColor(Theme.multAlpha(accent, 0.12f));
+            items = new TextView[labels.length];
+            for (int i = 0; i < labels.length; i++) {
+                TextView item = new TextView(context);
+                item.setText(labels[i]);
+                item.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
+                item.setTypeface(AndroidUtilities.bold());
+                item.setGravity(Gravity.CENTER);
+                item.setSingleLine(true);
+                item.setPadding(AndroidUtilities.dp(9), 0, AndroidUtilities.dp(9), 0);
+                item.setTextColor(accent);
+                final int index = i;
+                item.setOnClickListener(v -> {
+                    if (index != selected) {
+                        select(index, true);
+                        RawAnim.pop(v);
+                        listener.onSelect(index);
+                    }
+                });
+                items[i] = item;
+                addView(item, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT));
+            }
+        }
+
+        void select(int index, boolean animated) {
+            if (index < 0 || index >= items.length) {
+                return;
+            }
+            int from = selected;
+            selected = index;
+            for (int i = 0; i < items.length; i++) {
+                items[i].setTextColor(i == index ? selectedText : accent);
+            }
+            if (animator != null) {
+                animator.cancel();
+                animator = null;
+            }
+            if (!animated || from < 0 || !RawMotion.active() || !isAttachedToWindow()) {
+                position = index;
+                invalidate();
+                return;
+            }
+            animator = ValueAnimator.ofFloat(position, index);
+            animator.addUpdateListener(a -> {
+                position = (float) a.getAnimatedValue();
+                invalidate();
+            });
+            animator.setDuration(320);
+            animator.setInterpolator(RawMotion.EMPHASIZED);
+            animator.start();
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            float r = getHeight() / 2f;
+            rect.set(0, 0, getWidth(), getHeight());
+            canvas.drawRoundRect(rect, r, r, trackPaint);
+            if (selected < 0 || items.length == 0) {
+                return;
+            }
+            int lo = Math.max(0, Math.min(items.length - 1, (int) Math.floor(position)));
+            int hi = Math.min(items.length - 1, lo + 1);
+            float t = position - lo;
+            float left = lerp(items[lo].getLeft(), items[hi].getLeft(), t);
+            float right = lerp(items[lo].getRight(), items[hi].getRight(), t);
+            float stretch = RawMotion.stretch(t, AndroidUtilities.dp(6));
+            rect.set(left - stretch / 2f, 0, right + stretch / 2f, getHeight());
+            canvas.drawRoundRect(rect, r, r, thumbPaint);
+        }
+
+        private static float lerp(float a, float b, float t) {
+            return a + (b - a) * t;
+        }
     }
 }

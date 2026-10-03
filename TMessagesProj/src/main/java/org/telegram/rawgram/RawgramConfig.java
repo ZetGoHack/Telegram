@@ -29,6 +29,28 @@ public class RawgramConfig {
     }
 
     /** Hold time in ms before a long press opens raw viewers and sticker/GIF previews. */
+    // delay of the action menu under a sticker / emoji / GIF preview (Telegram: 1300 ms, GIFs 2000 ms)
+    public static final int PREVIEW_MENU_MIN = 0;
+    public static final int PREVIEW_MENU_MAX = 2000;
+    public static final int PREVIEW_MENU_STEP = 100;
+    public static final int PREVIEW_MENU_DEFAULT = 500;
+    private static int previewMenuDelay = -1;
+
+    public static int getPreviewMenuDelay() {
+        if (previewMenuDelay < 0) {
+            if (org.telegram.messenger.ApplicationLoader.applicationContext == null) {
+                return PREVIEW_MENU_DEFAULT;
+            }
+            previewMenuDelay = clamp(prefs().getInt("previewMenuDelay", PREVIEW_MENU_DEFAULT), PREVIEW_MENU_MIN, PREVIEW_MENU_MAX);
+        }
+        return previewMenuDelay;
+    }
+
+    public static void setPreviewMenuDelay(int value) {
+        previewMenuDelay = clamp(value, PREVIEW_MENU_MIN, PREVIEW_MENU_MAX);
+        prefs().edit().putInt("previewMenuDelay", previewMenuDelay).apply();
+    }
+
     public static int getLongPressDelay() {
         if (longPressDelay < 0) {
             longPressDelay = clamp(prefs().getInt(KEY_LONG_PRESS, LONG_PRESS_DEFAULT), LONG_PRESS_MIN, LONG_PRESS_MAX);

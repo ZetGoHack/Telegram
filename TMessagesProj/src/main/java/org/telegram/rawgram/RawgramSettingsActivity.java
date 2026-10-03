@@ -1,14 +1,15 @@
 package org.telegram.rawgram;
 
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.drawable.Drawable;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
+import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -17,83 +18,74 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.MediaDataController;
-import org.telegram.messenger.MessagesController;
-import org.telegram.messenger.MessageObject;
+import org.telegram.messenger.BuildVars;
+import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
-import org.telegram.messenger.UserConfig;
-import org.telegram.messenger.Utilities;
-import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
-import org.telegram.ui.Cells.ChatMessageCell;
-import org.telegram.ui.Cells.HeaderCell;
-import org.telegram.ui.Cells.TextCheckCell;
-import org.telegram.ui.Cells.TextSettingsCell;
+import org.telegram.ui.Cells.ShadowSectionCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
+import org.telegram.ui.Cells.TextSettingsCell;
+import org.telegram.ui.Components.IconBackgroundColors;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
-import org.telegram.ui.Components.SeekBarView;
-import org.telegram.ui.Stories.recorder.StoryEntry;
+import org.telegram.ui.SettingsActivity;
 
 import java.util.ArrayList;
 
-/** "Настройки rawGram": long-press delay and sticker size with a live chat preview. */
+/**
+ * "Настройки rawGram": a hub of category rows (icon + short subtitle, like Telegram's main settings) that open
+ * the actual settings screens, plus credits and the version line.
+ */
 public class RawgramSettingsActivity extends BaseFragment {
 
-    private static final int TYPE_HEADER = 0;
-    private static final int TYPE_SLIDER = 1;
-    private static final int TYPE_INFO = 2;
-    private static final int TYPE_PREVIEW = 3;
+    private static final int TYPE_CATEGORY = 0;
+    private static final int TYPE_SHADOW = 1;
+    private static final int TYPE_VALUE = 2;
+    private static final int TYPE_INFO = 3;
 
-    private static final int TYPE_CHECK = 4;
-    private static final int TYPE_VALUE = 5;
+    /** One list row. For TYPE_CATEGORY: icon, icon background, title, subtitle and what a tap opens. */
+    private static class Row {
+        final int type;
+        final int icon;
+        final IconBackgroundColors colors;
+        final String title;
+        final String subtitle;
+        final Runnable action;
 
-    private static final int ROW_LOOK_HEADER = 0;
-    private static final int ROW_LOOK_UI = 1;
-    private static final int ROW_LOOK_CHAT = 2;
-    private static final int ROW_LOOK_INFO = 3;
-    private static final int ROW_DATA_HEADER = 4;
-    private static final int ROW_FULL_NUMBERS = 5;
-    private static final int ROW_ID_FORMAT = 6;
-    private static final int ROW_DATA_INFO = 7;
-    private static final int ROW_FEAT_HEADER = 8;
-    private static final int ROW_FEAT_DETAILS = 9;
-    private static final int ROW_FEAT_INLINE_RAW = 10;
-    private static final int ROW_FEAT_TRAY = 11;
-    private static final int ROW_FEAT_BOT_BUTTONS = 12;
-    private static final int ROW_FEAT_BOT_ANSWERS = 13;
-    private static final int ROW_FEAT_PREVIEW_RAW = 14;
-    private static final int ROW_FEAT_OBJECT_RAW = 15;
-    private static final int ROW_FEAT_WEBAPP = 16;
-    private static final int ROW_FEAT_MOTION = 17;
-    private static final int ROW_FEAT_INFO = 18;
-    private static final int ROW_CHAT_HEADER = 19;
-    private static final int ROW_HIDE_KEYBOARD = 20;
-    private static final int ROW_HIDE_CAMERA = 21;
-    private static final int ROW_CHAT_INFO = 22;
-    private static final int ROW_PRESS_HEADER = 23;
-    private static final int ROW_PRESS_SLIDER = 24;
-    private static final int ROW_PRESS_INFO = 25;
-    private static final int ROW_STICKER_HEADER = 26;
-    private static final int ROW_STICKER_SLIDER = 27;
-    private static final int ROW_STICKER_PREVIEW = 28;
-    private static final int ROW_STICKER_INFO = 29;
-    private static final int ROW_RECENT_HEADER = 30;
-    private static final int ROW_RECENT_SLIDER = 31;
-    private static final int ROW_RECENT_INFO = 32;
-    private static final int ROW_TOOLS_HEADER = 33;
-    private static final int ROW_REQUEST_LOG = 34;
-    private static final int ROW_REQUEST_LOG_OPEN = 35;
-    private static final int ROW_CRASH_LOG = 36;
-    private static final int ROW_SERVER_CONFIG = 37;
-    private static final int ROW_TOOLS_INFO = 38;
-    private static final int ROW_COUNT = 39;
+        Row(int type, int icon, IconBackgroundColors colors, String title, String subtitle, Runnable action) {
+            this.type = type;
+            this.icon = icon;
+            this.colors = colors;
+            this.title = title;
+            this.subtitle = subtitle;
+            this.action = action;
+        }
+    }
 
+    private final ArrayList<Row> rows = new ArrayList<>();
     private RecyclerListView listView;
-    private ListAdapter adapter;
-    private StickerPreviewCell previewCell;
+
+    private void category(int icon, IconBackgroundColors colors, String title, String subtitle, Runnable action) {
+        rows.add(new Row(TYPE_CATEGORY, icon, colors, title, subtitle, action));
+    }
+
+    private void buildRows() {
+        rows.clear();
+        category(R.drawable.msg_palette, IconBackgroundColors.PURPLE, "Внешний вид",
+                "Главный экран, папки, аватарки, иконки", () -> presentFragment(new RawUiSettingsActivity()));
+        category(R.drawable.msg_discussion, IconBackgroundColors.BLUE, "Чаты",
+                "Вид чата, меню сообщения, стикеры", () -> presentFragment(new RawChatUiSettingsActivity()));
+        category(R.drawable.settings_rawgram, IconBackgroundColors.GRAY, "Инструменты разработчика",
+                "Raw-данные, журналы, конфиг сервера", () -> presentFragment(new RawDevSettingsActivity()));
+        // Плагины (branch rawgram-plugins): add one line here, e.g.
+        // category(R.drawable.msg_bots, IconBackgroundColors.GREEN, "Плагины", "Установленные плагины", () -> presentFragment(new RawPluginsActivity()));
+        rows.add(new Row(TYPE_SHADOW, 0, null, null, null, null));
+        rows.add(new Row(TYPE_VALUE, 0, null, "Авторы и лицензии", null, this::showCredits));
+        rows.add(new Row(TYPE_INFO, 0, null, "rawGram на основе Telegram " + BuildVars.BUILD_VERSION_STRING + " · GPLv3", null, null));
+    }
 
     @Override
     public View createView(Context context) {
@@ -109,6 +101,8 @@ public class RawgramSettingsActivity extends BaseFragment {
             }
         });
 
+        buildRows();
+
         FrameLayout frameLayout = new FrameLayout(context);
         frameLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
         fragmentView = frameLayout;
@@ -118,93 +112,38 @@ public class RawgramSettingsActivity extends BaseFragment {
         actionBar.setAdaptiveBackground(listView);
         listView.setLayoutManager(new LinearLayoutManager(context));
         listView.setVerticalScrollBarEnabled(false);
-        listView.setAdapter(adapter = new ListAdapter(context));
+        listView.setAdapter(new ListAdapter(context));
         listView.setOnItemClickListener((view, position) -> {
-            if (position == ROW_LOOK_UI) {
-                presentFragment(new RawUiSettingsActivity());
-            } else if (position == ROW_LOOK_CHAT) {
-                presentFragment(new RawChatUiSettingsActivity());
-            } else if (position == ROW_FULL_NUMBERS) {
-                boolean value = !RawgramConfig.isFullNumbers();
-                RawgramConfig.setFullNumbers(value);
-                ((TextCheckCell) view).setChecked(value);
-            } else if (position == ROW_HIDE_KEYBOARD) {
-                boolean value = !RawgramConfig.isHideKeyboardOnScroll();
-                RawgramConfig.setHideKeyboardOnScroll(value);
-                ((TextCheckCell) view).setChecked(value);
-            } else if (position == ROW_HIDE_CAMERA) {
-                boolean value = !RawgramConfig.isHideAttachCamera();
-                RawgramConfig.setHideAttachCamera(value);
-                ((TextCheckCell) view).setChecked(value);
-            } else if (position >= ROW_FEAT_DETAILS && position <= ROW_FEAT_MOTION) {
-                boolean value = !isFeatureOn(position);
-                setFeature(position, value);
-                ((TextCheckCell) view).setChecked(value);
-            } else if (position == ROW_ID_FORMAT) {
-                CharSequence[] names = {"Не показывать", "MTProto (как в API)", "Bot API (-100… для каналов)"};
-                new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity())
-                        .setTitle("ID в профилях")
-                        .setItems(names, (d, which) -> {
-                            RawgramConfig.setIdFormat(which);
-                            adapter.notifyItemChanged(ROW_ID_FORMAT);
-                        })
-                        .show();
-            } else if (position == ROW_REQUEST_LOG) {
-                boolean value = !RawRequestLog.enabled;
-                RawRequestLog.setEnabled(value);
-                ((TextCheckCell) view).setChecked(value);
-            } else if (position == ROW_REQUEST_LOG_OPEN) {
-                presentFragment(new RawRequestLogActivity());
-            } else if (position == ROW_CRASH_LOG) {
-                RawCrashLog.openViewer(this);
-            } else if (position == ROW_SERVER_CONFIG) {
-                RawServerConfig.show(getParentActivity(), currentAccount, getResourceProvider());
+            if (position < 0 || position >= rows.size()) {
+                return;
+            }
+            Row row = rows.get(position);
+            if (row.action != null) {
+                row.action.run();
             }
         });
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         return fragmentView;
     }
 
-    private static String featureTitle(int position) {
-        switch (position) {
-            case ROW_FEAT_MOTION: return "Анимации rawGram";
-            case ROW_FEAT_DETAILS: return "Подробности в меню сообщения";
-            case ROW_FEAT_INLINE_RAW: return "Raw инлайн-результатов по долгому нажатию";
-            case ROW_FEAT_TRAY: return "Лоток инлайн-выдачи";
-            case ROW_FEAT_BOT_BUTTONS: return "Данные кнопок ботов (долгое нажатие)";
-            case ROW_FEAT_BOT_ANSWERS: return "Ответы ботов на кнопки";
-            case ROW_FEAT_PREVIEW_RAW: return "Raw в предпросмотре стикеров и эмодзи";
-            case ROW_FEAT_OBJECT_RAW: return "Raw в профилях, наборах и диалогах";
-            default: return "rawGram-данные веб-приложений";
+    private void showCredits() {
+        if (getParentActivity() == null) {
+            return;
         }
-    }
-
-    private static boolean isFeatureOn(int position) {
-        switch (position) {
-            case ROW_FEAT_MOTION: return RawMotion.isEnabled();
-            case ROW_FEAT_DETAILS: return RawgramConfig.isMessageDetails();
-            case ROW_FEAT_INLINE_RAW: return RawgramConfig.isInlineRaw();
-            case ROW_FEAT_TRAY: return RawgramConfig.isInlineTray();
-            case ROW_FEAT_BOT_BUTTONS: return RawgramConfig.isBotButtonDebug();
-            case ROW_FEAT_BOT_ANSWERS: return RawgramConfig.isBotAnswerLog();
-            case ROW_FEAT_PREVIEW_RAW: return RawgramConfig.isPreviewRaw();
-            case ROW_FEAT_OBJECT_RAW: return RawgramConfig.isObjectRaw();
-            default: return RawgramConfig.isWebAppData();
-        }
-    }
-
-    private static void setFeature(int position, boolean value) {
-        switch (position) {
-            case ROW_FEAT_MOTION: RawMotion.setEnabled(value); break;
-            case ROW_FEAT_DETAILS: RawgramConfig.setMessageDetails(value); break;
-            case ROW_FEAT_INLINE_RAW: RawgramConfig.setInlineRaw(value); break;
-            case ROW_FEAT_TRAY: RawgramConfig.setInlineTray(value); break;
-            case ROW_FEAT_BOT_BUTTONS: RawgramConfig.setBotButtonDebug(value); break;
-            case ROW_FEAT_BOT_ANSWERS: RawgramConfig.setBotAnswerLog(value); break;
-            case ROW_FEAT_PREVIEW_RAW: RawgramConfig.setPreviewRaw(value); break;
-            case ROW_FEAT_OBJECT_RAW: RawgramConfig.setObjectRaw(value); break;
-            default: RawgramConfig.setWebAppData(value); break;
-        }
+        String text = "rawGram распространяется по лицензии GNU GPL v3.\n\n"
+                + "Основано на коде и идеях:\n"
+                + "• Telegram для Android — Telegram FZ-LLC (GPLv2+)\n"
+                + "• Nagram — NextAlone (GPLv3)\n"
+                + "• NekoX / Nekogram (GPLv3)\n"
+                + "• exteraGram — exteraSquad (GPLv2+)\n"
+                + "• AyuGram — Radolyn Labs (GPLv2+)\n"
+                + "• Иконки Solar — 480 Design (CC BY 4.0)\n\n"
+                + "Неофициальный клиент, не связан с Telegram.";
+        new AlertDialog.Builder(getParentActivity(), getResourceProvider())
+                .setTitle("Авторы и лицензии")
+                .setMessage(text)
+                .setPositiveButton(LocaleController.getString(R.string.OK), null)
+                .show();
     }
 
     private class ListAdapter extends RecyclerListView.SelectionAdapter {
@@ -216,71 +155,28 @@ public class RawgramSettingsActivity extends BaseFragment {
 
         @Override
         public int getItemCount() {
-            return ROW_COUNT;
+            return rows.size();
         }
 
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
             int type = holder.getItemViewType();
-            return type == TYPE_CHECK || type == TYPE_VALUE;
+            return type == TYPE_CATEGORY || type == TYPE_VALUE;
         }
 
         @Override
         public int getItemViewType(int position) {
-            switch (position) {
-                case ROW_FULL_NUMBERS:
-                case ROW_HIDE_KEYBOARD:
-                case ROW_HIDE_CAMERA:
-                case ROW_REQUEST_LOG:
-                case ROW_FEAT_MOTION:
-                case ROW_FEAT_DETAILS:
-                case ROW_FEAT_INLINE_RAW:
-                case ROW_FEAT_TRAY:
-                case ROW_FEAT_BOT_BUTTONS:
-                case ROW_FEAT_BOT_ANSWERS:
-                case ROW_FEAT_PREVIEW_RAW:
-                case ROW_FEAT_OBJECT_RAW:
-                case ROW_FEAT_WEBAPP:
-                    return TYPE_CHECK;
-                case ROW_LOOK_UI:
-                case ROW_LOOK_CHAT:
-                case ROW_ID_FORMAT:
-                case ROW_REQUEST_LOG_OPEN:
-                case ROW_CRASH_LOG:
-                case ROW_SERVER_CONFIG:
-                    return TYPE_VALUE;
-                case ROW_LOOK_HEADER:
-                case ROW_DATA_HEADER:
-                case ROW_FEAT_HEADER:
-                case ROW_CHAT_HEADER:
-                case ROW_PRESS_HEADER:
-                case ROW_STICKER_HEADER:
-                case ROW_RECENT_HEADER:
-                case ROW_TOOLS_HEADER:
-                    return TYPE_HEADER;
-                case ROW_PRESS_SLIDER:
-                case ROW_STICKER_SLIDER:
-                case ROW_RECENT_SLIDER:
-                    return TYPE_SLIDER;
-                case ROW_STICKER_PREVIEW:
-                    return TYPE_PREVIEW;
-                default:
-                    return TYPE_INFO;
-            }
+            return rows.get(position).type;
         }
 
         @NonNull
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             View view;
-            if (viewType == TYPE_HEADER) {
-                view = new HeaderCell(context);
-            } else if (viewType == TYPE_SLIDER) {
-                view = new SliderCell(context);
-            } else if (viewType == TYPE_PREVIEW) {
-                view = previewCell = new StickerPreviewCell(context);
-            } else if (viewType == TYPE_CHECK) {
-                view = new TextCheckCell(context);
+            if (viewType == TYPE_CATEGORY) {
+                view = new CategoryCell(context);
+            } else if (viewType == TYPE_SHADOW) {
+                view = new ShadowSectionCell(context);
             } else if (viewType == TYPE_VALUE) {
                 view = new TextSettingsCell(context);
             } else {
@@ -292,298 +188,76 @@ public class RawgramSettingsActivity extends BaseFragment {
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-            switch (holder.getItemViewType()) {
-                case TYPE_HEADER:
-                    ((HeaderCell) holder.itemView).setText(position == ROW_LOOK_HEADER ? "Внешний вид"
-                            : position == ROW_DATA_HEADER ? "Данные"
-                            : position == ROW_FEAT_HEADER ? "Функции rawGram"
-                            : position == ROW_CHAT_HEADER ? "Чат"
-                            : position == ROW_PRESS_HEADER ? "Задержка зажатия"
-                            : position == ROW_RECENT_HEADER ? "Недавние стикеры"
-                            : position == ROW_TOOLS_HEADER ? "Инструменты" : "Размер стикеров");
+            Row row = rows.get(position);
+            switch (row.type) {
+                case TYPE_CATEGORY:
+                    ((CategoryCell) holder.itemView).set(row);
                     break;
-                case TYPE_CHECK:
-                    if (position >= ROW_FEAT_DETAILS && position <= ROW_FEAT_MOTION) {
-                        ((TextCheckCell) holder.itemView).setTextAndCheck(featureTitle(position), isFeatureOn(position), position != ROW_FEAT_MOTION);
-                    } else if (position == ROW_REQUEST_LOG) {
-                        ((TextCheckCell) holder.itemView).setTextAndCheck("Журнал запросов MTProto", RawRequestLog.enabled, true);
-                    } else if (position == ROW_HIDE_KEYBOARD) {
-                        ((TextCheckCell) holder.itemView).setTextAndCheck("Сворачивать клавиатуру при прокрутке чата", RawgramConfig.isHideKeyboardOnScroll(), true);
-                    } else if (position == ROW_HIDE_CAMERA) {
-                        ((TextCheckCell) holder.itemView).setTextAndCheck("Камера во вложениях — кнопкой", RawgramConfig.isHideAttachCamera(), false);
-                    } else {
-                        ((TextCheckCell) holder.itemView).setTextAndCheck("Не сокращать числа (100 000 вместо 100K)", RawgramConfig.isFullNumbers(), true);
-                    }
+                case TYPE_VALUE:
+                    ((TextSettingsCell) holder.itemView).setText(row.title, false);
                     break;
-                case TYPE_VALUE: {
-                    if (position == ROW_LOOK_UI) {
-                        ((TextSettingsCell) holder.itemView).setText("Интерфейс", true);
-                        break;
-                    }
-                    if (position == ROW_LOOK_CHAT) {
-                        ((TextSettingsCell) holder.itemView).setText("Чаты: вид и поведение", false);
-                        break;
-                    }
-                    if (position == ROW_SERVER_CONFIG) {
-                        ((TextSettingsCell) holder.itemView).setText("Конфиг сервера (raw)", false);
-                        break;
-                    }
-                    if (position == ROW_REQUEST_LOG_OPEN) {
-                        ((TextSettingsCell) holder.itemView).setText("Открыть журнал", true);
-                        break;
-                    }
-                    if (position == ROW_CRASH_LOG) {
-                        ((TextSettingsCell) holder.itemView).setText("Журнал крашей", true);
-                        break;
-                    }
-                    int format = RawgramConfig.getIdFormat();
-                    String value = format == RawgramConfig.ID_OFF ? "Выкл" : format == RawgramConfig.ID_MTPROTO ? "MTProto" : "Bot API";
-                    ((TextSettingsCell) holder.itemView).setTextAndValue("ID в профилях", value, false);
+                case TYPE_INFO:
+                    ((TextInfoPrivacyCell) holder.itemView).setText(row.title);
                     break;
-                }
-                case TYPE_SLIDER: {
-                    SliderCell cell = (SliderCell) holder.itemView;
-                    if (position == ROW_PRESS_SLIDER) {
-                        cell.bind(RawgramConfig.LONG_PRESS_MIN, RawgramConfig.LONG_PRESS_MAX, RawgramConfig.LONG_PRESS_STEP,
-                                RawgramConfig.getLongPressDelay(), " мс", RawgramConfig::setLongPressDelay);
-                    } else if (position == ROW_RECENT_SLIDER) {
-                        cell.bind(RawgramConfig.RECENT_STICKERS_MIN, RawgramConfig.RECENT_STICKERS_MAX, RawgramConfig.RECENT_STICKERS_STEP,
-                                RawgramConfig.getRecentStickersShown(), "", RawgramConfig::setRecentStickersShown);
-                    } else {
-                        cell.bind(RawgramConfig.STICKER_SCALE_MIN, RawgramConfig.STICKER_SCALE_MAX, RawgramConfig.STICKER_SCALE_STEP,
-                                RawgramConfig.getStickerScalePercent(), "%", value -> {
-                                    RawgramConfig.setStickerScalePercent(value);
-                                    if (previewCell != null) {
-                                        previewCell.updateSticker();
-                                    }
-                                });
-                    }
-                    break;
-                }
-                case TYPE_INFO: {
-                    TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
-                    if (position == ROW_LOOK_INFO) {
-                        cell.setText("Интерфейс — список чатов, заголовок, вкладки, аватарки, переключатели, экран настроек. "
-                                + "Чаты — классический вид чата, заголовок, время и ID в сообщениях, двойное нажатие, меню сообщения. "
-                                + "На обоих экранах сверху — живой пример, как это будет выглядеть.");
-                    } else if (position == ROW_DATA_INFO) {
-                        cell.setText("Числа: просмотры, реакции, подписчики, рейтинг — полностью. Изменения видны при следующем открытии экрана. "
-                                + "ID в профилях: Bot API — пользователи как есть, группы -id, каналы и супергруппы -100id; нажатие копирует.");
-                    } else if (position == ROW_FEAT_INFO) {
-                        cell.setText("Выключенная функция не показывается, и Telegram там ведёт себя как обычно: например, без данных кнопок "
-                                + "долгое нажатие на кнопку бота работает как в Telegram. Ответы ботов на кнопки — журнал ответов на нажатия "
-                                + "(callback-ответы) и уведомления, когда бот ответил молча или не ответил. "
-                                + "Отложенные в лоток результаты сохраняются, пока он выключен.");
-                    } else if (position == ROW_CHAT_INFO) {
-                        cell.setText("Клавиатура прячется, как только начинаешь листать сообщения; поле ввода и набранный текст остаются. "
-                                + "Камера во вложениях — кнопкой: вместо большой плитки камеры в галерее круглая кнопка справа снизу.");
-                    } else if (position == ROW_PRESS_INFO) {
-                        cell.setText("Сколько держать палец, чтобы открыть raw-просмотр инлайн-результата или превью стикера / GIF. "
-                                + "Системная задержка на этом устройстве: " + ViewConfiguration.getLongPressTimeout() + " мс.");
-                    } else if (position == ROW_TOOLS_INFO) {
-                        cell.setText("Журнал запросов: последние " + RawRequestLog.CAPACITY + " RPC-вызовов всех аккаунтов — метод, время, "
-                                + "ответ или ошибка (FLOOD_WAIT_…); полные объекты запроса и ответа — для последних " + RawRequestLog.KEEP_OBJECTS
-                                + ". Выключенный журнал ничего не стоит.\n\n"
-                                + "Журнал крашей: сохранённые падения приложения со стеком.\n\n"
-                                + "Конфиг сервера: свежие help.getConfig и help.getAppConfig этого аккаунта — все лимиты "
-                                + "(обычные и премиум), DC и флаги клиента.");
-                    } else if (position == ROW_RECENT_INFO) {
-                        cell.setText("Сколько недавних стикеров показывать в панели. Telegram показывает 20, хотя сервер хранит до "
-                                + MessagesController.getInstance(currentAccount).maxRecentStickersCount
-                                + " (stickers_recent_limit) — остальные просто не выводились.");
-                    } else {
-                        cell.setText("Размер стикеров в чатах относительно стандартного размера Telegram.");
-                    }
-                    break;
-                }
             }
         }
     }
 
-    /** Seek bar with the current value drawn on the right. */
-    private static class SliderCell extends FrameLayout {
-        private final SeekBarView seekBar;
-        private final TextView valueView;
-        private int min, max, step;
-        private String suffix;
-        private Utilities.Callback<Integer> onChange;
+    /** Title + subtitle with a white icon on a rounded gradient square, as in Telegram's main settings list. */
+    private static class CategoryCell extends LinearLayout {
+        private final SettingsActivity.SettingCell.Background iconBackground;
+        private final ImageView iconView;
+        private final TextView titleView;
+        private final TextView subtitleView;
 
-        SliderCell(Context context) {
+        CategoryCell(Context context) {
             super(context);
-            seekBar = new SeekBarView(context);
-            seekBar.setReportChanges(true);
-            seekBar.setDelegate(new SeekBarView.SeekBarViewDelegate() {
-                @Override
-                public void onSeekBarDrag(boolean stop, float progress) {
-                    int value = valueFor(progress);
-                    valueView.setText(value + suffix);
-                    if (onChange != null) {
-                        onChange.run(value);
-                    }
-                }
+            setOrientation(HORIZONTAL);
 
-                @Override
-                public int getStepsCount() {
-                    return (max - min) / step;
-                }
-            });
-            addView(seekBar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 38, Gravity.LEFT | Gravity.CENTER_VERTICAL, 5, 5, 72, 5));
+            FrameLayout iconLayout = new FrameLayout(context);
+            iconLayout.setBackground(iconBackground = new SettingsActivity.SettingCell.Background());
+            iconView = new ImageView(context);
+            iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            iconView.setColorFilter(new PorterDuffColorFilter(0xFFFFFFFF, PorterDuff.Mode.SRC_IN));
+            iconLayout.addView(iconView, LayoutHelper.createFrame(24, 24, Gravity.CENTER));
 
-            valueView = new TextView(context);
-            valueView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
-            valueView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteValueText));
-            valueView.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-            addView(valueView, LayoutHelper.createFrame(72, LayoutHelper.MATCH_PARENT, Gravity.RIGHT, 0, 0, 16, 0));
+            LinearLayout textLayout = new LinearLayout(context);
+            textLayout.setOrientation(VERTICAL);
+            titleView = new TextView(context);
+            titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+            titleView.setSingleLine(true);
+            titleView.setEllipsize(TextUtils.TruncateAt.END);
+            titleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+            textLayout.addView(titleView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+            subtitleView = new TextView(context);
+            subtitleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+            subtitleView.setSingleLine(true);
+            subtitleView.setEllipsize(TextUtils.TruncateAt.END);
+            subtitleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
+            textLayout.addView(subtitleView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 4, 0, 0));
+
+            if (LocaleController.isRTL) {
+                addView(textLayout, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1, Gravity.CENTER_VERTICAL, 20, 0, 18, 0));
+                addView(iconLayout, LayoutHelper.createLinear(28, 28, Gravity.CENTER_VERTICAL, 0, 0, 18, 0));
+            } else {
+                addView(iconLayout, LayoutHelper.createLinear(28, 28, Gravity.CENTER_VERTICAL, 18, 0, 0, 0));
+                addView(textLayout, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1, Gravity.CENTER_VERTICAL, 18, 0, 20, 0));
+            }
+            iconBackground.setDrawBorder(Theme.isCurrentThemeDark());
         }
 
-        private int valueFor(float progress) {
-            int steps = (max - min) / step;
-            return min + Math.round(progress * steps) * step;
-        }
-
-        void bind(int min, int max, int step, int value, String suffix, Utilities.Callback<Integer> onChange) {
-            this.min = min;
-            this.max = max;
-            this.step = step;
-            this.suffix = suffix;
-            this.onChange = onChange;
-            seekBar.setSeparatorsCount((max - min) / step + 1);
-            seekBar.setProgress((value - min) / (float) (max - min));
-            valueView.setText(value + suffix);
+        void set(Row row) {
+            iconBackground.setColor(row.colors.top, row.colors.bottom);
+            iconView.setImageResource(row.icon);
+            titleView.setText(row.title);
+            subtitleView.setText(row.subtitle);
+            subtitleView.setVisibility(TextUtils.isEmpty(row.subtitle) ? GONE : VISIBLE);
         }
 
         @Override
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(48), MeasureSpec.EXACTLY));
+            super.onMeasure(MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY),
+                    MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(60), MeasureSpec.EXACTLY));
         }
-    }
-
-    /** Chat wallpaper with an incoming text message and an outgoing sticker, laid out by ChatMessageCell. */
-    private class StickerPreviewCell extends FrameLayout {
-        private final LinearLayout messagesLayout;
-        private ChatMessageCell stickerCell;
-        private MessageObject stickerMessage;
-
-        StickerPreviewCell(Context context) {
-            super(context);
-            setWillNotDraw(false);
-            messagesLayout = new LinearLayout(context);
-            messagesLayout.setOrientation(LinearLayout.VERTICAL);
-            messagesLayout.setPadding(0, AndroidUtilities.dp(11), 0, AndroidUtilities.dp(11));
-            addView(messagesLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
-
-            int account = UserConfig.selectedAccount;
-            TLRPC.Document sticker = pickSticker(account);
-            messagesLayout.addView(createCell(context, buildMessage(account, sticker != null ? "Покажи стикер" : "Нет недавних стикеров: отправь любой стикер, и он появится здесь", null, false)));
-            if (sticker != null) {
-                stickerMessage = buildMessage(account, "", sticker, true);
-                stickerCell = createCell(context, stickerMessage);
-                messagesLayout.addView(stickerCell);
-            }
-        }
-
-        private ChatMessageCell createCell(Context context, MessageObject messageObject) {
-            ChatMessageCell cell = new ChatMessageCell(context, UserConfig.selectedAccount);
-            cell.setDelegate(new ChatMessageCell.ChatMessageCellDelegate() {});
-            cell.setFullyDraw(true);
-            cell.setMessageObject(messageObject, null, false, false, false);
-            cell.setLayoutParams(LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
-            return cell;
-        }
-
-        void updateSticker() {
-            if (stickerCell == null || stickerMessage == null) {
-                return;
-            }
-            final int oldHeight = stickerCell.getMeasuredHeight();
-            final float oldScale = stickerCell.getScaleY();
-            stickerMessage.forceUpdate = true;
-            stickerCell.setMessageObject(stickerMessage, null, false, false, false);
-            stickerCell.requestLayout();
-            requestLayout();
-            if (oldHeight > 0 && stickerCell.isAttachedToWindow() && RawMotion.active()) {
-                // the sticker grows / shrinks smoothly to the new size instead of jumping step by step
-                final ChatMessageCell cell = stickerCell;
-                cell.getViewTreeObserver().addOnPreDrawListener(new android.view.ViewTreeObserver.OnPreDrawListener() {
-                    @Override
-                    public boolean onPreDraw() {
-                        if (cell.getViewTreeObserver().isAlive()) {
-                            cell.getViewTreeObserver().removeOnPreDrawListener(this);
-                        }
-                        int newHeight = cell.getMeasuredHeight();
-                        if (newHeight > 0 && newHeight != oldHeight) {
-                            float from = oldHeight * oldScale / newHeight;
-                            cell.animate().cancel();
-                            cell.setPivotX(cell.getWidth());
-                            cell.setPivotY(0);
-                            cell.setScaleX(from);
-                            cell.setScaleY(from);
-                            cell.animate().scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(RawMotion.EMPHASIZED).start();
-                        }
-                        return true;
-                    }
-                });
-            }
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            Drawable wallpaper = Theme.getCachedWallpaperNonBlocking();
-            if (wallpaper != null) {
-                canvas.save();
-                canvas.clipRect(0, 0, getWidth(), getHeight());
-                // lay the wallpaper out as in a full-screen chat and show its middle band
-                int fullHeight = Math.max(getHeight(), AndroidUtilities.displaySize.y);
-                canvas.translate(0, -(fullHeight - getHeight()) / 2f);
-                StoryEntry.drawBackgroundDrawable(canvas, wallpaper, getWidth(), fullHeight);
-                canvas.restore();
-            } else {
-                canvas.drawColor(Theme.getColor(Theme.key_chat_wallpaper));
-            }
-            if (Theme.wallpaperLoadTask != null) {
-                invalidate();
-            }
-        }
-    }
-
-    private static TLRPC.Document pickSticker(int account) {
-        MediaDataController controller = MediaDataController.getInstance(account);
-        ArrayList<TLRPC.Document> recent = controller.getRecentStickers(MediaDataController.TYPE_IMAGE);
-        if (recent != null && !recent.isEmpty()) {
-            return recent.get(0);
-        }
-        ArrayList<TLRPC.Document> faves = controller.getRecentStickers(MediaDataController.TYPE_FAVE);
-        if (faves != null && !faves.isEmpty()) {
-            return faves.get(0);
-        }
-        return null;
-    }
-
-    private static MessageObject buildMessage(int account, String text, TLRPC.Document sticker, boolean out) {
-        long selfId = UserConfig.getInstance(account).getClientUserId();
-        TLRPC.TL_message message = new TLRPC.TL_message();
-        message.id = out ? 2 : 1;
-        message.date = (int) (System.currentTimeMillis() / 1000) - 60;
-        message.dialog_id = 1;
-        message.out = out;
-        message.from_id = new TLRPC.TL_peerUser();
-        message.from_id.user_id = out ? selfId : 0;
-        message.peer_id = new TLRPC.TL_peerUser();
-        message.peer_id.user_id = out ? 0 : selfId;
-        message.message = text;
-        message.flags |= 256;
-        if (sticker != null) {
-            TLRPC.TL_messageMediaDocument media = new TLRPC.TL_messageMediaDocument();
-            media.document = sticker;
-            media.flags |= 1;
-            message.media = media;
-            message.flags |= 512;
-        } else {
-            message.media = new TLRPC.TL_messageMediaEmpty();
-        }
-        MessageObject messageObject = new MessageObject(account, message, true, false);
-        messageObject.resetLayout();
-        messageObject.eventId = 1;
-        return messageObject;
     }
 }

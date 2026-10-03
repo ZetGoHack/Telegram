@@ -214,7 +214,7 @@ public class RawRequestLogActivity extends BaseFragment {
         if (items.isEmpty()) {
             emptyView.setVisibility(View.VISIBLE);
             if (!RawRequestLog.enabled) {
-                emptyView.setText("Журнал выключен.\nВключи его в меню ⋮ или в настройках rawGram — запись начнётся с новых запросов.");
+                emptyView.setText("Журнал выключен.\nВключи его в меню ⋮ или в «Инструментах разработчика» — запись начнётся с новых запросов.");
             } else if (!all.isEmpty()) {
                 emptyView.setText("Ничего не подходит под фильтр");
             } else {
