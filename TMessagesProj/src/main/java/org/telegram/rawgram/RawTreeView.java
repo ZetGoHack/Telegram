@@ -241,12 +241,57 @@ public class RawTreeView extends RecyclerListView {
         return lastScrollTime;
     }
 
+    // the list wraps its content: on expand/collapse its height would jump in one frame (the sheet with it),
+    // so the height glides from the old value to the new one while the rows animate
+    private int heightFrom = -1;
+    private int animatedHeight = -1;
+    private android.animation.ValueAnimator heightAnimator;
+
+    private void prepareHeightChange() {
+        if (!RawMotion.active() || getHeight() <= 0) {
+            return;
+        }
+        heightFrom = animatedHeight >= 0 ? animatedHeight : getHeight();
+    }
+
     @Override
     protected void onMeasure(int widthSpec, int heightSpec) {
         if (maxHeight > 0) {
             heightSpec = MeasureSpec.makeMeasureSpec(maxHeight, MeasureSpec.AT_MOST);
         }
         super.onMeasure(widthSpec, heightSpec);
+        int target = getMeasuredHeight();
+        if (heightFrom >= 0 && heightFrom != target) {
+            final int from = heightFrom;
+            heightFrom = -1;
+            if (heightAnimator != null) {
+                heightAnimator.cancel();
+            }
+            animatedHeight = from;
+            heightAnimator = android.animation.ValueAnimator.ofInt(from, target);
+            heightAnimator.setDuration(300);
+            heightAnimator.setInterpolator(RawMotion.EMPHASIZED);
+            heightAnimator.addUpdateListener(a -> {
+                animatedHeight = (int) a.getAnimatedValue();
+                requestLayout();
+            });
+            heightAnimator.addListener(new android.animation.AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(android.animation.Animator animation) {
+                    if (heightAnimator == animation) {
+                        heightAnimator = null;
+                        animatedHeight = -1;
+                        requestLayout();
+                    }
+                }
+            });
+            heightAnimator.start();
+        } else {
+            heightFrom = -1;
+        }
+        if (animatedHeight >= 0) {
+            setMeasuredDimension(getMeasuredWidth(), animatedHeight);
+        }
     }
 
     public void setObject(Object object) {
@@ -295,6 +340,7 @@ public class RawTreeView extends RecyclerListView {
         Row row = rows.get(position);
         Node node = row.node;
         if (row.more) {
+            prepareHeightChange();
             int from = node.shown;
             node.shown += MORE_STEP;
             ArrayList<Row> added = new ArrayList<>();
@@ -306,6 +352,7 @@ public class RawTreeView extends RecyclerListView {
             return;
         }
         if (node.expandable()) {
+            prepareHeightChange();
             node.expanded = !node.expanded;
             if (view instanceof RowView) {
                 ((RowView) view).setExpanded(node.expanded, true);

@@ -133,7 +133,7 @@ public class RawChatHooks {
         }
         if (enterView.rawgramIsEmojiPanelShowing()) {
             // emoji / sticker / GIF panel: fold it the same way as the keyboard (the bot keyboard stays)
-            enterView.hidePopup(false);
+            enterView.hidePopup(true); // same path as the back button: animated, no "wait for the keyboard"
         } else if (!enterView.isPopupShowing() && enterView.getEditField() != null && enterView.getEditField().isFocused()
                 && host.isTypingInChat()) {
             enterView.closeKeyboard();
