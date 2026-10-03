@@ -44,6 +44,8 @@ public class RawDevSettingsActivity extends BaseFragment {
     private static final int BOT_ANSWERS = 7;
     private static final int WEBAPP = 8;
     private static final int REQUEST_LOG = 9;
+    private static final int ID_SEARCH = 10;
+    private static final int NUMBER_IDS = 11;
     // values / actions
     private static final int ID_FORMAT = 20;
     private static final int OPEN_REQUEST_LOG = 21;
@@ -91,6 +93,12 @@ public class RawDevSettingsActivity extends BaseFragment {
         value("ID в профилях", ID_FORMAT);
         info("Выключенная функция не показывается, и Telegram ведёт себя как обычно. ID в профиле копируется нажатием.");
 
+        header("Поиск по ID");
+        check("Поиск по ID в кеше", ID_SEARCH);
+        check("Числа в сообщениях: искать пользователя по ID", NUMBER_IDS);
+        info("Запрос вида 123456789, -1001234567890, -123456 или id123456 в поиске чатов показывает пользователей и чаты с этим ID из локального кеша первыми. "
+                + "В меню выделенного номера в сообщении — профиль с таким ID, если он есть в кеше. Сеть не используется: чего нет в кеше, найти нельзя.");
+
         header("Инлайн-боты");
         check("Raw результата по долгому нажатию", INLINE_RAW);
         check("Лоток инлайн-выдачи", TRAY);
@@ -125,6 +133,8 @@ public class RawDevSettingsActivity extends BaseFragment {
             case BOT_ANSWERS: return RawgramConfig.isBotAnswerLog();
             case WEBAPP: return RawgramConfig.isWebAppData();
             case REQUEST_LOG: return RawRequestLog.enabled;
+            case ID_SEARCH: return RawgramConfig.isIdSearch();
+            case NUMBER_IDS: return RawgramConfig.isNumberIds();
             default: return false;
         }
     }
@@ -140,6 +150,8 @@ public class RawDevSettingsActivity extends BaseFragment {
             case BOT_ANSWERS: RawgramConfig.setBotAnswerLog(value); break;
             case WEBAPP: RawgramConfig.setWebAppData(value); break;
             case REQUEST_LOG: RawRequestLog.setEnabled(value); break;
+            case ID_SEARCH: RawgramConfig.setIdSearch(value); break;
+            case NUMBER_IDS: RawgramConfig.setNumberIds(value); break;
         }
     }
 

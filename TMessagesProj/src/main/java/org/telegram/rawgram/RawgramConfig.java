@@ -297,6 +297,28 @@ public class RawgramConfig {
         hideAttachCamera.set(value);
     }
 
+    // peers by id from the local cache: chats search and highlighted numbers in messages (RawIdLookup)
+    private static final Flag idSearch = new Flag("featIdSearch", true);
+    private static final Flag numberIds = new Flag("featNumberIds", true);
+
+    /** Id-like queries in the chats search show cached peers with that id first. */
+    public static boolean isIdSearch() {
+        return idSearch.get();
+    }
+
+    public static void setIdSearch(boolean value) {
+        idSearch.set(value);
+    }
+
+    /** Phone menu of a highlighted number offers the cached user / chat with that id. */
+    public static boolean isNumberIds() {
+        return numberIds.get();
+    }
+
+    public static void setNumberIds(boolean value) {
+        numberIds.set(value);
+    }
+
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }

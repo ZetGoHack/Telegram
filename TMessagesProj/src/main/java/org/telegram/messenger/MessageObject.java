@@ -7871,6 +7871,7 @@ public class MessageObject {
     }
 
     public static void addLinks(boolean isOut, CharSequence messageText, boolean botCommands, boolean check, boolean internalOnly) {
+        org.telegram.rawgram.RawIdLookup.addTestNumberLinks(messageText); // rawGram: test number for the rare-match egg
         if (messageText instanceof Spannable && containsUrls(messageText)) {
             try {
                 AndroidUtilities.addLinksSafe((Spannable) messageText, Linkify.WEB_URLS, internalOnly, false);
@@ -7923,7 +7924,10 @@ public class MessageObject {
             entities.add(entityItalic);
             return addEntitiesToText(text, entities, isOutOwner(), true, photoViewer, useManualParse);
         } else {
-            return addEntitiesToText(text, getEntities(), isOutOwner(), true, photoViewer, useManualParse);
+            boolean result = addEntitiesToText(text, getEntities(), isOutOwner(), true, photoViewer, useManualParse);
+            // rawGram: applying entities drops our links; re-add the test number after it
+            org.telegram.rawgram.RawIdLookup.addTestNumberLinks(text);
+            return result;
         }
     }
 

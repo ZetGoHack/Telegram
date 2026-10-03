@@ -960,6 +960,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
             ArrayList<ContactsController.Contact> contacts = new ArrayList<>();
 
             MessagesStorage.getInstance(currentAccount).localSearch(dialogsType, q, resultArray, resultArrayNames, encUsers, filterDialogIds, -1);
+            if (filterDialogIds == null) org.telegram.rawgram.RawIdLookup.prependSearchResults(currentAccount, dialogsType, q, resultArray, resultArrayNames); // rawGram: id-like query -> cached peers first
             updateSearchResults(resultArray, resultArrayNames, encUsers, contacts, searchId);
             FiltersView.fillTipDates(q, localTipDates);
             localTipArchive = false;
@@ -1916,6 +1917,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                 cell.allowBotOpenButton(isRecent, this::openBotApp);
                 cell.setOnSponsoredOptionsClick(this::openSponsoredOptions);
                 cell.setAd(obj instanceof TLRPC.TL_sponsoredPeer ? (TLRPC.TL_sponsoredPeer) obj : null);
+                if (!isRecent) username = org.telegram.rawgram.RawIdLookup.searchSubtitle(lastSearchText, obj, username); // rawGram: "ID …" on id matches
                 cell.setData(user != null ? user : chat, encryptedChat, name, username, true, savedMessages);
                 cell.setChecked(delegate.isSelected(cell.getDialogId()), oldDialogId == cell.getDialogId());
                 break;

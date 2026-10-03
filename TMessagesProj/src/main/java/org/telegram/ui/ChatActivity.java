@@ -45110,11 +45110,12 @@ public class ChatActivity extends BaseFragment implements
                     BulletinFactory.of(this).createCopyBulletin(LocaleController.getString(R.string.PhoneCopied)).show();
                 });
                 options.addGap();
-                options.addProfile(user, getString(R.string.ViewProfile), () -> {
+                options.addProfile(user, org.telegram.rawgram.RawIdLookup.phoneProfileSubtitle(ChatActivity.this, phone, user, getString(R.string.ViewProfile)), () -> { // rawGram: "· по номеру" when an id match differs
                     dialog.dismiss();
                     presentFragment(ProfileActivity.of(user.id));
                 });
             }
+            org.telegram.rawgram.RawIdLookup.addNumberItems(ChatActivity.this, options, phone, user); // rawGram: the number as a user / chat id, next to the phone match
 
             dialog.setItemOptions(options);
             if (link instanceof URLSpanReplacement) {
