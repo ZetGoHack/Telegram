@@ -981,6 +981,7 @@ public class EditTextCaption extends EditTextBoldCursor implements FloatingToolb
                     }
                     int start = Math.max(0, getSelectionStart());
                     int end = Math.min(getText().length(), getSelectionEnd());
+                    pasted = org.telegram.rawgram.RawPaste.fixCodeNbsp(pasted, getText(), start, end); // rawGram: &nbsp; -> space inside code
                     QuoteSpan.QuoteStyleSpan[] quotesInSelection = getText().getSpans(start, end, QuoteSpan.QuoteStyleSpan.class);
                     if (quotesInSelection != null && quotesInSelection.length > 0) {
                         QuoteSpan.QuoteStyleSpan[] quotesToDelete = pasted.getSpans(0, pasted.length(), QuoteSpan.QuoteStyleSpan.class);

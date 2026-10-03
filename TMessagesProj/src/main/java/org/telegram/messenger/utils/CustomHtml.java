@@ -15,6 +15,7 @@ public class CustomHtml {
     private CustomHtml() { }
 
     public static String toHtml(Spanned text) {
+        rawgramPreDepth.get()[0] = 0;
         StringBuilder out = new StringBuilder();
         toHTML_0_wrapQuote(out, text, 0, text.length());
         return out.toString();
@@ -156,6 +157,15 @@ public class CustomHtml {
         }
     }
 
+    // rawGram: inside <pre> whitespace is preserved by HTML itself; writing runs of spaces as &nbsp; there made
+    // pasted code come back with U+00A0 instead of spaces (breaking it)
+    private static final ThreadLocal<int[]> rawgramPreDepth = new ThreadLocal<int[]>() {
+        @Override
+        protected int[] initialValue() {
+            return new int[1];
+        }
+    };
+
     private static void toHTML_3_wrapMonoscape(StringBuilder out, Spanned text, int start, int end) {
 
         int next;
@@ -171,6 +181,7 @@ public class CustomHtml {
                     URLSpanMono span = spans[j];
                     if (span != null) {
                         out.append("<pre>");
+                        rawgramPreDepth.get()[0]++;
                     }
                 }
             }
@@ -182,6 +193,7 @@ public class CustomHtml {
                     URLSpanMono span = spans[j];
                     if (span != null) {
                         out.append("</pre>");
+                        rawgramPreDepth.get()[0]--;
                     }
                 }
             }
@@ -207,6 +219,7 @@ public class CustomHtml {
                         } else {
                             out.append("<pre lang=\"").append(span.lng).append("\">");
                         }
+                        rawgramPreDepth.get()[0]++;
                     }
                 }
             }
@@ -218,6 +231,7 @@ public class CustomHtml {
                     CodeHighlighting.Span span = spans[j];
                     if (span != null) {
                         out.append("</pre>");
+                        rawgramPreDepth.get()[0]--;
                     }
                 }
             }
@@ -278,6 +292,8 @@ public class CustomHtml {
                 }
             } else if (c > 0x7E || c < ' ') {
                 out.append("&#").append((int) c).append(";");
+            } else if (c == ' ' && rawgramPreDepth.get()[0] > 0) {
+                out.append(' ');
             } else if (c == ' ') {
                 while (i + 1 < end && text.charAt(i + 1) == ' ') {
                     out.append("&nbsp;");

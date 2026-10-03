@@ -5400,7 +5400,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                     }
                     return true;
                 };
-                return InputConnectionCompat.createWrapper(ic, editorInfo, callback);
+                return org.telegram.rawgram.RawPaste.wrapClipboardCommit(InputConnectionCompat.createWrapper(ic, editorInfo, callback), this); // rawGram: rich paste from Gboard clipboard
             } catch (Throwable e) {
                 FileLog.e(e);
             }
@@ -10756,7 +10756,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                 return true;
             }
 
-            final SpannableStringBuilder pasted = new SpannableStringBuilder(RichMessageConvert.rowsToCharSequence(rows));
+            final SpannableStringBuilder pasted = org.telegram.rawgram.RawPaste.fixCodeNbsp(new SpannableStringBuilder(RichMessageConvert.rowsToCharSequence(rows)), messageEditText.getText(), messageEditText.getSelectionStart(), messageEditText.getSelectionEnd()); // rawGram: &nbsp; -> space inside code
             Emoji.replaceEmoji(pasted, messageEditText.getPaint().getFontMetricsInt(), false, null);
             final AnimatedEmojiSpan[] emoji = pasted.getSpans(0, pasted.length(), AnimatedEmojiSpan.class);
             if (emoji != null) {
