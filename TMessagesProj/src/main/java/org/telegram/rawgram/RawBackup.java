@@ -182,6 +182,15 @@ public final class RawBackup {
         button.postDelayed(() -> lockButton(button, seconds - 1), 1000);
     }
 
+    private static boolean hasAnyAccount() {
+        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+            if (UserConfig.getInstance(a).isClientActivated()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean hasTrustedAccount() {
         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
             UserConfig config = UserConfig.getInstance(a);
@@ -422,6 +431,7 @@ public final class RawBackup {
     /** Long press on the Telegram icon of the login screen. */
     public static void showLoginMenu(BaseFragment fragment, View anchor) {
         ItemOptions.makeOptions(fragment, anchor)
+                .setGravity(Gravity.CENTER_HORIZONTAL)
                 .add(R.drawable.msg_download, "Восстановить данные", () -> pickRestore(fragment))
                 .show();
     }
@@ -586,7 +596,10 @@ public final class RawBackup {
             return;
         }
         String kind = manifest.optString("kind");
-        String what = "storage".equals(kind) ? "всё хранилище: сессии, базы и настройки. Текущие данные приложения будут удалены"
+        // a fresh install (nobody logged in) has nothing to lose: no talk of wiping, no red button
+        boolean fresh = !hasAnyAccount();
+        boolean destructive = "storage".equals(kind) && !fresh;
+        String what = "storage".equals(kind) ? (fresh ? "всё хранилище: аккаунты, базы и настройки" : "всё хранилище: сессии, базы и настройки. Текущие данные приложения будут удалены")
                 : "data".equals(kind) ? "настройки и собранные данные rawGram" : "настройки rawGram и Telegram";
         String date = new SimpleDateFormat("d MMMM yyyy, HH:mm", Locale.getDefault()).format(new Date(manifest.optLong("created")));
         String text = "Копия от " + date + " (" + manifest.optString("package") + ", " + manifest.optString("version") + ").\n\n"
@@ -606,7 +619,7 @@ public final class RawBackup {
                 .setNegativeButton("Отмена", (d, w) -> staged.delete())
                 .create();
         fragment.showDialog(dialog);
-        if ("storage".equals(kind)) {
+        if (destructive) {
             TextView button = (TextView) dialog.getButton(AlertDialog.BUTTON_POSITIVE);
             if (button != null) {
                 button.setTextColor(Theme.getColor(Theme.key_text_RedBold, fragment.getResourceProvider()));
@@ -681,11 +694,38 @@ public final class RawBackup {
                     }
                 }
             }
+            resetServerListTimers(base);
         } catch (Throwable e) {
             android.util.Log.e("rawGram", "restore failed", e);
         } finally {
             staged.delete();
             new File(dir, "incoming.bin").delete();
+        }
+    }
+
+    /**
+     * Telegram refetches recent stickers, GIFs, favorites and emoji packs at most once an hour and keeps the time of
+     * the last fetch in the emoji prefs. Restored with the backup, those times say «fresh», so lists missing from the
+     * restored database would stay empty for up to an hour: drop the times so everything is fetched on start.
+     */
+    private static void resetServerListTimers(Context base) {
+        File prefsDir = new File(base.getApplicationInfo().dataDir, "shared_prefs");
+        String[] names = prefsDir.list();
+        if (names == null) {
+            return;
+        }
+        for (String file : names) {
+            if (!file.matches("emoji\\d*\\.xml")) {
+                continue;
+            }
+            android.content.SharedPreferences prefs = base.getSharedPreferences(file.substring(0, file.length() - 4), Context.MODE_PRIVATE);
+            android.content.SharedPreferences.Editor editor = prefs.edit();
+            for (String key : prefs.getAll().keySet()) {
+                if (key.startsWith("last") && key.contains("LoadTime")) {
+                    editor.remove(key);
+                }
+            }
+            editor.commit();
         }
     }
 

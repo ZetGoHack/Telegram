@@ -100,6 +100,7 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
     private final int currentAccount = UserConfig.selectedAccount;
 
     private ViewPager viewPager;
+    private View rawLogo; // rawGram
     private BottomPagesView bottomPages;
     private TextView switchLanguageTextView;
     private GradientDrawable startMessagingButtonBackground;
@@ -163,6 +164,7 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
         SpannableStringBuilder ssb = new SpannableStringBuilder(LocaleController.getString(R.string.Page1Title));
         ssb.setSpan(new ImageSpan(logoDrawable), 0, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         titles[0] = ssb;
+        titles[0] = "rawGram"; // rawGram: own name instead of the Telegram wordmark
 
 
         actionBar.setAddToContainer(false);
@@ -253,11 +255,8 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
         frameContainerView.addView(frameLayout2, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 0, 78, 0, 0));
 
         TextureView textureView = new TextureView(context);
-        textureView.setOnLongClickListener(v -> { // rawGram: hold the icon → restore a backup
-            org.telegram.rawgram.RawBackup.showLoginMenu(this, v);
-            return true;
-        });
         frameLayout2.addView(textureView, LayoutHelper.createFrame(ICON_WIDTH_DP, ICON_HEIGHT_DP, Gravity.CENTER));
+        rawLogo = org.telegram.rawgram.RawLoginUi.addLogo(frameLayout2); // rawGram: own icon over the Telegram logo
         textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surface, int width, int height) {
@@ -306,10 +305,13 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
         viewPager.setPageMargin(0);
         viewPager.setOffscreenPageLimit(1);
         frameContainerView.addView(viewPager, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        // rawGram: hold the icon → restore a backup (the pager covers the icon, so the press is detected on its touches)
+        org.telegram.rawgram.RawLoginUi.attachLongPress(viewPager, rawLogo, () -> org.telegram.rawgram.RawBackup.showLoginMenu(this, rawLogo));
         viewPager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
             @Override
             public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
                 bottomPages.setPageOffset(position, positionOffset);
+                org.telegram.rawgram.RawLoginUi.onPageScrolled(rawLogo, position, positionOffset); // rawGram
 
                 float width = viewPager.getMeasuredWidth();
                 if (width == 0) {
