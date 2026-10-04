@@ -12238,6 +12238,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (topicId == 0 && ChatObject.canChangeChatInfo(chat)) {
                 createAutoDeleteItem(context);
             }
+            if (!isTopic && org.telegram.rawgram.RawChatViewOnly.canOpen(chat)) {
+                editItemVisible = true; // rawGram: the admin screen read-only for non-admins
+            }
             if (ChatObject.isChannel(chat)) {
                 if (isTopic) {
                     if (ChatObject.canManageTopic(currentAccount, chat, topicId)) {

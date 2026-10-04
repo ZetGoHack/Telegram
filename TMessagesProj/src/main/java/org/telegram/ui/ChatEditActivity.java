@@ -122,6 +122,8 @@ import java.util.concurrent.CountDownLatch;
 public class ChatEditActivity extends BaseFragment implements ImageUpdater.ImageUpdaterDelegate, NotificationCenter.NotificationCenterDelegate {
 
     private View doneButton;
+    // rawGram: opened by a non-admin from the profile pencil — the admin screen as a read-only overview
+    private boolean rawViewOnly;
 
     private AlertDialog progressDialog;
 
@@ -512,6 +514,7 @@ public class ChatEditActivity extends BaseFragment implements ImageUpdater.Image
 
     @Override
     public View createView(Context context) {
+        rawViewOnly = org.telegram.rawgram.RawChatViewOnly.isViewOnly(currentChat); // rawGram
         if (nameTextView != null) {
             nameTextView.onDestroy();
         }
@@ -763,7 +766,7 @@ public class ChatEditActivity extends BaseFragment implements ImageUpdater.Image
         } else {
             nameTextView.setHint(getString("GroupName", R.string.GroupName));
         }
-        nameTextView.setEnabled(currentChat != null || ChatObject.canChangeChatInfo(currentChat));
+        nameTextView.setEnabled(!rawViewOnly && (currentChat != null || ChatObject.canChangeChatInfo(currentChat))); // rawGram: read-only
         nameTextView.setFocusable(nameTextView.isEnabled());
         nameTextView.getEditText().addTextChangedListener(new TextWatcher() {
             @Override
@@ -1377,7 +1380,7 @@ public class ChatEditActivity extends BaseFragment implements ImageUpdater.Image
         }
 
         if (currentChat != null) {
-            if (!ChatObject.hasAdminRights(currentChat)) {
+            if (!ChatObject.hasAdminRights(currentChat) && !rawViewOnly) { // rawGram: kept for the read-only overview
                 infoContainer.setVisibility(View.GONE);
                 settingsTopSectionCell.setVisibility(View.GONE);
             }
@@ -2407,7 +2410,7 @@ public class ChatEditActivity extends BaseFragment implements ImageUpdater.Image
                         blockCell.setTextAndValueAndIcon(getString(R.string.ChannelBlacklist), String.format("%d", Math.max(info.banned_count, info.kicked_count)), R.drawable.msg_user_remove, logCell != null && logCell.getVisibility() == View.VISIBLE);
                     } else {
                         int count = 0;
-                        int totalCount = forum ? 16 : 15;
+                        int totalCount = (forum ? 16 : 15) + org.telegram.rawgram.RawPermissions.extra(); // rawGram: split media rights
                         if (currentChat.default_banned_rights != null) {
                             if (!currentChat.default_banned_rights.send_plain) {
                                 count++;
@@ -2415,7 +2418,7 @@ public class ChatEditActivity extends BaseFragment implements ImageUpdater.Image
                             if (!currentChat.default_banned_rights.edit_rank) {
                                 count++;
                             }
-                            count += ChatUsersActivity.getSendMediaSelectedCount(currentChat.default_banned_rights);
+                            count += org.telegram.rawgram.RawPermissions.mediaCount(currentChat.default_banned_rights); // rawGram
                             if (!currentChat.default_banned_rights.pin_messages) {
                                 count++;
                             }
@@ -2463,6 +2466,10 @@ public class ChatEditActivity extends BaseFragment implements ImageUpdater.Image
                     inviteLinksCell.setTextAndValueAndIcon(getString("InviteLinks", R.string.InviteLinks), "1", R.drawable.msg_link2, true);
                 }
             }
+        }
+
+        if (rawViewOnly) {
+            org.telegram.rawgram.RawChatViewOnly.restrict(currentAccount, currentChat, info, reactionsCell, inviteLinksCell, memberRequestsCell, logCell, channelAffiliateProgramsCell, blockCell, adminCell, membersCell); // rawGram
         }
 
         if (stickersCell != null && info != null) {

@@ -3,6 +3,9 @@ package org.telegram.rawgram;
 import static org.telegram.messenger.AndroidUtilities.dp;
 
 import android.app.Activity;
+import android.text.Spannable;
+import android.text.SpannableString;
+import android.text.Spanned;
 import android.text.TextUtils;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
@@ -30,6 +33,7 @@ import org.telegram.ui.Components.ChatActivityEnterView;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.MentionsContainerView;
+import org.telegram.ui.Components.URLSpanUserMention;
 import org.telegram.ui.Components.chat.layouts.ChatActivitySideControlsButtonsLayout;
 import org.telegram.ui.ContentPreviewViewer;
 
@@ -76,6 +80,9 @@ public class RawChatHooks {
 
         void closeMenu();
 
+        /** Sends {@code result} of {@code bot} (not the inline bot in the field) through the chat's normal path, then runs onSent; null where sending isn't possible. */
+        Utilities.Callback3<TLRPC.BotInlineResult, TLRPC.User, Runnable> foreignInlineSender();
+
         /** Runs a message menu option (ChatActivity.OPTION_*) for {@code message}, as if picked from its menu. */
         void runMessageOption(MessageObject message, int option);
     }
@@ -94,6 +101,44 @@ public class RawChatHooks {
             ui = new RawChatUiActions(host);
         }
         return ui;
+    }
+
+    /** A tap on a row of the mentions list; true when rawGram handled it. */
+    public boolean onMentionClick(Object item) {
+        if (item instanceof RawUserInfo.Hint) {
+            RawUserInfo.lookup(host, (RawUserInfo.Hint) item);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Long press on a user in the @-suggestions: inserts the user's name as a mention (like Telegram does for users
+     * without a username) instead of @username.
+     */
+    public boolean onMentionLongPress(View view, int position, boolean searchingForUser) {
+        MentionsContainerView mentions = host.mentions();
+        ChatActivityEnterView enterView = host.enterView();
+        if (searchingForUser || mentions == null || enterView == null || position <= 0 || mentions.getAdapter().isBannedInline()) {
+            return false;
+        }
+        Object item = mentions.getAdapter().getItem(position - 1);
+        if (!(item instanceof TLRPC.User) || item instanceof RawUserInfo.Hint) {
+            return false;
+        }
+        TLRPC.User user = (TLRPC.User) item;
+        String name = UserObject.getFirstName(user, false);
+        if (TextUtils.isEmpty(name)) {
+            return false;
+        }
+        Spannable spannable = new SpannableString(name + " ");
+        spannable.setSpan(new URLSpanUserMention("" + user.id, 3), 0, spannable.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        enterView.replaceWithText(mentions.getAdapter().getResultStartPosition(), mentions.getAdapter().getResultLength(), spannable, false);
+        try {
+            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+        } catch (Exception ignore) {
+        }
+        return true;
     }
 
     // ---- lifecycle ----

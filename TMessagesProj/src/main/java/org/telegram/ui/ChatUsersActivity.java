@@ -139,6 +139,9 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
     private int sendMediaPhotosRow;
     private int sendMediaVideosRow;
     private int sendMediaStickerGifsRow;
+    // rawGram: stickers / GIFs / games / inline bots as separate rows (RawPermissions); read-only overview for non-admins
+    private int sendMediaGifsRow, sendMediaGamesRow, sendMediaInlineRow;
+    private boolean rawViewOnly;
     private int sendMediaMusicRow;
     private int sendMediaFilesRow;
     private int sendMediaVoiceMessagesRow;
@@ -385,6 +388,7 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
         sendMediaPhotosRow = -1;
         sendMediaVideosRow = -1;
         sendMediaStickerGifsRow = -1;
+        sendMediaGifsRow = sendMediaGamesRow = sendMediaInlineRow = -1;
         sendMediaMusicRow = -1;
         sendMediaFilesRow = -1;
         sendMediaVoiceMessagesRow = -1;
@@ -407,6 +411,11 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
                     sendMediaPhotosRow = rowCount++;
                     sendMediaVideosRow = rowCount++;
                     sendMediaStickerGifsRow = rowCount++;
+                    if (org.telegram.rawgram.RawPermissions.split()) {
+                        sendMediaGifsRow = rowCount++;
+                        sendMediaGamesRow = rowCount++;
+                        sendMediaInlineRow = rowCount++;
+                    }
                     sendMediaMusicRow = rowCount++;
                     sendMediaFilesRow = rowCount++;
                     sendMediaVoiceMessagesRow = rowCount++;
@@ -469,7 +478,7 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
                 dontRestrictBoostersInfoRow = rowCount++;
             }
 
-            if (ChatObject.isChannel(currentChat) && !isCommunity) {
+            if (ChatObject.isChannel(currentChat) && !isCommunity && !rawViewOnly) { // rawGram: the blacklist is admin-only
                 if (participantsDivider2Row == -1) {
                     participantsDivider2Row = rowCount++;
                 }
@@ -632,6 +641,7 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
 
     @Override
     public View createView(Context context) {
+        rawViewOnly = type == TYPE_KICKED && org.telegram.rawgram.RawChatViewOnly.isViewOnly(currentChat); // rawGram
         searching = false;
 
         actionBar.setBackButtonImage(R.drawable.ic_ab_back);
@@ -724,11 +734,11 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
             } else {
                 searchItem.setSearchFieldHint(getString("Search", R.string.Search));
             }
-            if (!(ChatObject.isChannel(currentChat) || currentChat.creator)) {
+            if (!(ChatObject.isChannel(currentChat) || currentChat.creator) || rawViewOnly) {
                 searchItem.setVisibility(View.GONE);
             }
 
-            if (type == TYPE_KICKED) {
+            if (type == TYPE_KICKED && !rawViewOnly) { // rawGram: nothing to save in the read-only overview
                 doneItem = menu.addItemWithWidth(done_button, R.drawable.ic_ab_done, dp(56), getString("Done", R.string.Done));
             }
         } else if (type == TYPE_ADMIN && ChatObject.isChannelAndNotMegaGroup(currentChat) && ChatObject.hasAdminRights(currentChat)) {
@@ -863,6 +873,18 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
 
                 listViewAdapter.notifyItemChanged(payRow);
             } else if (listAdapter) {
+                if (rawViewOnly) { // rawGram: read-only, only the media group expands
+                    if (position == sendMediaRow) {
+                        DiffCallback diffCallback = saveState();
+                        sendMediaExpanded = !sendMediaExpanded;
+                        AndroidUtilities.updateVisibleRows(listView);
+                        updateListAnimated(diffCallback);
+                        return;
+                    }
+                    if (position > permissionsSectionRow && position <= Math.max(manageTopicsRow, changeInfoRow) || isExpandableSendMediaRow(position)) {
+                        return;
+                    }
+                }
                 if (isExpandableSendMediaRow(position)) {
                     CheckBoxCell checkBoxCell = (CheckBoxCell) view;
                     if (position == sendMediaPhotosRow) {
@@ -870,7 +892,17 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
                     } else if (position == sendMediaVideosRow) {
                         defaultBannedRights.send_videos = !defaultBannedRights.send_videos;
                     } else if (position == sendMediaStickerGifsRow) {
-                        defaultBannedRights.send_stickers = defaultBannedRights.send_games = defaultBannedRights.send_gifs = defaultBannedRights.send_inline = !defaultBannedRights.send_stickers;
+                        if (org.telegram.rawgram.RawPermissions.split()) {
+                            defaultBannedRights.send_stickers = !defaultBannedRights.send_stickers;
+                        } else {
+                            defaultBannedRights.send_stickers = defaultBannedRights.send_games = defaultBannedRights.send_gifs = defaultBannedRights.send_inline = !defaultBannedRights.send_stickers;
+                        }
+                    } else if (position == sendMediaGifsRow) {
+                        defaultBannedRights.send_gifs = !defaultBannedRights.send_gifs;
+                    } else if (position == sendMediaGamesRow) {
+                        defaultBannedRights.send_games = !defaultBannedRights.send_games;
+                    } else if (position == sendMediaInlineRow) {
+                        defaultBannedRights.send_inline = !defaultBannedRights.send_inline;
                     } else if (position == sendMediaMusicRow) {
                         defaultBannedRights.send_audios = !defaultBannedRights.send_audios;
                     } else if (position == sendMediaFilesRow) {
@@ -3254,6 +3286,9 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
 
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
+            if (rawViewOnly) {
+                return holder.getAdapterPosition() == sendMediaRow; // rawGram: read-only, only the media group expands
+            }
             int viewType = holder.getItemViewType();
             if (viewType == VIEW_TYPE_CHECK) {
                 return true;
@@ -3680,9 +3715,12 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
                     } else if (position == sendMediaRow) {
                         int sentMediaCount = getSendMediaSelectedCount();
                         checkCell.setTextAndCheck(getString("UserRestrictionsSendMedia", R.string.UserRestrictionsSendMedia), sentMediaCount > 0, true, animated);
-                        checkCell.setCollapseArrow(String.format(Locale.US, "%d/10", sentMediaCount), !sendMediaExpanded, new Runnable() {
+                        checkCell.setCollapseArrow(String.format(Locale.US, "%d/%d", org.telegram.rawgram.RawPermissions.mediaCount(defaultBannedRights), org.telegram.rawgram.RawPermissions.mediaTotal()), !sendMediaExpanded, new Runnable() {
                             @Override
                             public void run() {
+                                if (rawViewOnly) {
+                                    return; // rawGram: read-only
+                                }
                                 boolean checked = !checkCell.isChecked();
                                 checkCell.setChecked(checked);
                                 setSendMediaEnabled(checked);
@@ -3712,6 +3750,7 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
                     } else {
                         checkCell.setIcon(0);
                     }
+                    checkCell.getCheckBox().setAlpha(rawViewOnly ? 0.5f : 1f); // rawGram: read-only look
                     break;
                 case 8:
                     GraySectionCell sectionCell = (GraySectionCell) holder.itemView;
@@ -3763,7 +3802,13 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
                     } else if (position == sendMediaVideosRow) {
                         checkBoxCell.setText(getString("SendMediaPermissionVideos", R.string.SendMediaPermissionVideos), "", !defaultBannedRights.send_videos, true, animated);
                     } else if (position == sendMediaStickerGifsRow) {
-                        checkBoxCell.setText(getString("SendMediaPermissionStickersGifs", R.string.SendMediaPermissionStickersGifs), "", !defaultBannedRights.send_stickers, true, animated);
+                        checkBoxCell.setText(org.telegram.rawgram.RawPermissions.split() ? org.telegram.rawgram.RawPermissions.STICKERS : getString("SendMediaPermissionStickersGifs", R.string.SendMediaPermissionStickersGifs), "", !defaultBannedRights.send_stickers, true, animated);
+                    } else if (position == sendMediaGifsRow) {
+                        checkBoxCell.setText(org.telegram.rawgram.RawPermissions.GIFS, "", !defaultBannedRights.send_gifs, true, animated);
+                    } else if (position == sendMediaGamesRow) {
+                        checkBoxCell.setText(org.telegram.rawgram.RawPermissions.GAMES, "", !defaultBannedRights.send_games, true, animated);
+                    } else if (position == sendMediaInlineRow) {
+                        checkBoxCell.setText(org.telegram.rawgram.RawPermissions.INLINE, "", !defaultBannedRights.send_inline, true, animated);
                     } else if (position == sendMediaMusicRow) {
                         checkBoxCell.setText(getString("SendMediaPermissionMusic", R.string.SendMediaPermissionMusic), "", !defaultBannedRights.send_audios, true, animated);
                     } else if (position == sendMediaFilesRow) {
@@ -3781,6 +3826,7 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
                     } else
                     //  checkBoxCell.setText(getCheckBoxTitle(item.headerName, percents[item.index < 0 ? 8 : item.index], item.index < 0), AndroidUtilities.formatFileSize(item.size), selected, item.index < 0 ? !collapsed : !item.last);
                     checkBoxCell.setPad(1);
+                    checkBoxCell.getCheckBoxView().setAlpha(rawViewOnly ? 0.5f : 1f); // rawGram: read-only look
                     break;
                 case VIEW_TYPE_CHECK:
                     TextCheckCell checkCell2 = (TextCheckCell) holder.itemView;
@@ -3892,6 +3938,7 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
 
     private boolean isExpandableSendMediaRow(int position) {
         return position == sendMediaPhotosRow || position == sendMediaVideosRow || position == sendMediaStickerGifsRow ||
+                position == sendMediaGifsRow || position == sendMediaGamesRow || position == sendMediaInlineRow || // rawGram
                 position == sendMediaMusicRow || position == sendMediaFilesRow || position == sendMediaVoiceMessagesRow ||
                 position == sendReactionsRow ||
                 position == sendMediaVideoMessagesRow || position == sendMediaEmbededLinksRow || position == sendPollsRow;

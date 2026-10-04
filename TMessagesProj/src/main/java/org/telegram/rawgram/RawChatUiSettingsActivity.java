@@ -166,7 +166,7 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         if (RawChatUiConfig.editedMode.get() == RawChatUiConfig.EDITED_CUSTOM) {
             value("Текст метки", VALUE_EDITED_TEXT);
         }
-        check("Полные числа (100 000 вместо 100K)", CHECK_FULL_NUMBERS);
+        check("Полные числа вместо 100K", CHECK_FULL_NUMBERS);
         check("Скрыть «Поделиться» у постов каналов", RawChatUiConfig.hideChannelShare);
         value("Снег в чате", VALUE_SNOW);
         info("Время стикера видно, пока сообщение выделено. Полные числа — в просмотрах, реакциях и подписчиках. "
@@ -209,9 +209,14 @@ public class RawChatUiSettingsActivity extends BaseFragment {
                 + "в меню долгого нажатия на «Отправить» при выборе чатов и в окне «Поделиться». "
                 + "Подписи есть только у медиа; без отправителя подпись убрать нельзя, поэтому скрытие подписей скрывает и его.");
 
+        header("Интеграции");
+        check("Информация о юзере по ID", RawChatUiConfig.usinfobotHint);
+        info("Если в поле ввода только ID, над ним появляется подсказка «Информация о юзере». Нажатие отправляет ID "
+                + "инлайн-запросом в @usinfobot и шлёт его первый результат; если бот ничего не нашёл, поле не очищается.");
+
         header("Меню сообщения");
         check("Компактное меню", RawChatUiConfig.menuCompact);
-        check("Повторить (отправить копию сюда же)", RawChatUiConfig.menuRepeat);
+        check("Повторить сообщение", RawChatUiConfig.menuRepeat);
         check("В Избранное", RawChatUiConfig.menuSaveToSaved);
         info("Компактное меню: Ответить, Удалить, Копировать и Изменить — строкой иконок внизу, остальное — списком.");
 
@@ -219,7 +224,7 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         check("Перевести", RawChatUiConfig.menuHideTranslate);
         check("Пожаловаться", RawChatUiConfig.menuHideReport);
         check("Закрепить / открепить", RawChatUiConfig.menuHidePin);
-        check("Сохранить (галерея, загрузки, музыка, GIF)", RawChatUiConfig.menuHideSave);
+        check("Сохранение в галерею и загрузки", RawChatUiConfig.menuHideSave);
         check("Поделиться файлом", RawChatUiConfig.menuHideShare);
         check("Копировать ссылку", RawChatUiConfig.menuHideCopyLink);
         check("Статистика", RawChatUiConfig.menuHideStatistics);
@@ -232,6 +237,13 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         check("Участники / подписчики", RawChatUiConfig.shortcutMembers);
         check("Недавние действия", RawChatUiConfig.shortcutRecentActions);
         info("Появляются в меню «⋮» групп и каналов, где ты администратор.");
+
+        header("Профиль чата");
+        check("Карандаш без прав администратора", RawChatUiConfig.chatViewOnly);
+        check("Стикеры, GIF, игры и боты раздельно", RawChatUiConfig.splitMediaRights);
+        info("В группах и каналах, где ты не админ, карандаш в профиле открывает экран «Изменить» только для просмотра: "
+                + "разрешения, администраторы (с их правами), участники и бусты — то, что сервер отдаёт обычным участникам. "
+                + "В разрешениях «Стикеры и GIF» можно разделить на четыре отдельных права, как их хранит сервер.");
     }
 
     @Override
@@ -492,6 +504,7 @@ public class RawChatUiSettingsActivity extends BaseFragment {
                 view = new HeaderCell(context);
             } else if (viewType == TYPE_CHECK) {
                 view = new TextCheckCell(context);
+                RawUi.wrapTitle((TextCheckCell) view);
             } else if (viewType == TYPE_VALUE) {
                 view = new TextSettingsCell(context);
             } else if (viewType == TYPE_PREVIEW) {

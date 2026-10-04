@@ -3383,6 +3383,23 @@ public class ChatActivity extends BaseFragment implements
         @Override public boolean isTypingInChat() {
             return isKeyboardVisible() && !hasTextSelection() && (actionBar == null || !actionBar.isSearchFieldVisible());
         }
+        @Override public Utilities.Callback3<TLRPC.BotInlineResult, TLRPC.User, Runnable> foreignInlineSender() {
+            if (chatMode == MODE_SCHEDULED || currentEncryptedChat != null || chatActivityEnterView == null) {
+                return null;
+            }
+            return (result, bot, onSent) -> AlertsCreator.ensurePaidMessageConfirmation(currentAccount, getDialogId(), 1, price -> {
+                HashMap<String, String> params = new HashMap<>();
+                params.put("id", result.id);
+                params.put("query_id", "" + result.query_id);
+                params.put("bot", "" + bot.id);
+                params.put("bot_name", UserObject.getPublicUsername(bot));
+                SendMessagesHelper.prepareSendingBotContextResult(ChatActivity.this, getAccountInstance(), result, params, dialog_id, replyingMessageObject, getThreadMessage(), null, replyingQuote, true, 0, 0, getMessageChatSendParams(), price, getSendMonoForumPeerId());
+                hideFieldPanel(false);
+                if (onSent != null) {
+                    onSent.run();
+                }
+            });
+        }
         @Override public void closeMenu() { ChatActivity.this.closeMenu(); }
         @Override public void runMessageOption(MessageObject message, int option) {
             selectedObjectGroup = getValidGroupedMessage(selectedObject = message);
@@ -7337,6 +7354,9 @@ public class ChatActivity extends BaseFragment implements
             }
             position--;
             Object object = mentionContainer.getAdapter().getItem(position);
+            if (rawgram.onMentionClick(object)) {
+                return; // rawGram: «Информация о юзере» (@usinfobot)
+            }
             int start = mentionContainer.getAdapter().getResultStartPosition();
             int len = mentionContainer.getAdapter().getResultLength();
             if (mentionContainer.getAdapter().isLocalHashtagHint(position)) {
@@ -7530,6 +7550,9 @@ public class ChatActivity extends BaseFragment implements
             }
             if (rawgram.onInlineResultLongPress(view, position)) {
                 return true;
+            }
+            if (rawgram.onMentionLongPress(view, position, searchingForUser && searchContainer != null && searchContainer.getVisibility() == View.VISIBLE)) {
+                return true; // rawGram: hold a @-suggestion → the name as a mention
             }
             if (!mentionContainer.getAdapter().isLongClickEnabled()) {
                 return false;

@@ -133,6 +133,15 @@ public class RawChatUiConfig {
     public static final Flag fwdHideSender = new Flag("fwdHideSender", false);
     public static final Flag fwdHideCaptions = new Flag("fwdHideCaptions", false);
 
+    /** «Информация о юзере» (@usinfobot) suggestion when the input is just an ID (RawUserInfo). */
+    public static final Flag usinfobotHint = new Flag("usinfobotHint", false);
+
+    /** The profile pencil for non-admins: ChatEditActivity as a read-only overview (RawChatViewOnly). */
+    public static final Flag chatViewOnly = new Flag("chatViewOnly", true);
+
+    /** Permissions: stickers / GIFs / games / inline bots as separate rows instead of «Стикеры и GIF» (RawPermissions). */
+    public static final Flag splitMediaRights = new Flag("splitMediaRights", true);
+
     public static final Flag shortcutAdmins = new Flag("shortcutAdmins", false);
     public static final Flag shortcutPermissions = new Flag("shortcutPermissions", false);
     public static final Flag shortcutMembers = new Flag("shortcutMembers", false);

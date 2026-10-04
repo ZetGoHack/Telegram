@@ -1344,6 +1344,17 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             if (bottomHint != null) bottomHint.set(1, hintHashtag, currentChat);
         }
         if (foundType == -1) {
+            // rawGram: the input is just an ID → «Информация о юзере» (@usinfobot) as a mention-like row
+            ArrayList<TLObject> rawInfo = org.telegram.rawgram.RawUserInfo.hintFor(currentAccount, text, parentFragment);
+            if (rawInfo != null) {
+                contextMedia = false;
+                searchResultHashtags = null;
+                searchResultCommands = null;
+                quickReplies = null;
+                searchResultSuggestions = null;
+                showUsersResult(rawInfo, null, true);
+                return;
+            }
             contextMedia = false;
             searchResultBotContext = null;
             delegate.needChangePanelVisibility(false);

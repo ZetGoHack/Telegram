@@ -264,6 +264,7 @@ public class RawDevSettingsActivity extends BaseFragment {
                 view = new HeaderCell(context);
             } else if (viewType == TYPE_CHECK) {
                 view = new TextCheckCell(context);
+                RawUi.wrapTitle((TextCheckCell) view);
             } else if (viewType == TYPE_VALUE) {
                 view = new TextSettingsCell(context);
             } else {

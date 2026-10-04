@@ -198,4 +198,16 @@ public class RawUi {
         ssb.setSpan(new ImageSpan(logo), 0, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         return ssb;
     }
+
+    /** Settings switches: a long title wraps to a second line instead of ending with «…» (the cell's height fits two lines). */
+    public static void wrapTitle(org.telegram.ui.Cells.TextCheckCell cell) {
+        android.view.View first = cell.getChildCount() > 0 ? cell.getChildAt(0) : null;
+        if (first instanceof android.widget.TextView) {
+            android.widget.TextView title = (android.widget.TextView) first;
+            title.setSingleLine(false);
+            title.setMaxLines(2);
+            title.setEllipsize(TextUtils.TruncateAt.END);
+            title.setLineSpacing(0, 0.95f);
+        }
+    }
 }
