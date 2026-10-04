@@ -152,6 +152,11 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
     }
 
     @Override
+    public void onActivityResultFragment(int requestCode, int resultCode, android.content.Intent data) {
+        org.telegram.rawgram.RawBackup.onActivityResult(this, requestCode, resultCode, data); // rawGram
+    }
+
+    @Override
     public View createView(Context context) {
         logoDrawable = context.getResources().getDrawable(R.drawable.telegram_logo).mutate();
         logoDrawable.setBounds(0, dp(8.666f), dp(115), dp(35));
@@ -248,6 +253,10 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
         frameContainerView.addView(frameLayout2, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 0, 78, 0, 0));
 
         TextureView textureView = new TextureView(context);
+        textureView.setOnLongClickListener(v -> { // rawGram: hold the icon → restore a backup
+            org.telegram.rawgram.RawBackup.showLoginMenu(this, v);
+            return true;
+        });
         frameLayout2.addView(textureView, LayoutHelper.createFrame(ICON_WIDTH_DP, ICON_HEIGHT_DP, Gravity.CENTER));
         textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override

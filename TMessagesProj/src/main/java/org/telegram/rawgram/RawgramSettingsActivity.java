@@ -54,6 +54,7 @@ public class RawgramSettingsActivity extends BaseFragment {
         final String title;
         final String subtitle;
         final Runnable action;
+        Runnable longAction;
 
         Row(int type, int icon, IconBackgroundColors colors, String title, String subtitle, Runnable action) {
             this.type = type;
@@ -83,6 +84,13 @@ public class RawgramSettingsActivity extends BaseFragment {
         // Плагины (branch rawgram-plugins): add one line here, e.g.
         // category(R.drawable.msg_bots, IconBackgroundColors.GREEN, "Плагины", "Установленные плагины", () -> presentFragment(new RawPluginsActivity()));
         rows.add(new Row(TYPE_SHADOW, 0, null, null, null, null));
+        rows.add(new Row(TYPE_VALUE, 0, null, "Бекап настроек", null, () -> RawBackup.backupSettings(this)));
+        Row full = new Row(TYPE_VALUE, 0, null, "Полный бекап", null, () -> RawBackup.backupData(this));
+        full.longAction = () -> RawBackup.backupStorage(this);
+        rows.add(full);
+        rows.add(new Row(TYPE_VALUE, 0, null, "Восстановить из файла", null, () -> RawBackup.pickRestore(this)));
+        rows.add(new Row(TYPE_INFO, 0, null, "Полный бекап — настройки и собранные данные rawGram (отчёты о сбоях, диагностика). "
+                + "Удерживай его, чтобы сохранить всё хранилище приложения вместе с сессиями — в зашифрованном файле.", null, null));
         rows.add(new Row(TYPE_VALUE, 0, null, "Авторы и лицензии", null, this::showCredits));
         rows.add(new Row(TYPE_INFO, 0, null, "rawGram на основе Telegram " + BuildVars.BUILD_VERSION_STRING + " · GPLv3", null, null));
     }
@@ -122,8 +130,20 @@ public class RawgramSettingsActivity extends BaseFragment {
                 row.action.run();
             }
         });
+        listView.setOnItemLongClickListener((view, position) -> {
+            if (position < 0 || position >= rows.size() || rows.get(position).longAction == null) {
+                return false;
+            }
+            rows.get(position).longAction.run();
+            return true;
+        });
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         return fragmentView;
+    }
+
+    @Override
+    public void onActivityResultFragment(int requestCode, int resultCode, android.content.Intent data) {
+        RawBackup.onActivityResult(this, requestCode, resultCode, data);
     }
 
     private void showCredits() {

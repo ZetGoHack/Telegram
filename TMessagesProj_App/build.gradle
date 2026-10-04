@@ -63,10 +63,21 @@ android {
 
     signingConfigs {
         debug {
-            storeFile file("../TMessagesProj/config/release.keystore")
-            storePassword RELEASE_STORE_PASSWORD
-            keyAlias RELEASE_KEY_ALIAS
-            keyPassword RELEASE_KEY_PASSWORD
+            // rawGram: debug builds are what we ship to testers — sign them with the own key too (the public Telegram
+            // test key is shared by countless forks and gets flagged by Play Protect). Opt-in with RAWGRAM_SIGN_DEBUG=true:
+            // switching the key means reinstalling over a differently signed app, so it's the owner's call when.
+            def ownKeystore = rawgramSecret("RAWGRAM_KEYSTORE")
+            if (rawgramSecret("RAWGRAM_SIGN_DEBUG") == "true" && ownKeystore != null && file(ownKeystore).exists()) {
+                storeFile file(ownKeystore)
+                storePassword rawgramSecret("RAWGRAM_KEYSTORE_PASSWORD")
+                keyAlias rawgramSecret("RAWGRAM_KEY_ALIAS")
+                keyPassword rawgramSecret("RAWGRAM_KEY_PASSWORD")
+            } else {
+                storeFile file("../TMessagesProj/config/release.keystore")
+                storePassword RELEASE_STORE_PASSWORD
+                keyAlias RELEASE_KEY_ALIAS
+                keyPassword RELEASE_KEY_PASSWORD
+            }
         }
 
         release {

@@ -81,6 +81,7 @@ public class ApplicationLoader extends Application {
     @Override
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(base);
+        org.telegram.rawgram.RawBackup.applyPending(base); // rawGram: staged restore, before anything reads settings or sessions
     }
 
     public static ILocationServiceProvider getLocationServiceProvider() {
