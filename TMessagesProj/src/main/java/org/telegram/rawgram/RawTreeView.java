@@ -409,6 +409,9 @@ public class RawTreeView extends RecyclerListView {
                     text = Base64.encodeToString(bytes, Base64.NO_WRAP);
                     toast = "Байты скопированы (base64)";
                 }
+            } else if (colorHex(node) != null) {
+                text = colorHex(node);
+                toast = "Цвет скопирован: " + text;
             } else {
                 text = node.marker != null ? node.marker : String.valueOf(node.source);
                 toast = "Значение скопировано";
@@ -507,6 +510,7 @@ public class RawTreeView extends RecyclerListView {
                 }
                 appendValue(sb, node, p);
                 appendPeer(sb, node, p);
+                appendColor(sb, node, p);
                 break;
             }
         }
@@ -578,6 +582,32 @@ public class RawTreeView extends RecyclerListView {
             }
         } catch (Throwable ignore) {
         }
+    }
+
+    /** "center_color = 16777215  ■ #FFFFFF" for RGB ints; the square is drawn in the color itself. */
+    private static void appendColor(SpannableStringBuilder sb, Node node, RawSyntax.Palette p) {
+        String hex = colorHex(node);
+        if (hex == null) {
+            return;
+        }
+        append(sb, "  ■", 0xFF000000 | Integer.parseInt(hex.substring(1), 16));
+        if (node.source instanceof Integer) {
+            append(sb, " " + hex, Theme.multAlpha(p.punctuation, 0.9f));
+        }
+    }
+
+    /** "#RRGGBB" for an int (or an already formatted "#RRGGBB" string) under a *_color key, null otherwise. */
+    private static String colorHex(Node node) {
+        if (node.kind != KIND_VALUE || node.marker != null || !TLDumper.isColorKey(node.key)) {
+            return null;
+        }
+        if (node.source instanceof Integer) {
+            return TLDumper.colorHex((Integer) node.source);
+        }
+        if (node.source instanceof String && ((String) node.source).matches("#[0-9A-Fa-f]{6}")) {
+            return (String) node.source;
+        }
+        return null;
     }
 
     private static void append(SpannableStringBuilder sb, CharSequence text, int color) {

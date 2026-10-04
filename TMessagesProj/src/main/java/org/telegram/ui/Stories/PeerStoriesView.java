@@ -2181,6 +2181,7 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
                             }
                         }
                     }
+                    org.telegram.rawgram.RawShortcuts.addStoryItems(popupLayout, currentAccount, dialogId, currentStory != null ? currentStory.storyItem : null, resourcesProvider, () -> { if (popupMenu != null) popupMenu.dismiss(); }, d -> { if (delegate != null) delegate.showDialog(d); }); // rawGram
 
                     final boolean hasStickers = currentStory != null && (
 //                        currentStory.uploadingStory != null && currentStory.uploadingStory.entry != null && currentStory.uploadingStory.entry.stickers != null && !currentStory.uploadingStory.entry.stickers.isEmpty() ||

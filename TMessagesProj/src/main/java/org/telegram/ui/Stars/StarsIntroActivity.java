@@ -4560,7 +4560,7 @@ public class StarsIntroActivity extends GradientHeaderActivity implements Notifi
         }
         linearLayout.addView(button, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48, 16, 15, 16, 0));
 
-        b.setCustomView(linearLayout);
+        b.setCustomView(org.telegram.rawgram.RawShortcuts.withRawPill(linearLayout, currentAccount, resourcesProvider, "Raw · stars transaction", "StarsTransaction", transaction, "stargift", transaction.stargift, "peer", transaction.peer)); // rawGram
         sheet[0] = b.create();
         sheet[0].useBackgroundTopPadding = false;
         if ((transaction.flags & 32) != 0) {
@@ -4955,7 +4955,7 @@ public class StarsIntroActivity extends GradientHeaderActivity implements Notifi
             }
         }
 
-        b.setCustomView(linearLayout);
+        b.setCustomView(org.telegram.rawgram.RawShortcuts.withRawPill(linearLayout, currentAccount, resourcesProvider, "Raw · stars subscription", "StarsSubscription", subscription, "pricing", subscription.pricing)); // rawGram
         sheet[0] = b.create();
         sheet[0].useBackgroundTopPadding = false;
         sheet[0].setOnDismissListener(d -> {
@@ -5061,7 +5061,7 @@ public class StarsIntroActivity extends GradientHeaderActivity implements Notifi
         });
         linearLayout.addView(button, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48, 16, 8, 16, 0));
 
-        b.setCustomView(linearLayout);
+        b.setCustomView(org.telegram.rawgram.RawShortcuts.withRawPill(linearLayout, currentAccount, resourcesProvider, "Raw · boost", "Boost", boost)); // rawGram
         sheet[0] = b.create();
         sheet[0].useBackgroundTopPadding = false;
 

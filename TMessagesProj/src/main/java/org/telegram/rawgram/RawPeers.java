@@ -66,6 +66,21 @@ public class RawPeers {
         return resolve(account, userId, null);
     }
 
+    /**
+     * Owner user id encoded in a sticker set id; same formula as AyuGram Desktop
+     * (getUserIdFromPackId, taken from TDesktop-x64/tdesktop#218). Meaningless for official sets.
+     */
+    public static long stickerSetOwner(long setId) {
+        long owner = setId >>> 32;
+        if (((setId >>> 16) & 0xff) == 0x3f) {
+            owner |= 0x80000000L;
+        }
+        if (((setId >>> 24) & 0xff) != 0) {
+            owner += 0x100000000L;
+        }
+        return owner;
+    }
+
     private static Info resolve(int account, long dialogId, Boolean channelHint) {
         MessagesController mc = MessagesController.getInstance(account);
         int format = idFormat();

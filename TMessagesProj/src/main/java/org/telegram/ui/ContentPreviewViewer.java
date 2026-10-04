@@ -791,6 +791,7 @@ public class ContentPreviewViewer {
                     icons.add(R.drawable.msg_info);
                     actions.add(ACTION_RAWGRAM_RAW);
                     items.add("Скопировать ID документа"); icons.add(R.drawable.msg_copy); actions.add(ACTION_RAWGRAM_COPY_ID);
+                    if (org.telegram.rawgram.RawShortcuts.setOwner(currentAccount, currentStickerSet, currentDocument) > 0) { items.add(org.telegram.rawgram.RawShortcuts.SET_OWNER_TITLE); icons.add(R.drawable.msg_openprofile); actions.add(ACTION_RAWGRAM_OWNER); }
                 }
 
                 if (items.isEmpty()) {
@@ -837,6 +838,8 @@ public class ContentPreviewViewer {
                             openRawViewer();
                         } else if (actions.get(which) == ACTION_RAWGRAM_COPY_ID) {
                             RawDocInfo.copyId(currentDocument);
+                        } else if (actions.get(which) == ACTION_RAWGRAM_OWNER) {
+                            org.telegram.rawgram.RawShortcuts.openPreviewSetOwner(currentAccount, currentStickerSet, currentDocument, ContentPreviewViewer.this::close); // rawGram
                         }
                         dismissPopupWindow();
                     }
@@ -950,6 +953,7 @@ public class ContentPreviewViewer {
                 if (RawgramConfig.isPreviewRaw()) {
                     items.add("Raw"); icons.add(R.drawable.msg_info); actions.add(ACTION_RAWGRAM_RAW);
                     items.add("Скопировать ID документа"); icons.add(R.drawable.msg_copy); actions.add(ACTION_RAWGRAM_COPY_ID);
+                    if (org.telegram.rawgram.RawShortcuts.setOwner(currentAccount, currentStickerSet, currentDocument) > 0) { items.add(org.telegram.rawgram.RawShortcuts.SET_OWNER_TITLE); icons.add(R.drawable.msg_openprofile); actions.add(ACTION_RAWGRAM_OWNER); }
                 }
                 if (items.isEmpty()) {
                     return;
@@ -984,6 +988,8 @@ public class ContentPreviewViewer {
                         openRawViewer();
                     } else if (action == ACTION_RAWGRAM_COPY_ID) {
                         RawDocInfo.copyId(currentDocument);
+                    } else if (action == ACTION_RAWGRAM_OWNER) {
+                        org.telegram.rawgram.RawShortcuts.openPreviewSetOwner(currentAccount, currentStickerSet, currentDocument, ContentPreviewViewer.this::close); // rawGram
                     }
                     dismissPopupWindow();
                 };
@@ -2442,6 +2448,7 @@ public class ContentPreviewViewer {
 
     private static final int ACTION_RAWGRAM_RAW = 1000;
     private static final int ACTION_RAWGRAM_COPY_ID = 1001;
+    private static final int ACTION_RAWGRAM_OWNER = 1002; // rawGram
 
     // rawGram: close the preview and show the raw TL of what was previewed
     private void openRawViewer() {

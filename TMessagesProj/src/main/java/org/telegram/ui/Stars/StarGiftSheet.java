@@ -566,6 +566,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
             openCraftInfo();
         });
         topView.setPadding(backgroundPaddingLeft, 0, backgroundPaddingLeft, 0);
+        org.telegram.rawgram.RawGiftRaw.attachPill(topView, resourcesProvider, () -> org.telegram.rawgram.RawGiftRaw.show(getContext(), currentAccount, getGift(), savedStarGift, messageObject, resourcesProvider)); // rawGram: plain gifts have no menu
         container.addView(topView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.FILL_HORIZONTAL | Gravity.TOP));
         layoutManager.setReverseLayout(reverseLayout = true);
 
@@ -1065,6 +1066,9 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
             .addIf(canSetAsTheme(), R.drawable.msg_colors, getString(R.string.GiftThemesSetIn), this::openSetAsTheme)
             .addIf(canTransfer(), R.drawable.menu_feature_transfer, getString(R.string.Gift2TransferOption), this::openTransfer)
             .addIf(savedStarGift == null && getDialogId() != 0, R.drawable.msg_view_file, getString(R.string.Gift2ViewInProfile), this::openInProfile)
+            .addIf(org.telegram.rawgram.RawGiftRaw.hasSet(getGift(), false), R.drawable.msg_sticker, org.telegram.rawgram.RawGiftRaw.MODEL_SET_TITLE, () -> org.telegram.rawgram.RawGiftRaw.openSet(getContext(), currentAccount, getGift(), false, resourcesProvider)) // rawGram
+            .addIf(org.telegram.rawgram.RawGiftRaw.hasSet(getGift(), true), R.drawable.msg_emoji_stickers, org.telegram.rawgram.RawGiftRaw.SYMBOL_SET_TITLE, () -> org.telegram.rawgram.RawGiftRaw.openSet(getContext(), currentAccount, getGift(), true, resourcesProvider)) // rawGram
+            .addIf(org.telegram.rawgram.RawgramConfig.isObjectRaw(), R.drawable.msg_info, "Raw", () -> org.telegram.rawgram.RawGiftRaw.show(getContext(), currentAccount, getGift(), savedStarGift, messageObject, resourcesProvider)) // rawGram
             .setDrawScrim(false)
             .setOnTopOfScrim()
             .setDimAlpha(0)
@@ -2325,6 +2329,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
             closeView.setVisibility(backdrop[0] != null && p.to == PAGE_WEAR || backdrop[1] != null && p.to == PAGE_UPGRADE ? View.VISIBLE : View.GONE);
             optionsView.setAlpha(lerp(false, backdrop[0] != null, p.at(PAGE_INFO)));
             optionsView.setVisibility(backdrop[0] != null && p.to == PAGE_INFO ? View.VISIBLE : View.GONE);
+            org.telegram.rawgram.RawGiftRaw.syncPill(this, backdrop[0] == null && p.to == PAGE_INFO && closeView.getVisibility() != View.VISIBLE); // rawGram
             if (!resellPriceViewInProgress) {
                 resellPriceView.setAlpha(lerp(false, hasResellPrice, p.at(PAGE_INFO)));
                 resellPriceView.setScaleX(lerp(0.4f, hasResellPrice ? 1.0f : 0.4f, p.at(PAGE_INFO)));

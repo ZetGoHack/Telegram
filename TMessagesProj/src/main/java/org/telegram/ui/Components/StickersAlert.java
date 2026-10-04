@@ -1124,8 +1124,10 @@ public class StickersAlert extends BottomSheet implements NotificationCenter.Not
         if (org.telegram.rawgram.RawgramConfig.isObjectRaw()) {
             optionsButton.addSubItem(RAWGRAM_RAW, R.drawable.msg_info, "Raw"); // rawGram
         }
+        org.telegram.rawgram.RawShortcuts.addSetOwnerItem(optionsButton); // rawGram
 
         optionsButton.setOnClickListener(v -> {
+            org.telegram.rawgram.RawShortcuts.updateSetOwnerItem(optionsButton, currentAccount, stickerSet); // rawGram
             checkOptions();
             optionsButton.toggleSubMenu();
         });
@@ -1336,6 +1338,10 @@ public class StickersAlert extends BottomSheet implements NotificationCenter.Not
         }
         if (id == RAWGRAM_RAW) {
             org.telegram.rawgram.RawStickerSetRaw.show(getContext(), currentAccount, stickerSet, resourcesProvider);
+            return;
+        }
+        if (id == org.telegram.rawgram.RawShortcuts.MENU_SET_OWNER) { // rawGram
+            org.telegram.rawgram.RawShortcuts.openSetOwner(currentAccount, stickerSet, parentFragment, this::dismiss);
             return;
         }
         String stickersUrl;

@@ -433,24 +433,9 @@ public class RawMessageDetails {
         if (setId != 0) {
             add(out, "ID набора", Long.toString(setId), R.drawable.menu_hashtag);
             // official sets are not created by a user: their id encodes no owner
-            long ownerId = set != null && set.official ? 0 : stickerSetOwner(setId);
+            long ownerId = set != null && set.official ? 0 : RawPeers.stickerSetOwner(setId);
             if (ownerId > 0) addPeer(out, env, "Владелец набора", RawPeers.user(env.account, ownerId), R.drawable.msg_openprofile);
         }
-    }
-
-    /**
-     * Owner user id encoded in a sticker set id; same formula as AyuGram Desktop
-     * (getUserIdFromPackId, taken from TDesktop-x64/tdesktop#218).
-     */
-    private static long stickerSetOwner(long setId) {
-        long owner = setId >>> 32;
-        if (((setId >>> 16) & 0xff) == 0x3f) {
-            owner |= 0x80000000L;
-        }
-        if (((setId >>> 24) & 0xff) != 0) {
-            owner += 0x100000000L;
-        }
-        return owner;
     }
 
     private static void photoFields(ArrayList<Row> out, TLRPC.Photo photo) {

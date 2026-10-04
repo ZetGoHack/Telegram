@@ -95,6 +95,10 @@ public class TLDumper {
                         continue;
                     }
                     out.put(field.getName(), toTree(fieldValue, depth + 1, path));
+                    if (fieldValue instanceof Integer && isColorKey(field.getName())) {
+                        // RGB ints (gift backdrops, wallpapers, themes): readable hex next to the raw value
+                        out.put(field.getName() + "_hex", colorHex((Integer) fieldValue));
+                    }
                 }
                 return out;
             }
@@ -102,6 +106,15 @@ public class TLDumper {
         } finally {
             path.remove(value);
         }
+    }
+
+    /** Field names that hold a 24-bit RGB color ("color" alone is a palette index in PeerColor, so it is left out). */
+    static boolean isColorKey(String key) {
+        return key != null && key.endsWith("_color");
+    }
+
+    static String colorHex(int color) {
+        return String.format(java.util.Locale.US, "#%06X", color & 0xFFFFFF);
     }
 
     static String constructorOf(Class<?> cls) {

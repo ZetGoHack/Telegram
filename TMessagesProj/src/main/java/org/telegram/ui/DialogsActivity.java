@@ -11959,7 +11959,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         }
         final boolean onlyMyselfFinal = onlyMyself;
 
-        ItemOptions.makeOptions(this, view)
+        org.telegram.rawgram.RawForward.addPickerToggles(ItemOptions.makeOptions(this, view), messagesCount > 0) // rawGram: «Скрыть подпись» / «Скрыть имя отправителя» when forwarding
             .add(R.drawable.input_notify_off, getString(R.string.SendWithoutSound), () -> {
                 this.notify = false;
                 if (delegate == null || selectedDialogs.isEmpty()) {

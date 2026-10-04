@@ -2281,29 +2281,8 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
             });
             sendPopupLayout1.setShownFromBottom(false);
 
-            ActionBarMenuSubItem showSendersNameView = new ActionBarMenuSubItem(getContext(), true, true, false, resourcesProvider);
-            if (darkTheme) {
-                showSendersNameView.setTextColor(getThemedColor(Theme.key_voipgroup_nameText));
-            }
-            sendPopupLayout1.addView(showSendersNameView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
-            showSendersNameView.setTextAndIcon(false ? LocaleController.getString(R.string.ShowSenderNames) : LocaleController.getString(R.string.ShowSendersName), 0);
-            showSendersNameView.setChecked(showSendersName = true);
-
-            ActionBarMenuSubItem hideSendersNameView = new ActionBarMenuSubItem(getContext(), true, false, true, resourcesProvider);
-            if (darkTheme) {
-                hideSendersNameView.setTextColor(getThemedColor(Theme.key_voipgroup_nameText));
-            }
-            sendPopupLayout1.addView(hideSendersNameView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
-            hideSendersNameView.setTextAndIcon(false ? LocaleController.getString(R.string.HideSenderNames) : LocaleController.getString(R.string.HideSendersName), 0);
-            hideSendersNameView.setChecked(!showSendersName);
-            showSendersNameView.setOnClickListener(e -> {
-                showSendersNameView.setChecked(showSendersName = true);
-                hideSendersNameView.setChecked(!showSendersName);
-            });
-            hideSendersNameView.setOnClickListener(e -> {
-                showSendersNameView.setChecked(showSendersName = false);
-                hideSendersNameView.setChecked(!showSendersName);
-            });
+            // rawGram: show/hide sender (remembered) + «Скрыть подпись» for captioned media
+            org.telegram.rawgram.RawForward.addShareToggles(sendPopupLayout1, getContext(), resourcesProvider, darkTheme ? getThemedColor(Theme.key_voipgroup_nameText) : 0, sendingMessageObjects);
             sendPopupLayout1.setupRadialSelectors(getThemedColor(Theme.key_dialogButtonSelector));
 
             layout.addView(sendPopupLayout1, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, -8));
@@ -2504,7 +2483,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         params.monoForumPeer = monoForumPeerId;
                         SendMessagesHelper.getInstance(currentAccount).sendMessage(params);
                     }
-                    result = SendMessagesHelper.getInstance(currentAccount).sendMessage(sendingMessageObjects, key, !showSendersName,false, withSound, 0, 0, replyTopMsg, video_timestamp, price == null ? 0 : price, monoForumPeerId, null);
+                    result = SendMessagesHelper.getInstance(currentAccount).sendMessage(sendingMessageObjects, key, org.telegram.rawgram.RawForward.dropAuthor(sendingMessageObjects), org.telegram.rawgram.RawForward.dropCaptions(sendingMessageObjects), withSound, 0, 0, replyTopMsg, video_timestamp, price == null ? 0 : price, monoForumPeerId, null);
                     if (result != 0) {
                         removeKeys.add(key);
                     }

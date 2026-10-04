@@ -15196,11 +15196,13 @@ public class ChatActivity extends BaseFragment implements
                 final SimpleTextView replyObjectTextView = replyLayout.current().obj;
                 final SimpleTextView replyObjectHintTextView = replyLayout.current().objHint;
 
+                final boolean rawFreshForward = messagePreviewParams == null || messagePreviewParams.forwardMessages == null; // rawGram
                 if (messagePreviewParams == null) {
                     messagePreviewParams = new MessagePreviewParams(currentEncryptedChat != null, isPeerNoForwards(), ChatObject.isMonoForum(currentChat));
                     messagePreviewParams.attach(forwardingPreviewView);
                 }
                 messagePreviewParams.updateForward(messageObjectsToForward, dialog_id);
+                if (rawFreshForward) org.telegram.rawgram.RawForward.applyToPreview(messagePreviewParams); // rawGram: session «Скрыть подпись / отправителя»
                 if (messagePreviewParams.isEmpty() && editingMessageObject == null) {
                     messagePreviewParams = null;
                 }
@@ -34526,7 +34528,7 @@ public class ChatActivity extends BaseFragment implements
                         params.suggestionParams = messageSuggestionParams;
                         getSendMessagesHelper().sendMessage(params);
                     }
-                    getSendMessagesHelper().sendMessage(fmessages, did, false, false, notify, scheduleDate, scheduleRepeatPeriod, null, -1, price == null ? 0 : price, getSendMonoForumPeerId(), getSendMessageSuggestionParams());
+                    getSendMessagesHelper().sendMessage(fmessages, did, org.telegram.rawgram.RawForward.dropAuthor(fmessages), org.telegram.rawgram.RawForward.dropCaptions(fmessages), notify, scheduleDate, scheduleRepeatPeriod, null, -1, price == null ? 0 : price, /* rawGram: hide sender/captions from the picker */ getSendMonoForumPeerId(), getSendMessageSuggestionParams());
                 }
                 fragment.finishFragment();
                 createUndoView();

@@ -390,7 +390,7 @@ public class MessagePreviewParams {
             ArrayList<String> hiddenSendersName = new ArrayList<>();
             for (int i = 0; i < forwardMessages.size(); ++i) {
                 MessageObject messageObject = forwardMessages.get(i);
-                if (!TextUtils.isEmpty(messageObject.caption)) {
+                if (!TextUtils.isEmpty(messageObject.caption) || org.telegram.rawgram.RawForward.hasMediaCaption(messageObject)) { // rawGram: any captioned media
                     hasCaption = true;
                 }
                 if (!isSecret) {
