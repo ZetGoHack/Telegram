@@ -4324,7 +4324,7 @@ public class ChatActivity extends BaseFragment implements
                 audioCallIconItem = menu.lazilyAddItem(call, R.drawable.call, themeDelegate);
                 audioCallIconItem.setContentDescription(LocaleController.getString(R.string.Call));
                 userFull = getMessagesController().getUserFull(currentUser.id);
-                if (userFull != null && userFull.phone_calls_available) {
+                if (userFull != null && userFull.phone_calls_available && !org.telegram.rawgram.RawChatUiConfig.hideCallButton.get()) { // rawGram: call icon hidden → «Позвонить» goes to ⋮
                     showAudioCallAsIcon = !inPreviewMode;
                     audioCallIconItem.setVisibility(View.VISIBLE);
                 } else {
@@ -24034,7 +24034,7 @@ public class ChatActivity extends BaseFragment implements
                     }
                 }
                 if (headerItem != null) {
-                    showAudioCallAsIcon = userInfo.phone_calls_available && !inPreviewMode;
+                    showAudioCallAsIcon = userInfo.phone_calls_available && !inPreviewMode && !org.telegram.rawgram.RawChatUiConfig.hideCallButton.get(); // rawGram
                     if (userInfo.phone_calls_available) {
                         if (showAudioCallAsIcon) {
                             if (audioCallIconItem != null) {
@@ -29775,7 +29775,7 @@ public class ChatActivity extends BaseFragment implements
         super.setInPreviewMode(value);
         if (currentUser != null && audioCallIconItem != null) {
             TLRPC.UserFull userFull = getMessagesController().getUserFull(currentUser.id);
-            if (userFull != null && userFull.phone_calls_available) {
+            if (userFull != null && userFull.phone_calls_available && !org.telegram.rawgram.RawChatUiConfig.hideCallButton.get()) { // rawGram
                 showAudioCallAsIcon = !inPreviewMode;
                 audioCallIconItem.setVisibility(View.VISIBLE);
             } else {

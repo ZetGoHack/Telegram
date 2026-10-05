@@ -81,6 +81,7 @@ public class RawChatUiSettingsActivity extends BaseFragment {
     private static final int VALUE_SNOW = 3;
     private static final int VALUE_TAP_IN = 4;
     private static final int VALUE_TAP_OUT = 5;
+    private static final int VALUE_ROUND_CAMERA = 6;
 
     /** Switches not stored in RawChatUiConfig (Row.flag == null, Row.id says which). */
     private static final int CHECK_CLASSIC = 100;
@@ -160,6 +161,7 @@ public class RawChatUiSettingsActivity extends BaseFragment {
 
         header("Сообщения");
         check("Заголовок чата по центру", RawChatUiConfig.centerTitle);
+        check("Скрыть кнопку звонка в шапке", RawChatUiConfig.hideCallButton);
         check("Скрыть время у стикеров", RawChatUiConfig.hideStickerTime);
         check("ID сообщения в пузыре", RawChatUiConfig.showMessageId);
         value("Метка «изменено»", VALUE_EDITED_MODE);
@@ -192,8 +194,10 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         header("Поле ввода");
         check("Сворачивать клавиатуру при прокрутке", CHECK_HIDE_KEYBOARD);
         check("Камера во вложениях — кнопкой", CHECK_CAMERA_BUTTON);
+        value("Камера для кружков", VALUE_ROUND_CAMERA);
         info("Клавиатура и панель эмодзи прячутся, как только листаешь чат; набранный текст остаётся. "
-                + "Камера — круглой кнопкой вместо большой плитки в галерее.");
+                + "Камера — круглой кнопкой вместо большой плитки в галерее. "
+                + "«Спрашивать»: удержание кнопки записи кружка показывает выбор — фронтальная или основная камера, запись идёт без удержания.");
 
         header("Поведение");
         check("Без свайпа к следующему каналу", RawChatUiConfig.noSwipeNextChannel);
@@ -346,6 +350,9 @@ public class RawChatUiSettingsActivity extends BaseFragment {
             case VALUE_EDITED_TEXT:
                 editCustomText();
                 break;
+            case VALUE_ROUND_CAMERA:
+                pick("Камера для кружков", new CharSequence[]{"Фронтальная", "Основная", "Спрашивать"}, refresh, RawChatUiConfig.roundCamera::set);
+                break;
             case VALUE_SNOW:
                 pick("Снег в чате", new CharSequence[]{"По дате (как в Telegram)", "Всегда", "Никогда"}, refresh,
                         RawChatUiConfig.chatSnow::set);
@@ -433,6 +440,10 @@ public class RawChatUiSettingsActivity extends BaseFragment {
             case VALUE_SNOW: {
                 int snow = RawChatUiConfig.chatSnow.get();
                 return snow == RawChatUiConfig.SNOW_ALWAYS ? "Всегда" : snow == RawChatUiConfig.SNOW_NEVER ? "Никогда" : "По дате";
+            }
+            case VALUE_ROUND_CAMERA: {
+                int mode = RawChatUiConfig.roundCamera.get();
+                return mode == RawChatUiConfig.ROUND_BACK ? "Основная" : mode == RawChatUiConfig.ROUND_ASK ? "Спрашивать" : "Фронтальная";
             }
             case VALUE_TAP_IN:
                 return RawChatUiConfig.doubleTapName(RawChatUiConfig.doubleTapIn.get());

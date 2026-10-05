@@ -804,6 +804,9 @@ public class ConnectionsManager extends BaseController {
             buff.reused = true;
             int constructor = buff.readInt32(true);
             final TLObject message = TLClassStore.Instance().TLdeserialize(buff, constructor, true);
+            if (org.telegram.rawgram.RawUpdatesLog.enabled) {
+                org.telegram.rawgram.RawUpdatesLog.onPush(currentAccount, message, constructor, messageId); // rawGram: incoming updates log
+            }
             FileLog.dumpUnparsedMessage(message, messageId, currentAccount);
             if (message instanceof TLRPC.Updates) {
                 if (BuildVars.LOGS_ENABLED) {

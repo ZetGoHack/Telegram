@@ -12,16 +12,14 @@ import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * MTProto sniffer: the last {@link #CAPACITY} RPC calls made through ConnectionsManager.
- * The hook in ConnectionsManager.sendRequestInternal reads {@link #enabled} first, so a disabled log
- * costs one volatile read per request. Requests are recorded on the stage queue, responses on the
- * network thread, listeners are notified on the UI thread (throttled).
+ * MTProto sniffer: the newest RPC calls made through ConnectionsManager, as many as the limit in the developer
+ * settings allows ({@link RawgramConfig#getRequestLogLimit()}, 0 = no limit), each with its full request and
+ * response objects. The hook in ConnectionsManager.sendRequestInternal reads {@link #enabled} first, so a disabled
+ * log costs one volatile read per request. Requests are recorded on the stage queue, responses on the network
+ * thread, listeners are notified on the UI thread (throttled).
  */
 public class RawRequestLog {
 
-    public static final int CAPACITY = 300;
-    /** Only this many newest entries keep request/response objects; older ones keep metadata only. */
-    public static final int KEEP_OBJECTS = 50;
     private static final long NOTIFY_DELAY = 300;
 
     /** Checked by the ConnectionsManager hook before anything else. */
@@ -59,8 +57,6 @@ public class RawRequestLog {
         volatile TLObject request;
         volatile TLObject response;
         volatile TLRPC.TL_error error;
-        /** Objects were released because the entry fell out of the newest {@link #KEEP_OBJECTS}. */
-        volatile boolean objectsDropped;
 
         Entry(long seq, int account, int token, String method, int datacenterId, int connectionType, TLObject request) {
             this.seq = seq;
@@ -83,7 +79,7 @@ public class RawRequestLog {
         }
 
         public boolean hasObjects() {
-            return !objectsDropped;
+            return true;
         }
 
         public TLObject getRequest() {
@@ -104,11 +100,20 @@ public class RawRequestLog {
         }
     }
 
-    private static final Object lock = new Object();
-    private static final Entry[] ring = new Entry[CAPACITY];
-    private static int head; // next write position
-    private static int size;
+    private static final RawLogBuffer<Entry> buffer = new RawLogBuffer<>(RawgramConfig::getRequestLogLimit);
+    private static final Object seqLock = new Object();
     private static long seqCounter;
+
+    public static int limit() {
+        return RawgramConfig.getRequestLogLimit();
+    }
+
+    /** 0 = no limit. Older entries beyond a smaller limit go at once. */
+    public static void setLimit(int limit) {
+        RawgramConfig.setRequestLogLimit(limit);
+        buffer.trim();
+        scheduleNotify();
+    }
 
     private static final ConcurrentHashMap<Class<?>, String> methodNames = new ConcurrentHashMap<>();
     private static final ArrayList<Runnable> listeners = new ArrayList<>(); // UI thread only
@@ -135,23 +140,12 @@ public class RawRequestLog {
             return null;
         }
         String method = methodName(request);
-        Entry entry;
-        synchronized (lock) {
-            entry = new Entry(++seqCounter, account, token, method, datacenterId, connectionType, request);
-            ring[head] = entry;
-            head = (head + 1) % CAPACITY;
-            if (size < CAPACITY) {
-                size++;
-            }
-            if (size > KEEP_OBJECTS) {
-                Entry old = ring[(head - 1 - KEEP_OBJECTS + CAPACITY * 2) % CAPACITY];
-                if (old != null) {
-                    old.objectsDropped = true;
-                    old.request = null;
-                    old.response = null;
-                }
-            }
+        long seq;
+        synchronized (seqLock) {
+            seq = ++seqCounter;
         }
+        Entry entry = new Entry(seq, account, token, method, datacenterId, connectionType, request);
+        buffer.add(entry);
         scheduleNotify();
         return entry;
     }
@@ -166,13 +160,9 @@ public class RawRequestLog {
             entry.errorCode = error.code;
             entry.errorText = error.text != null ? error.text : "ERROR";
         }
-        synchronized (lock) {
-            if (!entry.objectsDropped) {
-                entry.error = error;
-                if (!entry.isFileConnection()) {
-                    entry.response = response;
-                }
-            }
+        entry.error = error;
+        if (!entry.isFileConnection()) {
+            entry.response = response;
         }
         entry.durationMs = Math.max(0, SystemClock.elapsedRealtime() - entry.startElapsed);
         scheduleNotify();
@@ -188,23 +178,11 @@ public class RawRequestLog {
 
     /** Newest first. */
     public static ArrayList<Entry> snapshot() {
-        synchronized (lock) {
-            ArrayList<Entry> list = new ArrayList<>(size);
-            for (int i = 1; i <= size; i++) {
-                list.add(ring[(head - i + CAPACITY) % CAPACITY]);
-            }
-            return list;
-        }
+        return buffer.snapshot();
     }
 
     public static void clear() {
-        synchronized (lock) {
-            for (int i = 0; i < CAPACITY; i++) {
-                ring[i] = null;
-            }
-            head = 0;
-            size = 0;
-        }
+        buffer.clear();
         scheduleNotify();
     }
 

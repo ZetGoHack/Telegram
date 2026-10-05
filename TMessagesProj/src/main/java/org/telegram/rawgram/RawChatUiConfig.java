@@ -142,6 +142,13 @@ public class RawChatUiConfig {
     /** Permissions: stickers / GIFs / games / inline bots as separate rows instead of «Стикеры и GIF» (RawPermissions). */
     public static final Flag splitMediaRights = new Flag("splitMediaRights", true);
 
+    /** Chat header without the call icon (calls stay in the chat's ⋮ menu and in the profile). */
+    public static final Flag hideCallButton = new Flag("hideCallButton", false);
+
+    /** Round video messages: which camera starts (RawRoundCamera). Front = Telegram's behaviour. */
+    public static final int ROUND_FRONT = 0, ROUND_BACK = 1, ROUND_ASK = 2;
+    public static final Choice roundCamera = new Choice("roundCamera", ROUND_FRONT);
+
     public static final Flag shortcutAdmins = new Flag("shortcutAdmins", false);
     public static final Flag shortcutPermissions = new Flag("shortcutPermissions", false);
     public static final Flag shortcutMembers = new Flag("shortcutMembers", false);

@@ -349,8 +349,65 @@ public class RawReportExport {
             return;
         }
         String name = file.getName();
-        MediaController.saveFile(file.getAbsolutePath(), activity, 2, name, mime,
-                uri -> RawNotify.show(R.drawable.msg_download, "Сохранено в «Загрузки/Telegram»: " + name));
+        // rawGram's own folder (Download/rawGram), not Telegram's: backups and reports are easy to find and stay apart
+        org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
+            String error = null;
+            try {
+                copyToDownloads(activity, file, name, mime);
+            } catch (Throwable e) {
+                org.telegram.messenger.FileLog.e(e);
+                error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            }
+            String failure = error;
+            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                if (failure != null) {
+                    RawNotify.show(R.drawable.msg_warning, "Не удалось сохранить: " + failure);
+                } else {
+                    RawNotify.show(R.drawable.msg_download, "Сохранено в «Загрузки/rawGram»: " + name);
+                }
+            });
+        });
+    }
+
+    static final String DOWNLOADS_FOLDER = "rawGram";
+
+    private static void copyToDownloads(Context ctx, File file, String name, String mime) throws Exception {
+        if (Build.VERSION.SDK_INT >= 29) {
+            android.content.ContentValues values = new android.content.ContentValues();
+            values.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name);
+            values.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime);
+            values.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS + "/" + DOWNLOADS_FOLDER + "/");
+            Uri uri = ctx.getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+            if (uri == null) {
+                throw new IllegalStateException("MediaStore insert failed");
+            }
+            try (java.io.OutputStream out = ctx.getContentResolver().openOutputStream(uri)) {
+                copy(file, out);
+            }
+        } else {
+            File dir = new File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), DOWNLOADS_FOLDER);
+            if (!dir.isDirectory() && !dir.mkdirs()) {
+                throw new IllegalStateException("нет доступа к «Загрузкам»");
+            }
+            File dest = new File(dir, name);
+            try (java.io.OutputStream out = new java.io.FileOutputStream(dest)) {
+                copy(file, out);
+            }
+            android.media.MediaScannerConnection.scanFile(ctx, new String[]{dest.getAbsolutePath()}, new String[]{mime}, null);
+        }
+    }
+
+    private static void copy(File from, java.io.OutputStream out) throws Exception {
+        if (out == null) {
+            throw new IllegalStateException("нет потока записи");
+        }
+        byte[] buffer = new byte[1 << 16];
+        try (java.io.InputStream in = new java.io.FileInputStream(from)) {
+            int n;
+            while ((n = in.read(buffer)) > 0) {
+                out.write(buffer, 0, n);
+            }
+        }
     }
 
     // endregion

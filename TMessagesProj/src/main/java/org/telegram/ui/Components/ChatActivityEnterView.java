@@ -896,6 +896,20 @@ public class ChatActivityEnterView extends FrameLayout implements
             if (delegate == null || parentActivity == null) {
                 return;
             }
+            // rawGram: «ask» camera mode — the hold shows front/back buttons; the choice starts a hands-free recording
+            if (isInVideoMode() && org.telegram.rawgram.RawRoundCamera.askFirst(parentFragment, audioVideoButtonContainer, () -> {
+                recordAudioVideoRunnable.run();
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (recordingAudioVideo && !sendButtonVisible) {
+                        sendButtonVisible = true;
+                        startLockTransition();
+                    }
+                }, 250);
+            })) {
+                recordAudioVideoRunnableStarted = false;
+                calledRecordRunnable = false;
+                return;
+            }
             delegate.onPreAudioVideoRecord();
             calledRecordRunnable = true;
             recordAudioVideoRunnableStarted = false;

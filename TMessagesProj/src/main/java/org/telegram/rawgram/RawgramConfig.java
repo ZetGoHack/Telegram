@@ -162,6 +162,53 @@ public class RawgramConfig {
         prefs().edit().putBoolean("requestLog", value).apply();
     }
 
+    /** Raw viewers minimize into the bottom tabs (like web apps) instead of closing; the close button still closes. */
+    public static boolean isRawMinimize() {
+        return prefs().getBoolean("rawMinimize", false);
+    }
+
+    public static void setRawMinimize(boolean value) {
+        prefs().edit().putBoolean("rawMinimize", value).apply();
+    }
+
+    /** How many newest entries the MTProto / updates logs keep, 0 = no limit (memory is the only cost). */
+    public static final int LOG_LIMIT_DEFAULT = 300;
+    private static volatile int requestLogLimit = Integer.MIN_VALUE, updatesLogLimit = Integer.MIN_VALUE;
+
+    public static int getRequestLogLimit() {
+        if (requestLogLimit == Integer.MIN_VALUE) {
+            requestLogLimit = Math.max(0, prefs().getInt("requestLogLimit", LOG_LIMIT_DEFAULT));
+        }
+        return requestLogLimit;
+    }
+
+    static void setRequestLogLimit(int value) {
+        requestLogLimit = Math.max(0, value);
+        prefs().edit().putInt("requestLogLimit", requestLogLimit).apply();
+    }
+
+    // ---- incoming updates log (the hot-path flag is cached in RawUpdatesLog.enabled) ----
+
+    public static boolean isUpdatesLog() {
+        return prefs().getBoolean("updatesLog", false);
+    }
+
+    static void setUpdatesLog(boolean value) {
+        prefs().edit().putBoolean("updatesLog", value).apply();
+    }
+
+    public static int getUpdatesLogLimit() {
+        if (updatesLogLimit == Integer.MIN_VALUE) {
+            updatesLogLimit = Math.max(0, prefs().getInt("updatesLogLimit", LOG_LIMIT_DEFAULT));
+        }
+        return updatesLogLimit;
+    }
+
+    static void setUpdatesLogLimit(int value) {
+        updatesLogLimit = Math.max(0, value);
+        prefs().edit().putInt("updatesLogLimit", updatesLogLimit).apply();
+    }
+
     // ---- peer id row in profiles ----
 
     public static final int ID_OFF = 0;

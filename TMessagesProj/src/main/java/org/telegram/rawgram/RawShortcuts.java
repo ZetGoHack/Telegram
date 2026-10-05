@@ -291,4 +291,24 @@ public class RawShortcuts {
         }
         return sheet;
     }
+
+    /** Profile: holding the name (user, chat or channel title) offers «Скопировать». */
+    public static void attachCopyName(org.telegram.ui.ActionBar.BaseFragment fragment, org.telegram.ui.ActionBar.SimpleTextView nameView) {
+        nameView.setOnLongClickListener(v -> {
+            CharSequence text = nameView.getText();
+            if (text == null || text.length() == 0) {
+                return false;
+            }
+            String name = text.toString().trim();
+            org.telegram.ui.Components.ItemOptions.makeOptions(fragment, nameView)
+                    // the profile scales and moves the name: a scrim copy of it would land beside the real one
+                    .setDrawScrim(false)
+                    .add(R.drawable.msg_copy, org.telegram.messenger.LocaleController.getString(R.string.Copy), () -> {
+                        org.telegram.messenger.AndroidUtilities.addToClipboard(name);
+                        RawNotify.show(R.drawable.msg_copy, "Скопировано: " + name);
+                    })
+                    .show();
+            return true;
+        });
+    }
 }

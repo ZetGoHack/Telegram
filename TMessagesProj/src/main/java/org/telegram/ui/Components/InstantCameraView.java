@@ -733,6 +733,10 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             if (!useCamera2) {
                 isFrontface = true;
             }
+            Boolean rawFront = org.telegram.rawgram.RawRoundCamera.startFront(); // rawGram: front / back / asked
+            if (rawFront != null) {
+                isFrontface = rawFront;
+            }
             updateFlash();
             recordedTime = 0;
             progress = 0;

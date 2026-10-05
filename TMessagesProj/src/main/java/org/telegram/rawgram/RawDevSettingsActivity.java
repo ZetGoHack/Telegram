@@ -46,11 +46,16 @@ public class RawDevSettingsActivity extends BaseFragment {
     private static final int REQUEST_LOG = 9;
     private static final int ID_SEARCH = 10;
     private static final int NUMBER_IDS = 11;
+    private static final int UPDATES_LOG = 12;
+    private static final int RAW_MINIMIZE = 13;
     // values / actions
     private static final int ID_FORMAT = 20;
     private static final int OPEN_REQUEST_LOG = 21;
     private static final int CRASH_LOG = 22;
     private static final int SERVER_CONFIG = 23;
+    private static final int REQUEST_LOG_LIMIT = 24;
+    private static final int OPEN_UPDATES_LOG = 25;
+    private static final int UPDATES_LOG_LIMIT = 26;
 
     private static class Row {
         final int type;
@@ -91,7 +96,9 @@ public class RawDevSettingsActivity extends BaseFragment {
         check("Raw в профилях, наборах и диалогах", OBJECT_RAW);
         check("Raw в превью стикеров и эмодзи", PREVIEW_RAW);
         value("ID в профилях", ID_FORMAT);
-        info("Выключенная функция не показывается, и Telegram ведёт себя как обычно. ID в профиле копируется нажатием.");
+        check("Сворачивать raw-окна во вкладки", RAW_MINIMIZE);
+        info("Выключенная функция не показывается, и Telegram ведёт себя как обычно. ID в профиле копируется нажатием. "
+                + "Свёрнутые raw-окна живут во вкладках внизу, как веб-приложения: можно держать открытыми несколько объектов и сравнивать. Крестик закрывает окно совсем.");
 
         header("Поиск по ID");
         check("Поиск по ID в кеше", ID_SEARCH);
@@ -113,9 +120,14 @@ public class RawDevSettingsActivity extends BaseFragment {
         header("Журналы");
         check("Журнал запросов MTProto", REQUEST_LOG);
         value("Открыть журнал запросов", OPEN_REQUEST_LOG);
+        value("Хранить запросов", REQUEST_LOG_LIMIT);
+        check("Журнал входящих апдейтов", UPDATES_LOG);
+        value("Открыть журнал апдейтов", OPEN_UPDATES_LOG);
+        value("Хранить апдейтов", UPDATES_LOG_LIMIT);
         value("Журнал крашей", CRASH_LOG);
-        info("Последние " + RawRequestLog.CAPACITY + " RPC-вызовов всех аккаунтов: метод, время, ответ или ошибка; "
-                + "полные объекты — для последних " + RawRequestLog.KEEP_OBJECTS + ". Выключенный журнал ничего не стоит.");
+        info("Запросы — RPC-вызовы всех аккаунтов: метод, время, запрос и ответ или ошибка. Апдейты — всё, что сервер присылает сам: "
+                + "новые сообщения, прочтения, изменения чатов. Записи хранятся целиком; лимит — сколько последних держать в памяти. "
+                + "Выключенный журнал ничего не стоит.");
 
         header("Сервер");
         value("Конфиг сервера", SERVER_CONFIG);
@@ -133,6 +145,8 @@ public class RawDevSettingsActivity extends BaseFragment {
             case BOT_ANSWERS: return RawgramConfig.isBotAnswerLog();
             case WEBAPP: return RawgramConfig.isWebAppData();
             case REQUEST_LOG: return RawRequestLog.enabled;
+            case UPDATES_LOG: return RawUpdatesLog.enabled;
+            case RAW_MINIMIZE: return RawgramConfig.isRawMinimize();
             case ID_SEARCH: return RawgramConfig.isIdSearch();
             case NUMBER_IDS: return RawgramConfig.isNumberIds();
             default: return false;
@@ -150,6 +164,8 @@ public class RawDevSettingsActivity extends BaseFragment {
             case BOT_ANSWERS: RawgramConfig.setBotAnswerLog(value); break;
             case WEBAPP: RawgramConfig.setWebAppData(value); break;
             case REQUEST_LOG: RawRequestLog.setEnabled(value); break;
+            case UPDATES_LOG: RawUpdatesLog.setEnabled(value); break;
+            case RAW_MINIMIZE: RawgramConfig.setRawMinimize(value); break;
             case ID_SEARCH: RawgramConfig.setIdSearch(value); break;
             case NUMBER_IDS: RawgramConfig.setNumberIds(value); break;
         }
@@ -217,6 +233,21 @@ public class RawDevSettingsActivity extends BaseFragment {
                 break;
             case CRASH_LOG:
                 RawCrashLog.openViewer(this);
+                break;
+            case OPEN_UPDATES_LOG:
+                presentFragment(new RawUpdatesLogActivity());
+                break;
+            case REQUEST_LOG_LIMIT:
+                RawLogLimit.ask(this, "Хранить запросов", RawRequestLog.limit(), limit -> {
+                    RawRequestLog.setLimit(limit);
+                    adapter.notifyItemChanged(position);
+                });
+                break;
+            case UPDATES_LOG_LIMIT:
+                RawLogLimit.ask(this, "Хранить апдейтов", RawUpdatesLog.limit(), limit -> {
+                    RawUpdatesLog.setLimit(limit);
+                    adapter.notifyItemChanged(position);
+                });
                 break;
             case SERVER_CONFIG:
                 RawServerConfig.show(getParentActivity(), currentAccount, getResourceProvider());
@@ -287,6 +318,9 @@ public class RawDevSettingsActivity extends BaseFragment {
                 case TYPE_VALUE:
                     if (row.id == ID_FORMAT) {
                         ((TextSettingsCell) holder.itemView).setTextAndValue(row.text, idFormatName(), needDivider(position));
+                    } else if (row.id == REQUEST_LOG_LIMIT || row.id == UPDATES_LOG_LIMIT) {
+                        int limit = row.id == REQUEST_LOG_LIMIT ? RawRequestLog.limit() : RawUpdatesLog.limit();
+                        ((TextSettingsCell) holder.itemView).setTextAndValue(row.text, RawLogBuffer.limitText(limit), needDivider(position));
                     } else {
                         ((TextSettingsCell) holder.itemView).setText(row.text, needDivider(position));
                     }

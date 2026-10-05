@@ -5581,6 +5581,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             nameTextView[a].setEllipsizeByGradient(true);
             nameTextView[a].setRightDrawableOutside(a == 0);
             avatarContainer2.addView(nameTextView[a], LayoutHelper.createFrame(a == 0 ? initialTitleWidth : LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 109, -6, (a == 0 ? rightMargin - (hasTitleExpanded ? 10 : 0) : 0), 0));
+            if (a == 1) {
+                org.telegram.rawgram.RawShortcuts.attachCopyName(this, nameTextView[a]); // rawGram: hold the name → «Скопировать»
+            }
         }
         for (int a = 0; a < onlineTextView.length; a++) {
             if (a == 1) {

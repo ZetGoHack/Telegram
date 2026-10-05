@@ -88,6 +88,25 @@ public class RawObjectSheet extends BottomSheet {
     // swipe-to-dismiss gating, decided at ACTION_DOWN
     private long scrollViewLastScroll;
     private boolean touchInScrollableBody;
+    /** Body height cap: 42% of the screen as a sheet; while expanding, the body height for the current step. */
+    private int maxBodyHeight;
+    private final int standardMaxBody;
+    private View rootView, handleView;
+    private LinearLayout titlesView;
+    private ImageView closeView;
+
+    // ---- three snap points: full screen (top), standard sheet (middle), closed (bottom) ----
+    /** 0 = standard sheet, 1 = full screen (web-app-like: close button + title), in between while dragging. */
+    private float expansion;
+    private ValueAnimator settleAnimator;
+    /** Header drag: a vertical drag that starts outside the code body moves the sheet with the finger. */
+    private float dragStartX = Float.NaN, dragStartY = Float.NaN;
+    private boolean dragging;
+    private android.view.VelocityTracker velocityTracker;
+    /** Measured at the standard point: the sheet's height and everything in it but the code body. */
+    private int standardRootHeight, chromeHeight;
+    /** Visible sheet height (root height minus the downward translation) when the drag started. */
+    private float dragStartVisible;
     private boolean pullArmed;
     private int pullDownOffset;
 
@@ -101,6 +120,30 @@ public class RawObjectSheet extends BottomSheet {
         LinearLayout root = new LinearLayout(context);
         root.setOrientation(LinearLayout.VERTICAL);
 
+        // grab handle: shows the sheet can be pulled up to the full height
+        View handle = new View(context);
+        GradientDrawable handleBg = new GradientDrawable();
+        handleBg.setCornerRadius(AndroidUtilities.dp(2));
+        handleBg.setColor(Theme.multAlpha(getThemedColor(Theme.key_dialogTextGray2), 0.4f));
+        handle.setBackground(handleBg);
+        handleView = handle;
+        root.addView(handle, LayoutHelper.createLinear(36, 4, Gravity.CENTER_HORIZONTAL, 0, 8, 0, 0));
+
+        // title row: at the full-screen point a close button slides in before the title (web-app-like header)
+        FrameLayout titleRow = new FrameLayout(context);
+        closeView = new ImageView(context);
+        closeView.setImageResource(R.drawable.ic_close_white);
+        closeView.setScaleType(ImageView.ScaleType.CENTER);
+        closeView.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_dialogTextBlack), PorterDuff.Mode.SRC_IN));
+        closeView.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector), Theme.RIPPLE_MASK_CIRCLE_20DP));
+        closeView.setContentDescription("Закрыть");
+        closeView.setAlpha(0f);
+        closeView.setClickable(false);
+        closeView.setOnClickListener(v -> close());
+        titleRow.addView(closeView, LayoutHelper.createFrame(36, 36, Gravity.LEFT | Gravity.CENTER_VERTICAL, 8, 0, 0, 0));
+
+        titlesView = new LinearLayout(context);
+        titlesView.setOrientation(LinearLayout.VERTICAL);
         titleView = new TextView(context);
         titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
         titleView.setTypeface(AndroidUtilities.bold());
@@ -108,13 +151,15 @@ public class RawObjectSheet extends BottomSheet {
         titleView.setSingleLine(true);
         titleView.setEllipsize(TextUtils.TruncateAt.END);
         titleView.setText(title);
-        root.addView(titleView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 16, 12, 16, 0));
+        titlesView.addView(titleView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
         subtitleView = new TextView(context);
         subtitleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
         subtitleView.setTextColor(getThemedColor(Theme.key_dialogTextGray2));
         subtitleView.setTextIsSelectable(true);
-        root.addView(subtitleView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 16, 2, 16, 8));
+        titlesView.addView(subtitleView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 2, 0, 0));
+        titleRow.addView(titlesView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL, 16, 0, 16, 0));
+        root.addView(titleRow, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 6, 0, 8));
 
         previewContainer = new FrameLayout(context);
         previewContainer.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
@@ -175,13 +220,16 @@ public class RawObjectSheet extends BottomSheet {
             RawMotion.copied(v);
         });
         header.addView(copyButton, LayoutHelper.createLinear(34, 34, 4, 0, 4, 0));
+        rootView = root;
 
         View divider = new View(context);
         divider.setBackgroundColor(Theme.multAlpha(text, 0.10f));
         codeBlock.addView(divider, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 1));
 
-        int maxBodyHeight = (int) (AndroidUtilities.displaySize.y * 0.42f);
+        maxBodyHeight = standardMaxBody = (int) (AndroidUtilities.displaySize.y * 0.42f);
         bodyFrame = new FrameLayout(context);
+        // the sheet keeps one height whatever the object's size (folding the tree to one line must not move it)
+        bodyFrame.setMinimumHeight(standardMaxBody);
         codeBlock.addView(bodyFrame, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
         scrollView = new ScrollView(context) {
@@ -214,7 +262,7 @@ public class RawObjectSheet extends BottomSheet {
         treeView.setNestedScrollingEnabled(false);
         treeView.setCopyHandler((value, toast) -> {
             AndroidUtilities.addToClipboard(value);
-            RawNotify.show(this, R.drawable.msg_copy, toast);
+            RawNotify.show(notifyHost(), R.drawable.msg_copy, toast);
         });
         bodyFrame.addView(treeView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
@@ -246,6 +294,181 @@ public class RawObjectSheet extends BottomSheet {
         setObject(null, object);
     }
 
+    BottomSheet notifyHost() {
+        return this;
+    }
+
+    // ---- three snap points ----
+
+    /** The tallest the sheet's content can be: from just below the status bar to the sheet's bottom. */
+    private int fullRootHeight() {
+        return containerView.getBottom() - AndroidUtilities.statusBarHeight
+                - containerView.getPaddingTop() - containerView.getPaddingBottom();
+    }
+
+    /** Remembers the standard point's geometry; only meaningful while the sheet sits there. */
+    private void measureStandard() {
+        if (expansion == 0 && rootView.getHeight() > 0) {
+            standardRootHeight = rootView.getHeight();
+            chromeHeight = standardRootHeight - bodyFrame.getHeight();
+        }
+    }
+
+    /**
+     * 0 = standard sheet, 1 = full screen. The code body grows with the finger; on the way the grab handle fades
+     * out and a close button slides in before the title, so at the top the sheet reads as a web-app window.
+     */
+    private void setExpansion(float value) {
+        expansion = Math.max(0f, Math.min(1f, value));
+        float p = expansion;
+        handleView.setAlpha(1f - p);
+        handleView.setScaleX(1f - 0.5f * p);
+        closeView.setAlpha(p);
+        closeView.setClickable(p > 0.5f);
+        int shift = (int) (AndroidUtilities.dp(40) * p);
+        if (titlesView.getPaddingLeft() != shift) {
+            titlesView.setPadding(shift, 0, 0, 0);
+        }
+        if (p == 0) {
+            maxBodyHeight = standardMaxBody;
+            bodyFrame.setMinimumHeight(standardMaxBody); // fixed height: a short object doesn't move the snap points
+        } else {
+            int small = standardRootHeight - chromeHeight;
+            int big = fullRootHeight() - chromeHeight;
+            int body = Math.max(small, (int) (small + (big - small) * p));
+            maxBodyHeight = body;
+            bodyFrame.setMinimumHeight(body);
+        }
+        treeView.setMaxHeight(maxBodyHeight);
+        scrollView.requestLayout();
+        treeView.requestLayout();
+        rootView.requestLayout();
+    }
+
+    /** Visible sheet height for the finger: above the standard point it expands, below it the sheet slides down. */
+    private void applyVisibleHeight(float visible) {
+        if (visible >= standardRootHeight) {
+            containerView.setTranslationY(0);
+            int range = fullRootHeight() - standardRootHeight;
+            setExpansion(range > 0 ? (visible - standardRootHeight) / range : 0f);
+        } else {
+            if (expansion != 0) {
+                setExpansion(0);
+            }
+            containerView.setTranslationY(standardRootHeight - visible);
+        }
+    }
+
+    private float visibleHeight() {
+        return standardRootHeight + (fullRootHeight() - standardRootHeight) * expansion - containerView.getTranslationY();
+    }
+
+    /** Finger up: to the nearest point, a fling picks the direction; below the standard point means close. */
+    private void settle(float velocityY) {
+        float fling = AndroidUtilities.dp(600);
+        float translation = containerView.getTranslationY();
+        if (translation > 0) {
+            if (translation > AndroidUtilities.dp(24) || velocityY > fling) {
+                dismiss();
+            } else {
+                animateTo(0, 0);
+            }
+            return;
+        }
+        float target = velocityY < -fling ? 1f : velocityY > fling ? 0f : expansion > 0.5f ? 1f : 0f;
+        animateTo(target, 0);
+    }
+
+    private void animateTo(float targetExpansion, float targetTranslation) {
+        if (settleAnimator != null) {
+            settleAnimator.cancel();
+        }
+        float fromExpansion = expansion, fromTranslation = containerView.getTranslationY();
+        settleAnimator = ValueAnimator.ofFloat(0f, 1f);
+        settleAnimator.addUpdateListener(a -> {
+            float t = (float) a.getAnimatedValue();
+            containerView.setTranslationY(fromTranslation + (targetTranslation - fromTranslation) * t);
+            setExpansion(fromExpansion + (targetExpansion - fromExpansion) * t);
+        });
+        settleAnimator.setDuration(RawMotion.active() ? 280 : 0);
+        settleAnimator.setInterpolator(org.telegram.ui.Components.CubicBezierInterpolator.EASE_OUT_QUINT);
+        settleAnimator.start();
+    }
+
+    // ---- minimize into the bottom tabs, like web apps (RawgramConfig.isRawMinimize) ----
+
+    /** The close button: always closes for real, even with minimizing on. */
+    private boolean closing;
+
+    public void close() {
+        closing = true;
+        dismiss();
+    }
+
+    /** Any other way out (swipe down, back, a tap outside, navigating away) minimizes when the option is on. */
+    @Override
+    public void dismiss() {
+        if (!closing && isShowing() && RawgramConfig.isRawMinimize() && minimize()) {
+            return;
+        }
+        closing = false;
+        super.dismiss();
+    }
+
+    private boolean minimize() {
+        org.telegram.ui.ActionBar.BottomSheetTabs tabsView = org.telegram.ui.LaunchActivity.instance != null
+                ? org.telegram.ui.LaunchActivity.instance.getBottomSheetTabs() : null;
+        if (tabsView == null) {
+            return false;
+        }
+        org.telegram.ui.ActionBar.BottomSheetTabs.WebTabData tab = new org.telegram.ui.ActionBar.BottomSheetTabs.WebTabData();
+        tab.isWeb = true;
+        tab.title = titleView.getText() != null ? titleView.getText().toString() : "Raw";
+        tab.actionBarColor = getThemedColor(Theme.key_dialogBackground);
+        tab.backgroundColor = tab.actionBarColor;
+        tab.themeIsDark = Theme.isCurrentThemeDark();
+        tab.previewBitmap = snapshot();
+        tab.rawgramReopen = this::reopen;
+        tabsView.pushTab(tab);
+        closing = true;
+        super.dismiss();
+        closing = false;
+        return true;
+    }
+
+    /** The tab was tapped: the same sheet comes back, at the standard point. */
+    private void reopen() {
+        if (settleAnimator != null) {
+            settleAnimator.cancel();
+        }
+        containerView.setTranslationY(0);
+        setExpansion(0);
+        show();
+    }
+
+    private android.graphics.Bitmap snapshot() {
+        try {
+            if (rootView.getWidth() <= 0 || rootView.getHeight() <= 0) {
+                return null;
+            }
+            android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(rootView.getWidth(), rootView.getHeight(), android.graphics.Bitmap.Config.RGB_565);
+            Canvas canvas = new Canvas(bitmap);
+            canvas.drawColor(getThemedColor(Theme.key_dialogBackground));
+            rootView.draw(canvas);
+            return bitmap;
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (expansion > 0) {
+            animateTo(0, 0); // back from full screen goes to the standard sheet first
+            return;
+        }
+        super.onBackPressed();
+    }
     private TextView createChip(String text, int heightDp) {
         TextView chip = new TextView(getContext());
         chip.setText(text);
@@ -388,7 +611,7 @@ public class RawObjectSheet extends BottomSheet {
             return;
         }
         AndroidUtilities.addToClipboard(text);
-        RawNotify.show(this, R.drawable.msg_copy, asFields ? "Поля скопированы" : "JSON скопирован");
+        RawNotify.show(notifyHost(), R.drawable.msg_copy, asFields ? "Поля скопированы" : "JSON скопирован");
     }
 
     // ---- view mode, remembered across sheets ----
@@ -443,21 +666,66 @@ public class RawObjectSheet extends BottomSheet {
         int action = ev.getActionMasked();
         View body = activeBody();
         if (action == MotionEvent.ACTION_DOWN) {
+            if (settleAnimator != null) {
+                settleAnimator.cancel();
+            }
             boolean inBody = hit(body, ev.getRawX(), ev.getRawY());
             touchInScrollableBody = inBody && (body.canScrollVertically(-1) || body.canScrollVertically(1));
             boolean atTop = !body.canScrollVertically(-1);
             long lastScroll = body == treeView ? treeView.getLastScrollTime() : scrollViewLastScroll;
             boolean settled = SystemClock.uptimeMillis() - lastScroll > SETTLE_MS
                     && (body != treeView || treeView.getScrollState() == RecyclerView.SCROLL_STATE_IDLE);
-            pullArmed = touchInScrollableBody && atTop && settled;
+            // full screen: the body never pulls the sheet, the header does
+            pullArmed = touchInScrollableBody && atTop && settled && expansion == 0;
             pullDownOffset = bodyOffset(body);
             setBodyPull(body, pullArmed);
+            // a drag outside the code body moves the sheet with the finger (decided once it's clearly vertical)
+            dragging = false;
+            dragStartX = inBody ? Float.NaN : ev.getRawX();
+            dragStartY = inBody ? Float.NaN : ev.getRawY();
+            if (!inBody) {
+                measureStandard();
+                if (velocityTracker == null) {
+                    velocityTracker = android.view.VelocityTracker.obtain();
+                }
+                velocityTracker.clear();
+                velocityTracker.addMovement(ev);
+            }
         } else if (action == MotionEvent.ACTION_MOVE) {
+            if (!Float.isNaN(dragStartY)) {
+                velocityTracker.addMovement(ev);
+                float dy = dragStartY - ev.getRawY(), dx = ev.getRawX() - dragStartX;
+                if (!dragging && Math.abs(dy) > AndroidUtilities.touchSlop && Math.abs(dy) > Math.abs(dx) && standardRootHeight > 0) {
+                    dragging = true;
+                    dragStartY = ev.getRawY();
+                    dragStartVisible = visibleHeight();
+                    // the views under the finger (tabs, chips) lose this gesture: it's the sheet's now
+                    MotionEvent cancel = MotionEvent.obtain(ev);
+                    cancel.setAction(MotionEvent.ACTION_CANCEL);
+                    super.dispatchTouchEvent(cancel);
+                    cancel.recycle();
+                    return true;
+                }
+                if (dragging) {
+                    applyVisibleHeight(dragStartVisible + (dragStartY - ev.getRawY()));
+                    return true;
+                }
+            }
             if (pullArmed && bodyOffset(body) != pullDownOffset) {
                 // the content moved during this gesture: from here on it's a plain scroll, reaching the top won't pull the sheet
                 pullArmed = false;
                 setBodyPull(body, false);
             }
+        } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            if (dragging) {
+                dragging = false;
+                dragStartY = Float.NaN;
+                velocityTracker.addMovement(ev);
+                velocityTracker.computeCurrentVelocity(1000);
+                settle(action == MotionEvent.ACTION_CANCEL ? 0 : velocityTracker.getYVelocity());
+                return true;
+            }
+            dragStartY = Float.NaN;
         } else if (action == MotionEvent.ACTION_POINTER_DOWN) {
             if (pullArmed) {
                 pullArmed = false;
@@ -466,7 +734,6 @@ public class RawObjectSheet extends BottomSheet {
         }
         return super.dispatchTouchEvent(ev);
     }
-
     private void setBodyPull(View body, boolean enabled) {
         scrollView.setNestedScrollingEnabled(enabled && body == scrollView);
         treeView.setNestedScrollingEnabled(enabled && body == treeView);
@@ -478,7 +745,8 @@ public class RawObjectSheet extends BottomSheet {
      */
     @Override
     protected boolean canDismissWithSwipe() {
-        return super.canDismissWithSwipe() && !touchInScrollableBody;
+        // drags outside the code body are the sheet's own (follow the finger, snap points)
+        return super.canDismissWithSwipe() && !touchInScrollableBody && Float.isNaN(dragStartY) && expansion == 0;
     }
 
     /** Renders the message exactly like a chat cell would; null hides the preview. */

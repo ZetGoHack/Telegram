@@ -100,6 +100,11 @@ public class BottomSheetTabs extends FrameLayout {
     public void openTab(WebTabData tab) {
         BaseFragment lastFragment = LaunchActivity.getLastFragment();
         if (lastFragment == null || lastFragment.getParentActivity() == null) return;
+        if (tab.rawgramReopen != null) { // rawGram: minimized raw viewer
+            removeTab(tab, false);
+            tab.rawgramReopen.run();
+            return;
+        }
         if (lastFragment instanceof ChatActivity) {
             if (((ChatActivity) lastFragment).getChatActivityEnterView() != null) {
                 ((ChatActivity) lastFragment).getChatActivityEnterView().closeKeyboard();
@@ -990,6 +995,9 @@ public class BottomSheetTabs extends FrameLayout {
         public BotSensors sensors;
 
         public boolean orientationLocked;
+
+        /** rawGram: a minimized raw viewer; opening the tab runs this instead of restoring a web view. */
+        public Runnable rawgramReopen;
 
         public long getBotId() {
             if (props == null) return 0;

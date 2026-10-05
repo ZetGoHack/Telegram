@@ -406,6 +406,9 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
         switchLanguageTextView.setGravity(Gravity.CENTER);
         switchLanguageTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
         frameContainerView.addView(switchLanguageTextView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 30, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL, 0, 0, 0, 20));
+        // rawGram: the default custom language pack, and the way back to the system language
+        org.telegram.rawgram.RawLanguage.applyDefaultOnce(currentAccount);
+        org.telegram.rawgram.RawLanguage.addNotice(frameContainerView, switchLanguageTextView, currentAccount);
         switchLanguageTextView.setOnClickListener(v -> {
             if (startPressed || localeInfo == null) {
                 return;
