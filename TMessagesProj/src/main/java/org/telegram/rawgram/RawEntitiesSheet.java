@@ -24,6 +24,7 @@ import org.telegram.messenger.Emoji;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.R;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_iv;
 import org.telegram.tgnet.tl.TL_keyboard;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.BottomSheet;
@@ -51,7 +52,11 @@ public class RawEntitiesSheet extends BottomSheet {
     private final String text;
     private final ArrayList<TLRPC.MessageEntity> entities;
     private final LinearLayout list;
-    private final ArrayList<View> entityRows = new ArrayList<>();
+    /** Highlightable ranges: the entities, or for a rich_message its blocks and formatting nodes. */
+    private final ArrayList<Range> ranges = new ArrayList<>();
+    private final View[] rangeRows;
+    /** Non-null for a rich_message (Instant View blocks instead of text + entities). */
+    private final RawRichFlatten rich;
     private AnimatedEmojiSpan.TextViewEmojis textView;
     private ScrollView textScroll;
     /** Text with emoji spans only; highlight spans are layered over a copy of it. */
@@ -65,8 +70,19 @@ public class RawEntitiesSheet extends BottomSheet {
         fixNavigationBar(getThemedColor(Theme.key_dialogBackground));
         Context context = getContext();
         TLRPC.Message m = message.messageOwner;
-        text = m.message != null ? m.message : "";
-        entities = m.entities != null ? m.entities : new ArrayList<>();
+        rich = m.rich_message != null ? RawRichFlatten.of(m.rich_message) : null;
+        text = rich != null ? rich.text.toString() : m.message != null ? m.message : "";
+        entities = rich != null || m.entities == null ? new ArrayList<>() : m.entities;
+        if (rich != null) {
+            for (RawRichFlatten.Span span : rich.spans) {
+                ranges.add(new Range(span.start, span.end, span.type, span.block));
+            }
+        } else {
+            for (TLRPC.MessageEntity e : entities) {
+                ranges.add(new Range(e.offset, e.offset + e.length, entityType(e), isContainer(e)));
+            }
+        }
+        rangeRows = new View[ranges.size()];
 
         LinearLayout root = new LinearLayout(context);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -77,13 +93,14 @@ public class RawEntitiesSheet extends BottomSheet {
         title.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
         title.setSingleLine(true);
         title.setEllipsize(TextUtils.TruncateAt.END);
-        title.setText("Форматирование · #" + message.getId());
+        title.setText((rich != null ? "Rich-сообщение · #" : "Форматирование · #") + message.getId());
         root.addView(title, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 16, 14, 16, 0));
 
         TextView subtitle = new TextView(context);
         subtitle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
         subtitle.setTextColor(getThemedColor(Theme.key_dialogTextGray2));
-        subtitle.setText("сущностей " + entities.size() + " · длина " + text.length() + " (UTF-16) · "
+        subtitle.setText((rich != null ? "блоков " + rich.blockCount + " · узлов " + (rich.spans.size() - rich.blockCount)
+                : "сущностей " + entities.size()) + " · длина " + text.length() + " (UTF-16) · "
                 + text.codePointCount(0, text.length()) + " кодпоинтов");
         root.addView(subtitle, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 16, 2, 16, 8));
 
@@ -94,6 +111,10 @@ public class RawEntitiesSheet extends BottomSheet {
         actions.setPadding(AndroidUtilities.dp(16), 0, AndroidUtilities.dp(8), 0);
         actionsScroll.addView(actions);
         root.addView(actionsScroll, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, 8));
+        if (rich != null) {
+            TL_iv.RichMessage richMessage = m.rich_message;
+            chip(actions, "Raw rich_message", () -> new RawObjectSheet(getContext(), account, "messageOwner.rich_message", richMessage, rp).show());
+        }
         if (!entities.isEmpty()) {
             chip(actions, "Raw entities", () -> new RawObjectSheet(getContext(), account, "messageOwner.entities", entities, rp).show());
         }
@@ -158,7 +179,21 @@ public class RawEntitiesSheet extends BottomSheet {
         if (m.reply_markup != null) {
             addMarkup(m.reply_markup);
         }
-        if (entities.isEmpty() && m.reply_markup == null) {
+        if (rich != null) {
+            section("Блоки (" + rich.blockCount + ")");
+            for (int i = 0; i < rich.spans.size(); i++) {
+                if (rich.spans.get(i).block) addRichSpan(i, rich.spans.get(i));
+            }
+            if (rich.spans.size() > rich.blockCount) {
+                section("Форматирование (" + (rich.spans.size() - rich.blockCount) + ")");
+                for (int i = 0; i < rich.spans.size(); i++) {
+                    if (!rich.spans.get(i).block) addRichSpan(i, rich.spans.get(i));
+                }
+            }
+            hint("Текста и entities у rich-сообщения нет: блоки склеены в текст, диапазоны — блоки и узлы RichText. "
+                    + "Нажатие — подсветить, долгое — raw узла.");
+        }
+        if (rich == null && entities.isEmpty() && m.reply_markup == null) {
             hint("Сущностей и кнопок нет.");
         }
 
@@ -174,15 +209,15 @@ public class RawEntitiesSheet extends BottomSheet {
         }
         SpannableStringBuilder sb = new SpannableStringBuilder(baseText);
         int len = sb.length();
-        for (int i = 0; i < entities.size(); i++) {
-            TLRPC.MessageEntity e = entities.get(i);
-            int start = Math.max(0, Math.min(e.offset, len));
-            int end = Math.max(start, Math.min(e.offset + e.length, len));
+        for (int i = 0; i < ranges.size(); i++) {
+            Range r = ranges.get(i);
+            int start = Math.max(0, Math.min(r.start, len));
+            int end = Math.max(start, Math.min(r.end, len));
             if (start == end) continue;
-            int color = typeColor(entityType(e));
+            int color = typeColor(r.type);
             boolean isSelected = i == selected;
-            // wide containers (pre/blockquote) get a lighter tint so nested entities stay visible
-            float alpha = isSelected ? 0.45f : isContainer(e) ? 0.10f : 0.22f;
+            // wide containers (pre/blockquote, rich blocks) get a lighter tint so nested ranges stay visible
+            float alpha = isSelected ? 0.45f : r.container ? 0.10f : 0.22f;
             if (selected >= 0 && !isSelected) alpha *= 0.5f;
             sb.setSpan(new BackgroundColorSpan(Theme.multAlpha(color, alpha)), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             if (isSelected) {
@@ -194,18 +229,18 @@ public class RawEntitiesSheet extends BottomSheet {
 
     private void select(int index) {
         selected = selected == index ? -1 : index;
-        for (int i = 0; i < entityRows.size(); i++) {
-            entityRows.get(i).setBackground(rowBackground(i == selected));
+        for (int i = 0; i < rangeRows.length; i++) {
+            if (rangeRows[i] != null) rangeRows[i].setBackground(rowBackground(i == selected));
         }
         renderText();
         if (selected < 0 || textView == null) {
             return;
         }
-        TLRPC.MessageEntity e = entities.get(selected);
+        Range r = ranges.get(selected);
         textView.post(() -> {
             Layout layout = textView.getLayout();
             if (layout == null) return;
-            int offset = Math.max(0, Math.min(e.offset, layout.getText().length()));
+            int offset = Math.max(0, Math.min(r.start, layout.getText().length()));
             int top = layout.getLineTop(layout.getLineForOffset(offset)) + textView.getPaddingTop();
             textScroll.smoothScrollTo(0, Math.max(0, top - AndroidUtilities.dp(24)));
         });
@@ -296,8 +331,66 @@ public class RawEntitiesSheet extends BottomSheet {
             RawMotion.copied(v);
             return true;
         });
-        entityRows.add(row);
+        rangeRows[index] = row;
         list.addView(row, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 0, 12, 6));
+    }
+
+    // ---- rich_message ----
+
+    private void addRichSpan(int index, RawRichFlatten.Span span) {
+        String covered = text.substring(Math.min(span.start, text.length()), Math.min(span.end, text.length()));
+        StringBuilder sb = new StringBuilder();
+        if (span.block) {
+            for (int d = 0; d < span.depth; d++) sb.append("· ");
+        }
+        sb.append('#').append(index).append("  ").append(span.type).append("  @").append(span.start).append('+').append(span.end - span.start);
+        if (!covered.isEmpty()) {
+            sb.append("\n«").append(ellipsize(covered.replace("\n", "⏎"), 120)).append('»');
+        }
+        if (span.detail != null) {
+            sb.append('\n').append(span.detail);
+        }
+
+        LinearLayout row = new LinearLayout(getContext());
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setBackground(rowBackground(false));
+        View bar = new View(getContext());
+        GradientDrawable barBg = new GradientDrawable();
+        barBg.setCornerRadius(AndroidUtilities.dp(2));
+        barBg.setColor(typeColor(span.type));
+        bar.setBackground(barBg);
+        row.addView(bar, LayoutHelper.createLinear(4, LayoutHelper.MATCH_PARENT, 8, 8, 0, 8));
+        TextView label = mono();
+        label.setText(sb);
+        row.addView(label, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
+        row.setOnClickListener(v -> {
+            if (textView == null) {
+                copy(span.value, "Скопировано");
+                RawMotion.copied(v);
+            } else {
+                select(index);
+            }
+        });
+        row.setOnLongClickListener(v -> {
+            new RawObjectSheet(getContext(), account, "#" + index + " " + span.type, span.node, rp).show();
+            return true;
+        });
+        rangeRows[index] = row;
+        list.addView(row, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 0, 12, 6));
+    }
+
+    private static final class Range {
+        final int start;
+        final int end;
+        final String type;
+        final boolean container;
+
+        Range(int start, int end, String type, boolean container) {
+            this.start = start;
+            this.end = end;
+            this.type = type;
+            this.container = container;
+        }
     }
 
     // ---- reply_markup ----

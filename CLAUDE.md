@@ -77,7 +77,8 @@ in Telegram classes.
 
 ## Porting from Nagram
 
-A Nagram checkout lives at `../nagram` (GPLv3, credited in `CREDITS.md`). Before inventing a UI feature, grep it there
+The reference checkout is NagramXF at `../NagramXF` (a Nagram fork, newer; the older `../nagram` is a fallback; GPLv3,
+credited in `CREDITS.md`). Before inventing a UI feature, grep it there
 (`NaConfig.kt` / `NekoConfig.java` for the switch, then the hook site in the same upstream file) and port its behaviour
 and look (strings, icons such as the `*_solar` drawables, popup style), adapted to rawGram's hook style: the logic in a
 `rawgram` class, one-line calls in the Telegram file, the switch in the matching `Raw*Config`.

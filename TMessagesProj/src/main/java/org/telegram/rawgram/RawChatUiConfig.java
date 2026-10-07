@@ -149,6 +149,12 @@ public class RawChatUiConfig {
     public static final int ROUND_FRONT = 0, ROUND_BACK = 1, ROUND_ASK = 2;
     public static final Choice roundCamera = new Choice("roundCamera", ROUND_FRONT);
 
+    /** Chat ⋮ menu: «К началу», jumps to the first message (Nagram's ChatMenuItemToBeginning). */
+    public static final Flag menuToBeginning = new Flag("menuToBeginning", true);
+
+    /** «Добавить в…»: copy a sticker / custom emoji into an own set (RawAddToPack). */
+    public static final Flag addToPack = new Flag("addToPack", true);
+
     public static final Flag shortcutAdmins = new Flag("shortcutAdmins", false);
     public static final Flag shortcutPermissions = new Flag("shortcutPermissions", false);
     public static final Flag shortcutMembers = new Flag("shortcutMembers", false);

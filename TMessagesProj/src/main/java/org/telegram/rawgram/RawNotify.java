@@ -30,29 +30,42 @@ public class RawNotify {
             show(icon, text);
             return;
         }
-        make(sheet.container, sheet.getContext(), null, icon, text, DURATION);
+        make(sheet.container, sheet.getContext(), null, icon, text, DURATION).show();
     }
 
     /** Shows over whatever screen is currently on top. */
     public static void show(int icon, CharSequence text) {
+        show(icon, text, null);
+    }
+
+    /** Same, and a tap on the bulletin hides it and runs {@code onClick}. */
+    public static void show(int icon, CharSequence text, Runnable onClick) {
         BaseFragment fragment = LaunchActivity.getSafeLastFragment();
         if (fragment == null || fragment.getParentActivity() == null) {
             return;
         }
+        Bulletin bulletin;
         if (fragment.visibleDialog instanceof BottomSheet) {
             BottomSheet visible = (BottomSheet) fragment.visibleDialog;
-            make(visible.container, visible.getContext(), fragment.getResourceProvider(), icon, text, DURATION);
-            return;
+            bulletin = make(visible.container, visible.getContext(), fragment.getResourceProvider(), icon, text, DURATION);
+        } else {
+            TimerLayout layout = new TimerLayout(fragment.getParentActivity(), fragment.getResourceProvider(), DURATION);
+            layout.bind(icon, text);
+            bulletin = Bulletin.make(fragment, layout, DURATION);
         }
-        TimerLayout layout = new TimerLayout(fragment.getParentActivity(), fragment.getResourceProvider(), DURATION);
-        layout.bind(icon, text);
-        Bulletin.make(fragment, layout, DURATION).show();
+        if (onClick != null) {
+            bulletin.setOnClickListener(v -> {
+                bulletin.hide();
+                onClick.run();
+            });
+        }
+        bulletin.show();
     }
 
-    private static void make(FrameLayout container, Context context, Theme.ResourcesProvider resourcesProvider, int icon, CharSequence text, int duration) {
+    private static Bulletin make(FrameLayout container, Context context, Theme.ResourcesProvider resourcesProvider, int icon, CharSequence text, int duration) {
         TimerLayout layout = new TimerLayout(context, resourcesProvider, duration);
         layout.bind(icon, text);
-        Bulletin.make(container, layout, duration).show();
+        return Bulletin.make(container, layout, duration);
     }
 
     private static class TimerLayout extends Bulletin.SimpleLayout {

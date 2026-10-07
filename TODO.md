@@ -11,6 +11,6 @@ Status 2026-10-06: identity verified, both packages registered with the rawGram 
       (key: `C:\Users\aleks\.rawgram\rawgram-release.jks`, see `local.properties`).
 - [x] Ownership challenge: done with code-less dummy APKs (`..\rawgram-builds\adi\make-adi.ps1`: package name + token
       asset + the key). The token is not needed in normal builds; rerun the script for a new package or key.
-- [ ] Check on a clean install whether Play Protect still shows «hasn't seen an app from this developer before».
-      If it does, submit the APK through the Play Protect appeal form.
+- [x] Check on a clean install whether Play Protect still shows «hasn't seen an app from this developer before».
+      (2026-10-07: after a couple of installs it no longer asks to scan and installs silently.)
 - [ ] Plugins clone: add `RAWGRAM_SIGN_DEBUG=true` to `../telegram-plugs/local.properties` so its builds use the same key.

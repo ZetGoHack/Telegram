@@ -549,7 +549,7 @@ public class ContentPreviewViewer {
 
 
             int flags = 0;
-            if (currentContentType == CONTENT_TYPE_CUSTOM_STIKER || canShowFullVotersList()) {
+            if (currentContentType == CONTENT_TYPE_CUSTOM_STIKER || canShowFullVotersList() || org.telegram.rawgram.RawAddToPack.canAdd(currentDocument)) { // rawGram: «Добавить в…» page
                 flags |= ActionBarPopupWindow.ActionBarPopupWindowLayout.FLAG_USE_SWIPEBACK;
             }
             ActionBarPopupWindow.ActionBarPopupWindowLayout previewMenu = new ActionBarPopupWindow.ActionBarPopupWindowLayout(containerView.getContext(), R.drawable.popup_fixed_alert4, resourcesProvider, flags);
@@ -786,6 +786,7 @@ public class ContentPreviewViewer {
                     }
                 }
                 // rawGram
+                if (org.telegram.rawgram.RawAddToPack.canAdd(currentDocument)) { items.add(org.telegram.rawgram.RawAddToPack.TITLE); icons.add(R.drawable.menu_sticker_add); actions.add(ACTION_RAWGRAM_ADD_TO_PACK); }
                 if (RawgramConfig.isPreviewRaw()) {
                     items.add("Raw");
                     icons.add(R.drawable.msg_info);
@@ -850,6 +851,9 @@ public class ContentPreviewViewer {
                     ActionBarMenuSubItem item = ActionBarMenuItem.addItem(previewMenu, icons.get(i), items.get(i), false, resourcesProvider);
                     item.setTag(i);
                     item.setOnClickListener(onItemClickListener);
+                    if (actions.get(i) == ACTION_RAWGRAM_ADD_TO_PACK) {
+                        org.telegram.rawgram.RawAddToPack.attachSubmenu(previewMenu, item, currentAccount, currentDocument, parentObject, resourcesProvider, ContentPreviewViewer.this::closeForRawgram); // rawGram
+                    }
                     if (actions.get(i) == 8) {
                         int redColor = getThemedColor(Theme.key_text_RedBold);
                         item.setColors(redColor, redColor);
@@ -950,6 +954,7 @@ public class ContentPreviewViewer {
                     actions.add(5);
                 }
                 // rawGram
+                if (org.telegram.rawgram.RawAddToPack.canAdd(currentDocument)) { items.add(org.telegram.rawgram.RawAddToPack.TITLE); icons.add(R.drawable.menu_sticker_add); actions.add(ACTION_RAWGRAM_ADD_TO_PACK); }
                 if (RawgramConfig.isPreviewRaw()) {
                     items.add("Raw"); icons.add(R.drawable.msg_info); actions.add(ACTION_RAWGRAM_RAW);
                     items.add("Скопировать ID документа"); icons.add(R.drawable.msg_copy); actions.add(ACTION_RAWGRAM_COPY_ID);
@@ -1003,6 +1008,9 @@ public class ContentPreviewViewer {
                     }
                     item.setTag(i);
                     item.setOnClickListener(onItemClickListener);
+                    if (actions.get(i) == ACTION_RAWGRAM_ADD_TO_PACK) {
+                        org.telegram.rawgram.RawAddToPack.attachSubmenu(previewMenu, item, currentAccount, currentDocument, parentObject, resourcesProvider, ContentPreviewViewer.this::closeForRawgram); // rawGram
+                    }
                 }
                 popupWindow = new ActionBarPopupWindow(previewMenu, LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT) {
                     @Override
@@ -2449,6 +2457,13 @@ public class ContentPreviewViewer {
     private static final int ACTION_RAWGRAM_RAW = 1000;
     private static final int ACTION_RAWGRAM_COPY_ID = 1001;
     private static final int ACTION_RAWGRAM_OWNER = 1002; // rawGram
+    private static final int ACTION_RAWGRAM_ADD_TO_PACK = 1003; // rawGram
+
+    // rawGram: «Добавить в…» picked a set — the menu and the preview go away before the request
+    private void closeForRawgram() {
+        dismissPopupWindow();
+        close();
+    }
 
     // rawGram: close the preview and show the raw TL of what was previewed
     private void openRawViewer() {

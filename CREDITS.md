@@ -5,6 +5,7 @@ rawGram is free software distributed under the **GNU General Public License v3.0
 
 - **Telegram for Android** — Telegram FZ-LLC, Nikolai Kudashov (GPL-2.0-or-later) — https://github.com/DrKLO/Telegram
 - **Nagram** — NextAlone and contributors (GPL-3.0) — https://github.com/NextAlone/Nagram
+- **NagramXF** — Keeperorowner and contributors (GPL-3.0, a Nagram fork) — https://github.com/Keeperorowner/NagramXF
 - **NekoX / Nekogram** — NekoX-Dev, Nekogram contributors (GPL-3.0) — https://github.com/NekoX-Dev/NekoX, https://gitlab.com/Nekogram/Nekogram
 - **AyuGram** — Radolyn Labs (GPL-2.0-or-later); code is used with credit as its authors ask — https://github.com/AyuGram
 - **exteraGram** — exteraSquad (GPL-2.0-or-later) — https://github.com/exteraSquad/exteraGram

@@ -4476,6 +4476,7 @@ public class ChatActivity extends BaseFragment implements
             if (searchItem != null) {
                 headerItem.lazilyAddSubItem(search, R.drawable.msg_search, LocaleController.getString(R.string.Search));
             }
+            rawgram.ui().addToBeginning(headerItem); // rawGram
             if (ChatObject.isBoostSupported(currentChat) && (getUserConfig().isPremium() || ChatObject.isBoosted(chatInfo) || ChatObject.hasAdminRights(currentChat))) {
                 RLottieDrawable drawable = new RLottieDrawable(R.raw.boosts, dp(24), dp(24));
                 headerItem.lazilyAddSubItem(boost_group, drawable, LocaleController.getString(ChatObject.isChannelAndNotMegaGroup(currentChat) ? R.string.BoostingBoostChannelMenu : R.string.BoostingBoostGroupMenu));
@@ -31151,7 +31152,7 @@ public class ChatActivity extends BaseFragment implements
             int flags = 0;
             // rawGram: the "Подробности" submenu always needs the swipe-back container
             final boolean rawgramDetails = RawChatHooks.hasDetails(message);
-            if (isReactionsViewAvailable || showMessageSeen || showSponsorInfo || rawgramDetails) {
+            if (isReactionsViewAvailable || showMessageSeen || showSponsorInfo || rawgramDetails || org.telegram.rawgram.RawAddToPack.stickerOf(message) != null) {
                 flags |= ActionBarPopupWindow.ActionBarPopupWindowLayout.FLAG_USE_SWIPEBACK;
             }
 
@@ -31964,6 +31965,7 @@ public class ChatActivity extends BaseFragment implements
                         }
                         processSelectedOption(options.get(i));
                     });
+                    rawgram.ui().bindMenuCell(popupLayout, cell, option, message); // rawGram
                     if (option == OPTION_TRANSLATE) {
                         final boolean translateEnabled = getMessagesController().getTranslateController().isContextTranslateEnabled();
                         String toLangDefault = LocaleController.getInstance().getCurrentLocale().getLanguage();

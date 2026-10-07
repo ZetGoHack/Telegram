@@ -319,6 +319,11 @@ public class RawMessageDetails {
             add(out, "Форматирование", entitiesSummary(m.entities), R.drawable.msg_text_outlined,
                     () -> showSheet(env, () -> new RawEntitiesSheet(env.fragment, account, message, env.rp)));
         }
+        if (m.rich_message != null) {
+            add(out, "Rich-сообщение", "блоков " + m.rich_message.blocks.size() + "  (фото " + m.rich_message.photos.size()
+                            + ", документов " + m.rich_message.documents.size() + ")", R.drawable.msg_text_outlined,
+                    () -> showSheet(env, () -> new RawEntitiesSheet(env.fragment, account, message, env.rp)));
+        }
         int buttons = buttonCount(m.reply_markup);
         if (buttons > 0) {
             add(out, "Кнопки", buttons + "  (" + TLDumper.typeName(m.reply_markup) + ")", R.drawable.msg_bot,

@@ -235,6 +235,14 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         check("Факт-чек", RawChatUiConfig.menuHideFactCheck);
         info("«Подробности» включаются в Инструментах разработчика.");
 
+        header("Меню чата «⋮»");
+        check("К началу", RawChatUiConfig.menuToBeginning);
+        info("Прыжок к самому первому сообщению чата.");
+
+        header("Стикеры и эмодзи");
+        check("«Добавить в…»", RawChatUiConfig.addToPack);
+        info("Копия стикера или эмодзи в свой набор (или новый): в меню превью и в меню сообщения со стикером.");
+
         header("Ярлыки администратора");
         check("Разрешения / чёрный список", RawChatUiConfig.shortcutPermissions);
         check("Администраторы", RawChatUiConfig.shortcutAdmins);

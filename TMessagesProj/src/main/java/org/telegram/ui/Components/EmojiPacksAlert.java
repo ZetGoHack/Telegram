@@ -1476,6 +1476,14 @@ public class EmojiPacksAlert extends BottomSheet implements NotificationCenter.N
             org.telegram.rawgram.RawShortcuts.openSetOwner(currentAccount, stickerSet, fragment, this::dismiss);
             return;
         }
+        if (id == org.telegram.rawgram.RawStickerRefresh.MENU_REFRESH) { // rawGram
+            org.telegram.rawgram.RawStickerRefresh.refresh(currentAccount, stickerSet, this, set -> {
+                customEmojiPacks.stickerSets.set(0, set);
+                customEmojiPacks.putStickerSet(0, set);
+                customEmojiPacks.onUpdate();
+            });
+            return;
+        }
         String stickersUrl;
         if (stickerSet.set != null && stickerSet.set.emojis) {
             stickersUrl = "https://" + MessagesController.getInstance(currentAccount).linkPrefix + "/addemoji/" + stickerSet.set.short_name;
@@ -1743,6 +1751,7 @@ public class EmojiPacksAlert extends BottomSheet implements NotificationCenter.N
                     optionsButton.addSubItem(RAWGRAM_RAW, R.drawable.msg_info, "Raw"); // rawGram
                 }
                 org.telegram.rawgram.RawShortcuts.addSetOwnerItem(optionsButton); // rawGram
+                org.telegram.rawgram.RawStickerRefresh.addItem(optionsButton); // rawGram
                 optionsButton.setOnClickListener(v -> {
                     org.telegram.rawgram.RawShortcuts.updateSetOwnerItem(optionsButton, currentAccount, customEmojiPacks != null && customEmojiPacks.stickerSets != null && !customEmojiPacks.stickerSets.isEmpty() ? customEmojiPacks.stickerSets.get(0) : null); // rawGram
                     optionsButton.toggleSubMenu();

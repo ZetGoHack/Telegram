@@ -38,10 +38,12 @@ public class RawChatUiActions {
     public static final int ITEM_PERMISSIONS = 9311;
     public static final int ITEM_MEMBERS = 9312;
     public static final int ITEM_RECENT_ACTIONS = 9313;
+    public static final int ITEM_TO_BEGINNING = 9314;
 
     // message menu items rawGram adds; ChatActivity.processSelectedOption hands them back here
     public static final int OPTION_REPEAT = 9320;
     public static final int OPTION_SAVE_TO_SAVED = 9321;
+    public static final int OPTION_ADD_TO_PACK = 9322;
 
     private final RawChatHooks.Host host;
 
@@ -212,6 +214,14 @@ public class RawChatUiActions {
                 icons.remove(i);
             }
         }
+        if (RawAddToPack.stickerOf(message) != null) {
+            int fave = options.indexOf(ChatActivity.OPTION_ADD_TO_STICKERS_OR_MASKS);
+            int delete = options.indexOf(ChatActivity.OPTION_DELETE);
+            int at = fave >= 0 ? fave + 1 : delete >= 0 ? delete : options.size();
+            options.add(at, OPTION_ADD_TO_PACK);
+            items.add(at, RawAddToPack.TITLE);
+            icons.add(at, R.drawable.menu_sticker_add);
+        }
         boolean plain = message.getId() > 0 && !message.isSponsored() && !message.needDrawBluredPreview() && message.messageOwner != null
                 && message.messageOwner.action == null && message.type != MessageObject.TYPE_JOINED_CHANNEL && !noForwards(chat, message);
         if (!plain) {
@@ -238,8 +248,21 @@ public class RawChatUiActions {
         }
     }
 
+    /** After a message menu cell is made: «Добавить в…» gets its swipe-back page of sets. */
+    public void bindMenuCell(org.telegram.ui.ActionBar.ActionBarPopupWindow.ActionBarPopupWindowLayout popupLayout,
+                             org.telegram.ui.ActionBar.ActionBarMenuSubItem cell, Integer option, MessageObject message) {
+        if (option == null || option != OPTION_ADD_TO_PACK) {
+            return;
+        }
+        RawAddToPack.attachSubmenu(popupLayout, cell, host.account(), RawAddToPack.stickerOf(message),
+                message != null ? message.messageOwner : null, host.resources(), host::closeMenu);
+    }
+
     /** Called from processSelectedOption; returns true for rawGram's own options. */
     public boolean onMenuOption(int option, MessageObject message, MessageObject.GroupedMessages group) {
+        if (option == OPTION_ADD_TO_PACK) {
+            return true; // handled by the swipe-back page (bindMenuCell)
+        }
         if (option != OPTION_REPEAT && option != OPTION_SAVE_TO_SAVED) {
             return false;
         }
@@ -296,8 +319,23 @@ public class RawChatUiActions {
         }
     }
 
+    /** «К началу» in the chat "⋮" menu (after «Поиск», as in Nagram). */
+    public void addToBeginning(ActionBarMenuItem headerItem) {
+        if (headerItem != null && RawChatUiConfig.menuToBeginning.get()) {
+            headerItem.lazilyAddSubItem(ITEM_TO_BEGINNING, R.drawable.ic_upward, "К началу");
+        }
+    }
+
     /** Chat menu click; returns true if it was a rawGram shortcut. */
     public boolean onHeaderItemClick(int id) {
+        if (id == ITEM_TO_BEGINNING) {
+            ChatActivity chat = chat();
+            if (chat != null) {
+                // message ids start at 1; the chat loads around it and lands on the first one that still exists
+                chat.scrollToMessageId(1, 0, false, 0, true, 0);
+            }
+            return true;
+        }
         if (id != ITEM_ADMINS && id != ITEM_PERMISSIONS && id != ITEM_MEMBERS && id != ITEM_RECENT_ACTIONS) {
             return false;
         }
