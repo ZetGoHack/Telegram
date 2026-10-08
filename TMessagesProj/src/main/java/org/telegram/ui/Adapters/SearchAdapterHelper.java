@@ -71,6 +71,7 @@ public class SearchAdapterHelper {
     private final ArrayList<TLObject> localServerSearch = new ArrayList<>();
     private final ArrayList<TLObject> globalSearch = new ArrayList<>();
     private final LongSparseArray<TLObject> globalSearchMap = new LongSparseArray<>();
+    private final org.telegram.rawgram.RawIdSearch rawIdSearch = new org.telegram.rawgram.RawIdSearch(); // rawGram: id-like query -> cached peers
     private final ArrayList<TLObject> groupSearch = new ArrayList<>();
     private final LongSparseArray<TLObject> groupSearchMap = new LongSparseArray<>();
     private final LongSparseArray<TLObject> phoneSearchMap = new LongSparseArray<>();
@@ -128,6 +129,10 @@ public class SearchAdapterHelper {
             delegate.onDataSetChanged(searchId);
             return;
         }
+        rawIdSearch.start(currentAccount, query, allowUsername && allowGlobalResults, obj -> obj instanceof TLRPC.User // rawGram: same filters as the global results
+                ? !canAddGroupsOnly && (allowBots || !((TLRPC.User) obj).bot) && (allowSelf || !((TLRPC.User) obj).self) && ((TLRPC.User) obj).id != exceptDialogId && filter(obj)
+                : allowChats && (!canAddGroupsOnly || ChatObject.canAddBotsToChat((TLRPC.Chat) obj)) && -((TLRPC.Chat) obj).id != exceptDialogId && filter(obj),
+                () -> { if (delegate.canApplySearchResults(searchId)) { rawIdSearch.apply(globalSearch, globalSearchMap); delegate.onDataSetChanged(searchId); } });
 
         boolean hasChanged = false;
         ArrayList<Pair<TLObject, RequestDelegate>> requests = new ArrayList<>();
@@ -325,6 +330,7 @@ public class SearchAdapterHelper {
                             continue;
                         callback.run(res.first, res.second);
                     }
+                    rawIdSearch.apply(globalSearch, globalSearchMap); // rawGram
                     removeGroupSearchFromGlobal();
                     if (localSearchResults != null) {
                         mergeResults(localSearchResults, localRecentResults);

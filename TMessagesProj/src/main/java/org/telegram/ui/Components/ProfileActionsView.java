@@ -107,6 +107,7 @@ public class ProfileActionsView extends View {
     public static final int KEY_EDIT_USERNAME = 15;
     public static final int KEY_EDIT_INFO = 16;
     public static final int KEY_SETTINGS = 17;
+    public static final int KEY_RAWGRAM_CHANNEL = 50; // rawGram: a group's linked channel
 
     private boolean isApplying;
     private boolean isNotificationsEnabled;
@@ -751,6 +752,7 @@ public class ProfileActionsView extends View {
                     insertIfAvailable(out, KEY_MESSAGE);
                 }
                 insertIfAvailable(out, KEY_NOTIFICATION);
+                insertIfAvailable(out, KEY_RAWGRAM_CHANNEL); // rawGram
                 if (join) {
                     out.add(getOrCreate(KEY_REPORT));
                 } else {
@@ -834,6 +836,9 @@ public class ProfileActionsView extends View {
                 break;
             case KEY_DISCUSS:
                 newAction = new Action(ActionButton.DISCUSS);
+                break;
+            case KEY_RAWGRAM_CHANNEL: // rawGram
+                newAction = new Action(ActionButton.RAWGRAM_CHANNEL);
                 break;
             case KEY_GIFT:
                 newAction = new Action(ActionButton.GIFT);
@@ -1231,7 +1236,8 @@ public class ProfileActionsView extends View {
         SET_PHOTO(R.string.ProfileActionsEditPhoto2, R.drawable.filled_profile_photo, R.drawable.outline_profile_photo),
         EDIT_USERNAME(R.string.ProfileActionsEditUsername, R.drawable.filled_profile_edit_24, R.drawable.outline_profile_edit_24),
         EDIT_INFO(R.string.ProfileActionsEditInfo, R.drawable.filled_profile_edit_24, R.drawable.outline_profile_edit_24),
-        SETTINGS(R.string.Settings, R.drawable.filled_profile_settings, R.drawable.outline_profile_settings),;
+        SETTINGS(R.string.Settings, R.drawable.filled_profile_settings, R.drawable.outline_profile_settings),
+        RAWGRAM_CHANNEL(R.string.AccDescrChannel, R.drawable.msg_channel, R.drawable.msg_channel),; // rawGram
 
         final @StringRes int title;
         final @DrawableRes int filledIcon;

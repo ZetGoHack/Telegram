@@ -156,6 +156,11 @@ public class RawChatUiConfig {
     /** «Добавить в…»: copy a sticker / custom emoji into an own set (RawAddToPack). */
     public static final Flag addToPack = new Flag("addToPack", true);
 
+    /** Profile of a group linked to a channel: «Канал» action button next to «Уведомления» (Nagram has it in ⋮). */
+    public static boolean linkedChannelButton(TLRPC.Chat chat, TLRPC.ChatFull info) {
+        return chat != null && chat.megagroup && info != null && info.linked_chat_id != 0;
+    }
+
     /** Saved files: folder inside Pictures / Movies / Download / Music (RawSaveFolder; Nagram's customSavePath). */
     private static String saveFolder;
 

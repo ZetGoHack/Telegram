@@ -3912,6 +3912,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         }
                         break;
                     case ProfileActionsView.KEY_DISCUSS:
+                    case ProfileActionsView.KEY_RAWGRAM_CHANNEL: // rawGram: a group's linked_chat_id is its channel
                         openDiscussion();
                         break;
                     case ProfileActionsView.KEY_LEAVE:
@@ -8417,6 +8418,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (chatId != 0) {
                     boolean discuss = ChatObject.isChannel(currentChat) && !currentChat.megagroup && chatInfo != null && chatInfo.linked_chat_id != 0;
                     actionsView.set(ProfileActionsView.KEY_DISCUSS, discuss);
+                    actionsView.set(ProfileActionsView.KEY_RAWGRAM_CHANNEL, org.telegram.rawgram.RawChatUiConfig.linkedChannelButton(currentChat, chatInfo)); // rawGram
                 }
             }
 

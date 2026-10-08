@@ -43,7 +43,7 @@ public class RawIdLookup {
     // ---- candidates ----
 
     /** Candidate ids parsed from a query: user ids and chat ids (chats and channels share MessagesController.chats). */
-    private static final class Candidates {
+    static final class Candidates {
         final ArrayList<Long> users = new ArrayList<>();
         final ArrayList<Long> chats = new ArrayList<>();
 
@@ -80,7 +80,7 @@ public class RawIdLookup {
     }
 
     /** Candidates of a search query; empty when it doesn't look like an id. */
-    private static Candidates forQuery(String query) {
+    static Candidates forQuery(String query) {
         Candidates c = new Candidates();
         if (query == null) {
             return c;
@@ -139,7 +139,7 @@ public class RawIdLookup {
     }
 
     /** Memory, then the local database for whatever memory didn't have. Must run on the storage queue. */
-    private static void fromMemoryAndDb(int account, Candidates c, ArrayList<TLObject> out) {
+    static void fromMemoryAndDb(int account, Candidates c, ArrayList<TLObject> out) {
         MessagesController mc = MessagesController.getInstance(account);
         MessagesStorage storage = MessagesStorage.getInstance(account);
         for (long id : c.users) {
