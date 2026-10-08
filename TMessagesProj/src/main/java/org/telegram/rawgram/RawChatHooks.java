@@ -85,6 +85,9 @@ public class RawChatHooks {
 
         /** Runs a message menu option (ChatActivity.OPTION_*) for {@code message}, as if picked from its menu. */
         void runMessageOption(MessageObject message, int option);
+
+        /** Opens the chat search filtered to messages from {@code user} or {@code chat} (as "search_from_user_id"). */
+        void searchFrom(TLRPC.User user, TLRPC.Chat chat);
     }
 
     private final Host host;

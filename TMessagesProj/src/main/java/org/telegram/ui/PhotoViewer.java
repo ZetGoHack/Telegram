@@ -4963,6 +4963,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                         }
 
                         final boolean isLivePhoto = currentMessageObject != null && currentMessageObject.isLivePhoto();
+                        org.telegram.rawgram.RawSaveFolder.hint(currentMessageObject); // rawGram
                         File videoFileForLivePhoto = null;
                         if (isLivePhoto) {
                             final TLRPC.Document videoDoc = MessageObject.getMedia(currentMessageObject.messageOwner) != null
@@ -5019,6 +5020,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                                         f = FileLoader.getInstance(currentAccount).getPathToMessage(currentMessageObject.messageOwner);
                                     }
                                     boolean isThisVideo = currentMessageObject.isVideo();
+                                    org.telegram.rawgram.RawSaveFolder.hint(currentMessageObject); // rawGram
                                     final boolean isThisLivePhoto = currentMessageObject.isLivePhoto();
                                     File videoFileForLivePhoto = null;
                                     if (isThisLivePhoto) {
@@ -5067,6 +5069,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                                             f = FileLoader.getInstance(currentAccount).getPathToMessage(msg.messageOwner);
                                         }
                                         boolean isThisVideo = msg.isVideo();
+                                        org.telegram.rawgram.RawSaveFolder.hint(msg); // rawGram
                                         final boolean isThisLivePhoto = msg.isLivePhoto();
                                         File videoFileForLivePhoto = null;
                                         if (isThisLivePhoto) {
@@ -5871,6 +5874,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 f = FileLoader.getInstance(currentAccount).getPathToAttach(document, null, true, true);
             }
             if (f != null && f.exists()) {
+                org.telegram.rawgram.RawSaveFolder.hint(messageObject); // rawGram
                 MediaController.saveFile(f.toString(), parentActivity, 1, null, null, uri -> BulletinFactory.createSaveToGalleryBulletin(containerView, true, 0xf9222222, 0xffffffff).show());
             } else {
                 ArrayList<MessageObject> messageObjects = new ArrayList<>();

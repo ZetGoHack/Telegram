@@ -7,6 +7,7 @@ import android.view.View;
 
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.MessageObject;
+import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.UserConfig;
@@ -44,6 +45,7 @@ public class RawChatUiActions {
     public static final int OPTION_REPEAT = 9320;
     public static final int OPTION_SAVE_TO_SAVED = 9321;
     public static final int OPTION_ADD_TO_PACK = 9322;
+    public static final int OPTION_HISTORY = 9323;
 
     private final RawChatHooks.Host host;
 
@@ -224,9 +226,27 @@ public class RawChatUiActions {
         }
         boolean plain = message.getId() > 0 && !message.isSponsored() && !message.needDrawBluredPreview() && message.messageOwner != null
                 && message.messageOwner.action == null && message.type != MessageObject.TYPE_JOINED_CHANNEL && !noForwards(chat, message);
-        if (!plain) {
-            return;
+        if (plain) {
+            addCopyOptions(chat, message, options, items, icons, canSend);
         }
+        if (historyPeer(chat, message) != null) {
+            // right after «В Избранное», else after «Переслать» / «Ответить»
+            int at = options.indexOf(OPTION_SAVE_TO_SAVED);
+            if (at < 0) {
+                at = options.indexOf(ChatActivity.OPTION_FORWARD);
+            }
+            if (at < 0) {
+                at = options.indexOf(ChatActivity.OPTION_REPLY);
+            }
+            at = at < 0 ? options.size() : at + 1;
+            options.add(at, OPTION_HISTORY);
+            items.add(at, "История");
+            icons.add(at, R.drawable.msg_recent);
+        }
+    }
+
+    /** «Повторить» and «В Избранное», after «Переслать» (or «Ответить») and before «Удалить». */
+    private void addCopyOptions(ChatActivity chat, MessageObject message, ArrayList<Integer> options, ArrayList<CharSequence> items, ArrayList<Integer> icons, boolean canSend) {
         int at = options.indexOf(ChatActivity.OPTION_FORWARD);
         if (at < 0) {
             at = options.indexOf(ChatActivity.OPTION_REPLY);
@@ -248,6 +268,20 @@ public class RawChatUiActions {
         }
     }
 
+    /** «История» (Nagram): the sender of a message in a group's main chat, whose messages the search can filter to. */
+    private static TLRPC.Peer historyPeer(ChatActivity chat, MessageObject message) {
+        TLRPC.Chat current = chat.getCurrentChat();
+        if (!RawChatUiConfig.menuHistory.get() || current == null || ChatObject.isChannelAndNotMegaGroup(current)
+                || chat.getChatMode() != 0 || message.getId() <= 0 || message.isSponsored() || message.messageOwner == null) {
+            return null;
+        }
+        TLRPC.Peer peer = message.messageOwner.from_id;
+        if (peer == null || peer.user_id == 0 && peer.chat_id == 0 && peer.channel_id == 0) {
+            return null;
+        }
+        return peer;
+    }
+
     /** After a message menu cell is made: «Добавить в…» gets its swipe-back page of sets. */
     public void bindMenuCell(org.telegram.ui.ActionBar.ActionBarPopupWindow.ActionBarPopupWindowLayout popupLayout,
                              org.telegram.ui.ActionBar.ActionBarMenuSubItem cell, Integer option, MessageObject message) {
@@ -262,6 +296,19 @@ public class RawChatUiActions {
     public boolean onMenuOption(int option, MessageObject message, MessageObject.GroupedMessages group) {
         if (option == OPTION_ADD_TO_PACK) {
             return true; // handled by the swipe-back page (bindMenuCell)
+        }
+        if (option == OPTION_HISTORY) {
+            ChatActivity chat = chat();
+            TLRPC.Peer peer = chat != null ? historyPeer(chat, message) : null;
+            if (peer != null) {
+                MessagesController controller = MessagesController.getInstance(host.account());
+                if (peer.user_id != 0) {
+                    host.searchFrom(controller.getUser(peer.user_id), null);
+                } else {
+                    host.searchFrom(null, controller.getChat(peer.channel_id != 0 ? peer.channel_id : peer.chat_id));
+                }
+            }
+            return true;
         }
         if (option != OPTION_REPEAT && option != OPTION_SAVE_TO_SAVED) {
             return false;

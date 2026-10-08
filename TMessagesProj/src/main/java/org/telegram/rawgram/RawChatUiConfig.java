@@ -17,7 +17,8 @@ import org.telegram.tgnet.TLRPC;
  * Several options are ports of Nagram / NekoX settings (GPLv3):
  * CenterActionBarTitle, hideTimeForSticker, ShowMessageID, UseEditedIcon + CustomEditedMessage,
  * HideShareButtonInChannel, disableSwipeToNext(Channel/Topic), Shortcuts*, DoubleTapAction(Out), Show* menu toggles,
- * ChatDecoration — https://github.com/NextAlone/Nagram, https://github.com/NekoX-Dev/NekoX.
+ * ChatDecoration, customSavePath + SaveToChatSubfolder, showViewHistory, DeleteChatForBothSides (as "remember")
+ * — https://github.com/NextAlone/Nagram, https://github.com/NekoX-Dev/NekoX.
  */
 public class RawChatUiConfig {
 
@@ -155,6 +156,28 @@ public class RawChatUiConfig {
     /** «Добавить в…»: copy a sticker / custom emoji into an own set (RawAddToPack). */
     public static final Flag addToPack = new Flag("addToPack", true);
 
+    /** Saved files: folder inside Pictures / Movies / Download / Music (RawSaveFolder; Nagram's customSavePath). */
+    private static String saveFolder;
+
+    public static String getSaveFolder() {
+        if (saveFolder == null) {
+            saveFolder = ready() ? prefs().getString("saveFolder", RawSaveFolder.DEFAULT) : RawSaveFolder.DEFAULT;
+        }
+        return saveFolder;
+    }
+
+    public static void setSaveFolder(String value) {
+        saveFolder = RawSaveFolder.sanitize(value);
+        prefs().edit().putString("saveFolder", saveFolder).apply();
+    }
+
+    /** …plus a subfolder named after the chat (Nagram's saveToChatSubfolder). */
+    public static final Flag saveByChat = new Flag("saveByChat", false);
+
+    /** «Также удалить для …»: start with the last position instead of always unchecked (RawDeleteForAll). */
+    public static final Flag rememberDeleteForAll = new Flag("rememberDeleteForAll", true);
+    static final Flag lastDeleteForAll = new Flag("lastDeleteForAll", false);
+
     public static final Flag shortcutAdmins = new Flag("shortcutAdmins", false);
     public static final Flag shortcutPermissions = new Flag("shortcutPermissions", false);
     public static final Flag shortcutMembers = new Flag("shortcutMembers", false);
@@ -196,6 +219,8 @@ public class RawChatUiConfig {
     public static final Flag menuHideFactCheck = new Flag("menuHideFactCheck", false);
     public static final Flag menuRepeat = new Flag("menuRepeat", false);
     public static final Flag menuSaveToSaved = new Flag("menuSaveToSaved", false);
+    /** «История»: the chat search for the sender's messages (groups; Nagram's showViewHistory). */
+    public static final Flag menuHistory = new Flag("menuHistory", true);
     /** Reply / delete / copy / edit as an icon row at the bottom of the message menu (RawMessageMenu). */
     public static final Flag menuCompact = new Flag("menuCompact", false);
 

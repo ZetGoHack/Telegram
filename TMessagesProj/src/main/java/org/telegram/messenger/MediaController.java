@@ -5097,7 +5097,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                                 FileLog.d("saving file: correcting path from " + path + " to " + (sourceFile == null ? null : sourceFile.getAbsolutePath()));
                             }
                             if (sourceFile != null && sourceFile.exists()) {
-                                saveFileInternal(isMusic ? 3 : 2, sourceFile, name);
+                                saveFileInternal(isMusic ? 3 : 2, sourceFile, name, org.telegram.rawgram.RawSaveFolder.name(message)); // rawGram folder
                                 copiedFiles++;
                             }
                         }
@@ -5108,7 +5108,8 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                         } else {
                             dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
                         }
-                        dir.mkdir();
+                        dir = new File(dir, org.telegram.rawgram.RawSaveFolder.name(messageObjects.get(0))); // rawGram
+                        dir.mkdirs();
                         for (int b = 0, N = messageObjects.size(); b < N; b++) {
                             MessageObject message = messageObjects.get(b);
                             if (processLivePhotoMessage(message)) {
@@ -5262,7 +5263,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             if (Build.VERSION.SDK_INT >= 29) {
                 final ContentValues cv = new ContentValues();
                 final Uri uriToInsert = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
-                final File dirDest = new File(Environment.DIRECTORY_DOWNLOADS, "Telegram");
+                final File dirDest = new File(Environment.DIRECTORY_DOWNLOADS, org.telegram.rawgram.RawSaveFolder.name(messageObject)); // rawGram
                 cv.put(MediaStore.MediaColumns.RELATIVE_PATH, dirDest + File.separator);
                 cv.put(MediaStore.Downloads.DISPLAY_NAME, filename);
                 cv.put(MediaStore.MediaColumns.MIME_TYPE, outputMime);
@@ -5284,7 +5285,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                     }
                 }
             } else {
-                final File destDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Telegram");
+                final File destDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), org.telegram.rawgram.RawSaveFolder.name(messageObject)); // rawGram
                 destDir.mkdirs();
                 File destFile = new File(destDir, filename);
                 if (!destFile.exists()) {
@@ -5455,6 +5456,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         if (fullPath == null || context == null) {
             return;
         }
+        final String rawFolder = org.telegram.rawgram.RawSaveFolder.take(); // rawGram
 
         File file = null;
         if (!TextUtils.isEmpty(fullPath)) {
@@ -5499,16 +5501,16 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                     Uri uri;
                     boolean result = true;
                     if (Build.VERSION.SDK_INT >= 29) {
-                        uri = saveFileInternal(type, sourceFile, null);
+                        uri = saveFileInternal(type, sourceFile, null, rawFolder); // rawGram folder
                         result = uri != null;
                     } else {
                         File destFile;
                         if (type == 0) {
-                            destFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Telegram");
+                            destFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), rawFolder); // rawGram
                             destFile.mkdirs();
                             destFile = new File(destFile, AndroidUtilities.generateFileName(0, FileLoader.getFileExtension(sourceFile)));
                         } else if (type == 1) {
-                            destFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "Telegram");
+                            destFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), rawFolder); // rawGram
                             destFile.mkdirs();
                             destFile = new File(destFile, AndroidUtilities.generateFileName(1, FileLoader.getFileExtension(sourceFile)));
                         } else {
@@ -5518,7 +5520,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                             } else {
                                 dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC);
                             }
-                            dir = new File(dir, "Telegram");
+                            dir = new File(dir, rawFolder); // rawGram
                             dir.mkdirs();
                             destFile = new File(dir, name);
                             if (destFile.exists()) {
@@ -5634,6 +5636,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         if (AndroidUtilities.isInternalUri(Uri.fromFile(photoFile)) || AndroidUtilities.isInternalUri(Uri.fromFile(videoFile))) {
             return;
         }
+        final String rawFolder = org.telegram.rawgram.RawSaveFolder.take(); // rawGram
 
         final boolean[] cancelled = new boolean[]{false};
         AlertDialog progressDialog = null;
@@ -5663,7 +5666,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                     final String filename = AndroidUtilities.generateFileName(0, "jpg");
                     final ContentValues cv = new ContentValues();
                     final Uri uriToInsert = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
-                    final File dirDest = new File(Environment.DIRECTORY_PICTURES, "Telegram");
+                    final File dirDest = new File(Environment.DIRECTORY_PICTURES, rawFolder); // rawGram
                     cv.put(MediaStore.MediaColumns.RELATIVE_PATH, dirDest + File.separator);
                     cv.put(MediaStore.Images.Media.DISPLAY_NAME, filename);
                     cv.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
@@ -5685,7 +5688,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                         }
                     }
                 } else {
-                    final File destDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Telegram");
+                    final File destDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), rawFolder); // rawGram
                     destDir.mkdirs();
                     File destFile = new File(destDir, AndroidUtilities.generateFileName(0, "jpg"));
                     if (!destFile.exists()) {
@@ -5793,7 +5796,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 "<?xpacket end=\"w\"?>";
     }
 
-    private static Uri saveFileInternal(int type, File sourceFile, String filename) {
+    private static Uri saveFileInternal(int type, File sourceFile, String filename, String folder) { // rawGram: folder
         try {
             int selectedType = type;
             ContentValues contentValues = new ContentValues();
@@ -5816,7 +5819,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                     filename = AndroidUtilities.generateFileName(0, extension);
                 }
                 uriToInsert = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
-                File dirDest = new File(Environment.DIRECTORY_PICTURES, "Telegram");
+                File dirDest = new File(Environment.DIRECTORY_PICTURES, folder); // rawGram
                 contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, dirDest + File.separator);
                 contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, filename);
                 contentValues.put(MediaStore.Images.Media.MIME_TYPE, mimeType);
@@ -5824,7 +5827,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 if (filename == null) {
                     filename = AndroidUtilities.generateFileName(1, extension);
                 }
-                File dirDest = new File(Environment.DIRECTORY_MOVIES, "Telegram");
+                File dirDest = new File(Environment.DIRECTORY_MOVIES, folder); // rawGram
                 contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, dirDest + File.separator);
                 uriToInsert = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
                 contentValues.put(MediaStore.Video.Media.DISPLAY_NAME, filename);
@@ -5832,7 +5835,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 if (filename == null) {
                     filename = sourceFile.getName();
                 }
-                File dirDest = new File(Environment.DIRECTORY_DOWNLOADS, "Telegram");
+                File dirDest = new File(Environment.DIRECTORY_DOWNLOADS, folder); // rawGram
                 contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, dirDest + File.separator);
                 uriToInsert = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
                 contentValues.put(MediaStore.Downloads.DISPLAY_NAME, filename);
@@ -5840,7 +5843,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 if (filename == null) {
                     filename = sourceFile.getName();
                 }
-                File dirDest = new File(Environment.DIRECTORY_MUSIC, "Telegram");
+                File dirDest = new File(Environment.DIRECTORY_MUSIC, folder); // rawGram
                 contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, dirDest + File.separator);
                 uriToInsert = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
                 contentValues.put(MediaStore.Audio.Media.DISPLAY_NAME, filename);

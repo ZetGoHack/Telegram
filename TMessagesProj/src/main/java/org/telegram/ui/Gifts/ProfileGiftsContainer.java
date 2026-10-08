@@ -312,11 +312,17 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
                     }
                     final int fromPosition = viewHolder.getAdapterPosition();
                     final int toPosition = target.getAdapterPosition();
+                    // adapter positions include the leading space item, so map the cells to indices in list.gifts
+                    final int fromIndex = list.gifts.indexOf(getSavedGift(viewHolder));
+                    final int toIndex = list.gifts.indexOf(getSavedGift(target));
+                    if (fromIndex < 0 || toIndex < 0) {
+                        return false;
+                    }
                     if (isCollection) {
-                        list.reorder(fromPosition, toPosition);
+                        list.reorder(fromIndex, toIndex);
                         parent.collections.updateIcon(list.collectionId);
                     } else {
-                        list.reorderPinned(fromPosition, toPosition);
+                        list.reorderPinned(fromIndex, toIndex);
                     }
                     listView.adapter.notifyItemMoved(fromPosition, toPosition);
                     listView.adapter.updateWithoutNotify();

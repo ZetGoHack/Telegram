@@ -83,6 +83,16 @@ credited in `CREDITS.md`). Before inventing a UI feature, grep it there
 and look (strings, icons such as the `*_solar` drawables, popup style), adapted to rawGram's hook style: the logic in a
 `rawgram` class, one-line calls in the Telegram file, the switch in the matching `Raw*Config`.
 
+## User-facing texts (settings labels, info lines, hints, bulletins)
+
+- Russian, short and plain, like Nagram's own strings (`../NagramXF/TMessagesProj/src/main/res/values-ru-rRU/strings_*.xml`
+  — check there first for the same feature and reuse its wording when it is clear).
+- Present the feature: what it does and where it shows up. One or two sentences per info line; a label is a few words.
+- No implementation history or self-justification: not "Telegram does X, so we…", not "old files are not moved", not
+  API/field names, limits of the hook, or which code paths are covered. Edge cases go in only if the user would otherwise
+  be surprised by the behaviour, and then as a plain fact.
+- Address the user as «ты» only where a hint needs a verb («Оставь пустым, чтобы…»); otherwise impersonal.
+
 ## Repo quirks
 
 - Line endings: the index is LF; `core.autocrlf=true` here, so "LF will be replaced by CRLF" warnings are harmless.

@@ -3406,6 +3406,15 @@ public class ChatActivity extends BaseFragment implements
             selectedObjectToEditCaption = null;
             processSelectedOption(option);
         }
+        @Override public void searchFrom(TLRPC.User user, TLRPC.Chat chat) {
+            if ((threadMessageId == 0 || isTopic) && !UserObject.isReplyUser(currentUser)) {
+                openSearchWithText("");
+            } else if (searchItem != null) {
+                searchItem.openSearch(false);
+            }
+            searchUserMessages(user, chat);
+            showMessagesSearchListView(true);
+        }
     });
 
     @Override
@@ -33387,6 +33396,7 @@ public class ChatActivity extends BaseFragment implements
         if (TextUtils.isEmpty(path)) {
             return;
         }
+        org.telegram.rawgram.RawSaveFolder.hint(messageObject); // rawGram
         if (messageObject.isLivePhoto()) {
             final TLRPC.Document videoDoc = MessageObject.getMedia(messageObject.messageOwner) != null
                     ? MessageObject.getMedia(messageObject.messageOwner).document
@@ -33695,6 +33705,7 @@ public class ChatActivity extends BaseFragment implements
                 if (TextUtils.isEmpty(path)) {
                     return;
                 }
+                org.telegram.rawgram.RawSaveFolder.hint(selectedObject); // rawGram
                 if (selectedObject.isLivePhoto()) {
                     final TLRPC.Document videoDoc = MessageObject.getMedia(selectedObject.messageOwner) != null
                             ? MessageObject.getMedia(selectedObject.messageOwner).document
@@ -33864,6 +33875,7 @@ public class ChatActivity extends BaseFragment implements
                             path = f.getPath();
                         }
                     }
+                    org.telegram.rawgram.RawSaveFolder.hint(selectedObject); // rawGram
                     MediaController.saveFile(path, getParentActivity(), 2, fileName, selectedObject.getDocument() != null ? selectedObject.getDocument().mime_type : "", uri -> {
                         if (getParentActivity() == null) {
                             return;

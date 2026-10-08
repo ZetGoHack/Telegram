@@ -82,6 +82,7 @@ public class RawChatUiSettingsActivity extends BaseFragment {
     private static final int VALUE_TAP_IN = 4;
     private static final int VALUE_TAP_OUT = 5;
     private static final int VALUE_ROUND_CAMERA = 6;
+    private static final int VALUE_SAVE_FOLDER = 7;
 
     /** Switches not stored in RawChatUiConfig (Row.flag == null, Row.id says which). */
     private static final int CHECK_CLASSIC = 100;
@@ -204,7 +205,14 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         check("Без свайпа к следующей теме", RawChatUiConfig.noSwipeNextTopic);
         value("Двойное нажатие: входящие", VALUE_TAP_IN);
         value("Двойное нажатие: свои", VALUE_TAP_OUT);
-        info("Если действие к сообщению неприменимо (например, удалить чужое без прав), двойное нажатие ничего не делает.");
+        check("Запоминать «Также удалить для…»", RawChatUiConfig.rememberDeleteForAll);
+        info("Если действие к сообщению неприменимо (например, удалить чужое без прав), двойное нажатие ничего не делает. "
+                + "«Также удалить для…» в личных чатах сохраняет последний выбор.");
+
+        header("Сохранение файлов");
+        value("Папка", VALUE_SAVE_FOLDER);
+        check("Сохранять по названию чата", RawChatUiConfig.saveByChat);
+        info("Папка внутри «Загрузок», «Изображений», «Видео» и «Музыки». Оставь пустой, чтобы сохранять напрямую.");
 
         header("Пересылка");
         check("По умолчанию скрывать отправителя", RawChatUiConfig.fwdHideSender);
@@ -222,7 +230,9 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         check("Компактное меню", RawChatUiConfig.menuCompact);
         check("Повторить сообщение", RawChatUiConfig.menuRepeat);
         check("В Избранное", RawChatUiConfig.menuSaveToSaved);
-        info("Компактное меню: Ответить, Удалить, Копировать и Изменить — строкой иконок внизу, остальное — списком.");
+        check("История", RawChatUiConfig.menuHistory);
+        info("Компактное меню: Ответить, Удалить, Копировать и Изменить — строкой иконок внизу, остальное — списком. "
+                + "«История» — все сообщения отправителя в группе.");
 
         header("Скрыть из меню сообщения");
         check("Перевести", RawChatUiConfig.menuHideTranslate);
@@ -358,6 +368,13 @@ public class RawChatUiSettingsActivity extends BaseFragment {
             case VALUE_EDITED_TEXT:
                 editCustomText();
                 break;
+            case VALUE_SAVE_FOLDER:
+                editText("Папка для сохранения", "Без папки", RawChatUiConfig.getSaveFolder(), value -> {
+                    RawChatUiConfig.setSaveFolder(value);
+                    buildRows();
+                    adapter.notifyDataSetChanged();
+                });
+                break;
             case VALUE_ROUND_CAMERA:
                 pick("Камера для кружков", new CharSequence[]{"Фронтальная", "Основная", "Спрашивать"}, refresh, RawChatUiConfig.roundCamera::set);
                 break;
@@ -396,6 +413,16 @@ public class RawChatUiSettingsActivity extends BaseFragment {
     }
 
     private void editCustomText() {
+        editText("Текст метки «изменено»", LocaleController.getString(R.string.EditedMessage), RawChatUiConfig.getEditedText(), value -> {
+            RawChatUiConfig.setEditedText(value);
+            if (adapter != null) {
+                adapter.notifyDataSetChanged();
+            }
+            updatePreview();
+        });
+    }
+
+    private void editText(String title, String hint, String current, org.telegram.messenger.Utilities.Callback<String> onSave) {
         Context context = getParentActivity();
         if (context == null) {
             return;
@@ -406,10 +433,10 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
         editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
         editText.setHintTextColor(Theme.getColor(Theme.key_dialogTextHint));
-        editText.setHint(LocaleController.getString(R.string.EditedMessage));
+        editText.setHint(hint);
         editText.setSingleLine(true);
         editText.setInputType(InputType.TYPE_CLASS_TEXT);
-        editText.setText(RawChatUiConfig.getEditedText());
+        editText.setText(current);
         editText.setSelection(editText.length());
         editText.setCursorColor(Theme.getColor(Theme.key_dialogTextBlack));
         editText.setCursorSize(AndroidUtilities.dp(20));
@@ -418,15 +445,10 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         FrameLayout container = new FrameLayout(context);
         container.addView(editText, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 24, 4, 24, 0));
         new AlertDialog.Builder(context)
-                .setTitle("Текст метки «изменено»")
+                .setTitle(title)
                 .setView(container)
-                .setPositiveButton(LocaleController.getString(R.string.OK), (d, w) -> {
-                    RawChatUiConfig.setEditedText(editText.getText() == null ? "" : editText.getText().toString());
-                    if (adapter != null) {
-                        adapter.notifyDataSetChanged();
-                    }
-                    updatePreview();
-                })
+                .setPositiveButton(LocaleController.getString(R.string.OK), (d, w) ->
+                        onSave.run(editText.getText() == null ? "" : editText.getText().toString()))
                 .setNegativeButton(LocaleController.getString(R.string.Cancel), null)
                 .show();
         AndroidUtilities.runOnUIThread(() -> {
@@ -452,6 +474,10 @@ public class RawChatUiSettingsActivity extends BaseFragment {
             case VALUE_ROUND_CAMERA: {
                 int mode = RawChatUiConfig.roundCamera.get();
                 return mode == RawChatUiConfig.ROUND_BACK ? "Основная" : mode == RawChatUiConfig.ROUND_ASK ? "Спрашивать" : "Фронтальная";
+            }
+            case VALUE_SAVE_FOLDER: {
+                String folder = RawChatUiConfig.getSaveFolder();
+                return folder.isEmpty() ? "без папки" : folder;
             }
             case VALUE_TAP_IN:
                 return RawChatUiConfig.doubleTapName(RawChatUiConfig.doubleTapIn.get());
