@@ -174,7 +174,7 @@ public class RawEntitiesSheet extends BottomSheet {
             for (int i = 0; i < entities.size(); i++) {
                 addEntity(i, entities.get(i));
             }
-            hint("Нажатие — подсветить в тексте, долгое — скопировать значение (url, id) или подстроку.");
+            hint("Нажатие — подсветить в тексте, долгое — скопировать значение (ссылку, ID) или сам фрагмент.");
         }
         if (m.reply_markup != null) {
             addMarkup(m.reply_markup);
@@ -190,7 +190,7 @@ public class RawEntitiesSheet extends BottomSheet {
                     if (!rich.spans.get(i).block) addRichSpan(i, rich.spans.get(i));
                 }
             }
-            hint("Текста и entities у rich-сообщения нет: блоки склеены в текст, диапазоны — блоки и узлы RichText. "
+            hint("У rich-сообщения нет обычного текста: здесь он собран из блоков, а диапазоны — это блоки и их форматирование. "
                     + "Нажатие — подсветить, долгое — raw узла.");
         }
         if (rich == null && entities.isEmpty() && m.reply_markup == null) {
@@ -426,7 +426,7 @@ public class RawEntitiesSheet extends BottomSheet {
             }
         }
         if (!rows.isEmpty()) {
-            hint("Нажатие — скопировать data/url/query, долгое — raw кнопки.");
+            hint("Нажатие — скопировать данные, ссылку или запрос кнопки, долгое — raw кнопки.");
         }
     }
 

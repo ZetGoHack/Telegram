@@ -725,7 +725,7 @@ public class RawUiSettingsActivity extends BaseFragment {
                         cell.setText("Нажми на образец, чтобы увидеть оба положения.");
                     } else if (position == lookInfoRow) {
                         cell.setText("Разделители — линии между пунктами и тени под разделами. Системный шрифт — после перезапуска. "
-                                + "Анимации — плавные переходы в окнах и меню rawGram; сами отключаются в режиме энергосбережения.");
+                                + "Анимации — плавные переходы в окнах и меню rawGram; в режиме энергосбережения они выключены.");
                     } else if (position == settingsInfoRow) {
                         cell.setText("Premium — Звёзды, TON, Business, подарки. Вместо номера будет «Номер скрыт» — удобно для скриншотов.");
                     }

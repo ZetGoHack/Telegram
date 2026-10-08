@@ -27,7 +27,7 @@ public class RawServerConfig {
                 sheet.addObjectTab("help.getConfig", () -> sheet.setObject("лимиты, DC, таймауты", configObject));
                 sheet.addObjectTab("help.getAppConfig", () -> sheet.setObject("app config: лимиты клиента и флаги", appObject));
                 Object limits = limits(config instanceof TLRPC.TL_config ? (TLRPC.TL_config) config : null, appObject instanceof Map ? (Map<?, ?>) appObject : null);
-                sheet.addObjectTab("Лимиты", () -> sheet.setObject("обычный · премиум; из help.getConfig и help.getAppConfig", limits));
+                sheet.addObjectTab("Лимиты", () -> sheet.setObject("обычный · премиум", limits));
                 sheet.setSubtitle("лимиты, DC, таймауты");
                 sheet.show();
             }));

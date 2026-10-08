@@ -590,7 +590,7 @@ public class RawObjectSheet extends BottomSheet {
                 ? RawSyntax.json(text, RawSyntax.Palette.of(Theme.isCurrentThemeDark()))
                 : RawSyntax.fields(text, RawSyntax.Palette.of(Theme.isCurrentThemeDark()));
         if (truncated) {
-            bodyView.setText(new android.text.SpannableStringBuilder(rendered).append("\n… truncated, Copy копирует полный дамп"));
+            bodyView.setText(new android.text.SpannableStringBuilder(rendered).append("\n… обрезано, копируется полный текст"));
         } else {
             bodyView.setText(rendered);
         }

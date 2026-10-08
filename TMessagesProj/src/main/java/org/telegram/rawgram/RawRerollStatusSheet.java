@@ -505,7 +505,7 @@ public class RawRerollStatusSheet extends BottomSheet {
         TextView hint = new TextView(getContext());
         hint.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11);
         hint.setTextColor(getThemedColor(Theme.key_dialogTextGray2));
-        hint.setText("Сколько живёт query_id, решает сервер: если он уже забыт, отправка вернёт QUERY_ID_INVALID.");
+        hint.setText("Сервер хранит выдачу бота ограниченное время: устаревший результат отправить не получится.");
         card.addView(hint, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 2, 12, 8));
     }
 

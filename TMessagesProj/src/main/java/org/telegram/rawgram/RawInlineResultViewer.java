@@ -54,7 +54,7 @@ public class RawInlineResultViewer {
         sheet.addObjectTab("Request", () -> {
             TLRPC.TL_messages_getInlineBotResults req = adapter != null ? adapter.rawgramBuildRequest("") : null;
             if (req == null) {
-                RawNotify.show(sheet, R.drawable.msg_warning, "Inline-запрос уже не активен");
+                RawNotify.show(sheet, R.drawable.msg_warning, "Инлайн-запрос уже не активен");
                 return;
             }
             sheet.setObject("messages.getInlineBotResults", req);
@@ -62,7 +62,7 @@ public class RawInlineResultViewer {
         sheet.addAction("Re-request", v -> {
             TLRPC.TL_messages_getInlineBotResults req = adapter != null ? adapter.rawgramBuildRequest("") : null;
             if (req == null) {
-                RawNotify.show(sheet, R.drawable.msg_warning, "Inline-запрос уже не активен");
+                RawNotify.show(sheet, R.drawable.msg_warning, "Инлайн-запрос уже не активен");
                 return;
             }
             final long start = System.currentTimeMillis();

@@ -232,8 +232,8 @@ public class RawCallbackLog {
             return;
         }
         String text = silentError
-                ? "callback: ошибка " + entry.error.text + " · " + entry.duration + " мс"
-                : "callback: пустой ответ " + (entry.fromCache ? "из кэша" : "за " + entry.duration + " мс");
+                ? "Кнопка: ошибка " + entry.error.text + " · " + entry.duration + " мс"
+                : "Кнопка: пустой ответ " + (entry.fromCache ? "из кэша" : "за " + entry.duration + " мс");
         BulletinFactory.of(fragment).createSimpleBulletin(silentError ? R.raw.error : R.raw.info, text, "Raw", () -> showRaw(fragment, entry)).show();
     }
 
@@ -246,7 +246,7 @@ public class RawCallbackLog {
     }
 
     public static RawObjectSheet createRawSheet(Context context, Entry entry, Theme.ResourcesProvider resourcesProvider) {
-        RawObjectSheet sheet = new RawObjectSheet(context, entry.account, "Callback-ответ", entry.raw(), resourcesProvider);
+        RawObjectSheet sheet = new RawObjectSheet(context, entry.account, "Ответ на кнопку", entry.raw(), resourcesProvider);
         sheet.setSubtitle(entry.summary());
         return sheet;
     }

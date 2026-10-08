@@ -245,7 +245,7 @@ public class RawRequestLogActivity extends BaseFragment {
         } else if (e.isError()) {
             response = note(e.errorCode + " " + e.errorText + " (объект ошибки не сохранён)");
         } else if (e.isFileConnection() && e.hasObjects()) {
-            response = note(e.responseType + ": файловые ответы не сохраняются (буфер освобождается сразу после доставки)");
+            response = note(e.responseType + ": ответы файловых запросов не сохраняются");
         } else {
             response = note(droppedNote(e));
         }

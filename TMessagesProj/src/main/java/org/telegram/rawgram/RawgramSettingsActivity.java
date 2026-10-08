@@ -89,8 +89,8 @@ public class RawgramSettingsActivity extends BaseFragment {
         full.longAction = () -> RawBackup.backupStorage(this);
         rows.add(full);
         rows.add(new Row(TYPE_VALUE, 0, null, "Восстановить из файла", null, () -> RawBackup.pickRestore(this)));
-        rows.add(new Row(TYPE_INFO, 0, null, "Полный бекап — настройки и собранные данные rawGram (отчёты о сбоях, диагностика). "
-                + "Удерживай его, чтобы сохранить всё хранилище приложения вместе с сессиями — в зашифрованном файле.", null, null));
+        rows.add(new Row(TYPE_INFO, 0, null, "Полный бекап — настройки и данные rawGram: отчёты о сбоях и диагностика. "
+                + "Удерживай его, чтобы сохранить всё приложение вместе с сессиями в зашифрованный файл.", null, null));
         rows.add(new Row(TYPE_VALUE, 0, null, "Авторы и лицензии", null, this::showCredits));
         rows.add(new Row(TYPE_INFO, 0, null, "rawGram на основе Telegram " + BuildVars.BUILD_VERSION_STRING + " · GPLv3", null, null));
     }

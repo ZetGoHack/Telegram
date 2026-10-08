@@ -198,7 +198,7 @@ public class RawBotButtonSheet extends BottomSheet {
         if (botId > 0) {
             TLRPC.User bot = MessagesController.getInstance(account).getUser(botId);
             String username = bot != null ? UserObject.getPublicUsername(bot) : null;
-            field(message.messageOwner != null && message.messageOwner.via_bot_id != 0 ? "via бот" : "Отправитель",
+            field(message.messageOwner != null && message.messageOwner.via_bot_id != 0 ? "Через бота" : "Отправитель",
                     (username != null ? "@" + username + " · " : "") + botId, true);
         }
     }
@@ -340,7 +340,7 @@ public class RawBotButtonSheet extends BottomSheet {
             item.put("raw", entry.raw());
             items.add(item);
         }
-        RawObjectSheet sheet = new RawObjectSheet(getContext(), account, "Callback-ответы", items, resourcesProvider);
+        RawObjectSheet sheet = new RawObjectSheet(getContext(), account, "Ответы на кнопку", items, resourcesProvider);
         sheet.setSubtitle(all.size() + " последних ответов, сначала новые");
         sheet.show();
     }

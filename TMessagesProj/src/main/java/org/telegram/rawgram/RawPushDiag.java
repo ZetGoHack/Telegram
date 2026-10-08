@@ -133,7 +133,7 @@ public class RawPushDiag {
             Notification notification = new NotificationCompat.Builder(service, CHANNEL_ID)
                     .setSmallIcon(R.drawable.notification)
                     .setContentTitle("rawGram на связи")
-                    .setContentText("Фоновое соединение для уведомлений. Нажмите, чтобы скрыть.")
+                    .setContentText("Фоновое соединение для уведомлений. Нажми, чтобы скрыть.")
                     .setContentIntent(pi)
                     .setOngoing(true)
                     .setShowWhen(false)

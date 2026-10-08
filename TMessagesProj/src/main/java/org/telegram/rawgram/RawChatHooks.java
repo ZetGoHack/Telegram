@@ -420,7 +420,7 @@ public class RawChatHooks {
             return;
         }
         if (entry.bot == null || TextUtils.isEmpty(UserObject.getPublicUsername(entry.bot))) {
-            BulletinFactory.of(host.fragment()).createSimpleBulletin(R.raw.error, "Не удалось восстановить: у бота нет username").show();
+            BulletinFactory.of(host.fragment()).createSimpleBulletin(R.raw.error, "Не удалось восстановить: у бота нет юзернейма").show();
             return;
         }
         if (hiding) {

@@ -103,7 +103,7 @@ public class RawRerollController {
                                            Theme.ResourcesProvider resourcesProvider, Host host, Runnable beforeStart) {
         TLRPC.TL_messages_getInlineBotResults probe = adapter != null ? adapter.rawgramBuildRequest("") : null;
         if (probe == null) {
-            RawNotify.show(R.drawable.msg_warning, "Inline-запрос уже не активен");
+            RawNotify.show(R.drawable.msg_warning, "Инлайн-запрос уже не активен");
             return;
         }
         final String key = RawReroll.queryKey(probe);
@@ -175,7 +175,7 @@ public class RawRerollController {
             return;
         }
         finish(STATE_STOPPED);
-        RawNotify.show(R.drawable.msg_info, "reroll остановлен на попытке " + attempt);
+        RawNotify.show(R.drawable.msg_info, "Reroll остановлен на попытке " + attempt);
     }
 
     /** Same options from scratch. */
@@ -392,7 +392,7 @@ public class RawRerollController {
             a.number = attemptNumber;
             a.tookMs = SystemClock.elapsedRealtime() - sent;
             a.receivedAt = SystemClock.elapsedRealtime();
-            a.error = "timeout: бот не ответил за " + options.timeoutSec + " с";
+            a.error = "Бот не ответил за " + options.timeoutSec + " с";
             history.add(a);
             if (attempt >= options.maxAttempts) {
                 finish(STATE_NOT_FOUND);

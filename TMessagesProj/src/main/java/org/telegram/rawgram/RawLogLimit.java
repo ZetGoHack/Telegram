@@ -63,7 +63,7 @@ public final class RawLogLimit {
         layout.addView(input, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 24, 0, 24, 0));
         fragment.showDialog(new AlertDialog.Builder(activity, fragment.getResourceProvider())
                 .setTitle(title)
-                .setMessage("Сколько последних записей хранить. Записи хранятся целиком, поэтому большой лимит — это память.")
+                .setMessage("Сколько последних записей хранить. Большой лимит занимает больше памяти.")
                 .setView(layout)
                 .setPositiveButton("Готово", (d, w) -> {
                     int value;

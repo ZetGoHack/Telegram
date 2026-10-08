@@ -413,7 +413,7 @@ public class RawMessageDetails {
         add(out, "Исполнитель", performer, R.drawable.msg_openprofile);
         add(out, "Название трека", title, R.drawable.msg_text_outlined);
         add(out, "Эмодзи", alt, R.drawable.msg_emoji_cat);
-        if (doc.dc_id > 0) add(out, "Датацентр", dc(doc.dc_id), R.drawable.msg_language);
+        if (doc.dc_id > 0) add(out, "Дата-центр", dc(doc.dc_id), R.drawable.msg_language);
         if (set != null && !(set instanceof TLRPC.TL_inputStickerSetEmpty)) {
             stickerSetFields(out, env, set, emoji);
         }
@@ -454,7 +454,7 @@ public class RawMessageDetails {
             add(out, "Тип медиа", "image/jpeg", R.drawable.msg_media);
             if (largest.w > 0 && largest.h > 0) add(out, "Разрешение", largest.w + "x" + largest.h, R.drawable.msg_photo_settings);
         }
-        if (photo.dc_id > 0) add(out, "Датацентр", dc(photo.dc_id), R.drawable.msg_language);
+        if (photo.dc_id > 0) add(out, "Дата-центр", dc(photo.dc_id), R.drawable.msg_language);
     }
 
     // ---- copy media ----

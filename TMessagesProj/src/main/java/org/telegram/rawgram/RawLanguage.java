@@ -117,7 +117,7 @@ public final class RawLanguage {
         notice.setGravity(Gravity.CENTER);
         notice.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         notice.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4));
-        notice.setText("Используется кастомный язык. Нажмите, чтобы вернуться на " + system.name);
+        notice.setText("Включён неофициальный язык. Нажми, чтобы вернуться на " + system.name);
         notice.setPadding(dp(16), dp(8), dp(16), dp(8));
         notice.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector), Theme.RIPPLE_MASK_ROUNDRECT_6DP));
         notice.setOnClickListener(v -> apply(system, account));
