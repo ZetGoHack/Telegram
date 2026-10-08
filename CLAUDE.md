@@ -93,6 +93,13 @@ and look (strings, icons such as the `*_solar` drawables, popup style), adapted 
   be surprised by the behaviour, and then as a plain fact.
 - Address the user as «ты» only where a hint needs a verb («Оставь пустым, чтобы…»); otherwise impersonal.
 
+## Embedding UI elements
+
+- Match the neighbours: icon style, size, colour keys, paddings, the same cell / button class.
+- Telegram's icon convention: outline icons (`msg_*`) in list rows, menus and popups; filled icons (`filled_*`,
+  `msg_filled_*`) in large prominent buttons. Profile action buttons (`ProfileActionsView.ActionButton`) take a pair:
+  filled on dark / coloured headers, outline on light ones — give both, from the same icon family.
+
 ## Repo quirks
 
 - Line endings: the index is LF; `core.autocrlf=true` here, so "LF will be replaced by CRLF" warnings are harmless.

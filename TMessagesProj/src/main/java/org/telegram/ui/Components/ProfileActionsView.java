@@ -1237,7 +1237,7 @@ public class ProfileActionsView extends View {
         EDIT_USERNAME(R.string.ProfileActionsEditUsername, R.drawable.filled_profile_edit_24, R.drawable.outline_profile_edit_24),
         EDIT_INFO(R.string.ProfileActionsEditInfo, R.drawable.filled_profile_edit_24, R.drawable.outline_profile_edit_24),
         SETTINGS(R.string.Settings, R.drawable.filled_profile_settings, R.drawable.outline_profile_settings),
-        RAWGRAM_CHANNEL(R.string.AccDescrChannel, R.drawable.msg_channel, R.drawable.msg_channel),; // rawGram
+        RAWGRAM_CHANNEL(R.string.AccDescrChannel, R.drawable.msg_filled_menu_channels, R.drawable.msg_channel),; // rawGram: filled on dark headers, outline on light ones, like the stock buttons
 
         final @StringRes int title;
         final @DrawableRes int filledIcon;
