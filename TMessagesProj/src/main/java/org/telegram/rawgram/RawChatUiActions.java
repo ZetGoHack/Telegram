@@ -417,31 +417,51 @@ public class RawChatUiActions {
         }
         View parent = (View) container.getParent();
         int center = parent.getWidth() / 2 - container.getLeft();
-        int half = Math.min(center - minLeft, container.getWidth() - center);
+        int right = container.getWidth();
+        int half = Math.min(center - minLeft, right - center);
         if (half <= 0) {
             return;
         }
         if (title != null) {
             title.setRightDrawableOutside(false);
         }
-        center(title, center, half);
-        center(subtitle, center, half);
+        center(title, center, half, minLeft, right);
+        center(subtitle, center, half, minLeft, right);
     }
 
-    private static void center(SimpleTextView view, int center, int half) {
+    /**
+     * Centers {@code view} in the symmetric box around the bar's middle when its text fits there. A longer text (the
+     * box is cut by the menu buttons on the right) gets the whole space between the avatar and the buttons instead,
+     * placed as close to the middle as it allows, so long names aren't ellipsized to a few letters.
+     */
+    private static void center(SimpleTextView view, int center, int half, int minLeft, int right) {
         if (view == null || view.getVisibility() == View.GONE) {
             return;
         }
         // keep the text centered on the bar even with an uneven padding
         int shift = (view.getPaddingRight() - view.getPaddingLeft()) / 2;
         int width = 2 * Math.max(0, half - Math.abs(shift));
+        int need = naturalWidth(view);
+        int left;
+        if (need > width) {
+            width = Math.min(need, right - minLeft);
+            left = Math.max(minLeft, Math.min(center - width / 2, right - width));
+        } else {
+            left = center - width / 2 + shift;
+        }
         if (width <= 0) {
             return;
         }
         view.setGravity(Gravity.CENTER_HORIZONTAL);
         int top = view.getTop(), bottom = view.getBottom();
         view.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(bottom - top, View.MeasureSpec.EXACTLY));
-        int left = center - width / 2 + shift;
         view.layout(left, top, left + width, bottom);
+    }
+
+    /** The width the text needs unshortened: text (with emoji spans), side drawables, paddings. */
+    private static int naturalWidth(SimpleTextView view) {
+        CharSequence text = view.getText();
+        float textWidth = text == null ? 0 : android.text.Layout.getDesiredWidth(text, view.getPaint());
+        return (int) Math.ceil(textWidth) + view.getSideDrawablesSize() + view.getPaddingLeft() + view.getPaddingRight() + org.telegram.messenger.AndroidUtilities.dp(2);
     }
 }
