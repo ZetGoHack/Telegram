@@ -25,6 +25,7 @@ import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.ShadowSectionCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
@@ -45,6 +46,7 @@ public class RawgramSettingsActivity extends BaseFragment {
     private static final int TYPE_SHADOW = 1;
     private static final int TYPE_VALUE = 2;
     private static final int TYPE_INFO = 3;
+    private static final int TYPE_HEADER = 4;
 
     /** One list row. For TYPE_CATEGORY: icon, icon background, title, subtitle and what a tap opens. */
     private static class Row {
@@ -75,15 +77,16 @@ public class RawgramSettingsActivity extends BaseFragment {
 
     private void buildRows() {
         rows.clear();
+        category(R.drawable.msg_discussion, IconBackgroundColors.BLUE, "Чаты",
+                "Вид чата, сообщения, меню, стикеры", () -> presentFragment(new RawChatUiSettingsActivity()));
         category(R.drawable.msg_palette, IconBackgroundColors.PURPLE, "Внешний вид",
                 "Главный экран, папки, аватарки, иконки", () -> presentFragment(new RawUiSettingsActivity()));
-        category(R.drawable.msg_discussion, IconBackgroundColors.BLUE, "Чаты",
-                "Вид чата, меню сообщения, стикеры", () -> presentFragment(new RawChatUiSettingsActivity()));
-        category(R.drawable.settings_rawgram, IconBackgroundColors.GRAY, "Инструменты разработчика",
-                "Raw-данные, журналы, конфиг сервера", () -> presentFragment(new RawDevSettingsActivity()));
         // Плагины (branch rawgram-plugins): add one line here, e.g.
         // category(R.drawable.msg_bots, IconBackgroundColors.GREEN, "Плагины", "Установленные плагины", () -> presentFragment(new RawPluginsActivity()));
+        category(R.drawable.settings_rawgram, IconBackgroundColors.GRAY, "Инструменты разработчика",
+                "Raw-данные, ID, журналы, сервер", () -> presentFragment(new RawDevSettingsActivity()));
         rows.add(new Row(TYPE_SHADOW, 0, null, null, null, null));
+        rows.add(new Row(TYPE_HEADER, 0, null, "Резервная копия", null, null));
         rows.add(new Row(TYPE_VALUE, 0, null, "Бекап настроек", null, () -> RawBackup.backupSettings(this)));
         Row full = new Row(TYPE_VALUE, 0, null, "Полный бекап", null, () -> RawBackup.backupData(this));
         full.longAction = () -> RawBackup.backupStorage(this);
@@ -199,6 +202,8 @@ public class RawgramSettingsActivity extends BaseFragment {
                 view = new ShadowSectionCell(context);
             } else if (viewType == TYPE_VALUE) {
                 view = new TextSettingsCell(context);
+            } else if (viewType == TYPE_HEADER) {
+                view = new HeaderCell(context);
             } else {
                 view = new TextInfoPrivacyCell(context);
             }
@@ -218,6 +223,9 @@ public class RawgramSettingsActivity extends BaseFragment {
                     break;
                 case TYPE_INFO:
                     ((TextInfoPrivacyCell) holder.itemView).setText(row.title);
+                    break;
+                case TYPE_HEADER:
+                    ((HeaderCell) holder.itemView).setText(row.title);
                     break;
             }
         }

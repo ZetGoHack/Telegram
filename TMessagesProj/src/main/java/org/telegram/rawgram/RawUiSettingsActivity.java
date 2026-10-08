@@ -92,7 +92,6 @@ public class RawUiSettingsActivity extends BaseFragment {
     private int chatsHeaderRow;
     private int hideSearchRow;
     private int hideFabRow;
-    private int showSecondsRow;
     private int chatsInfoRow;
 
     private int iconHeaderRow;
@@ -145,7 +144,6 @@ public class RawUiSettingsActivity extends BaseFragment {
         chatsHeaderRow = rowCount++;
         hideSearchRow = rowCount++;
         hideFabRow = rowCount++;
-        showSecondsRow = rowCount++;
         chatsInfoRow = rowCount++;
 
         bottomTabsHeaderRow = rowCount++;
@@ -167,8 +165,8 @@ public class RawUiSettingsActivity extends BaseFragment {
         switchInfoRow = rowCount++;
 
         lookHeaderRow = rowCount++;
-        hideDividersRow = rowCount++;
         systemFontRow = rowCount++;
+        hideDividersRow = rowCount++;
         motionRow = rowCount++;
         lookInfoRow = rowCount++;
 
@@ -273,11 +271,6 @@ public class RawUiSettingsActivity extends BaseFragment {
         } else if (position == hideFabRow) {
             boolean v = !RawUiConfig.disableDialogsFab();
             RawUiConfig.setDisableDialogsFab(v);
-            toggled(view, v);
-        } else if (position == showSecondsRow) {
-            boolean v = !RawUiConfig.showSeconds();
-            RawUiConfig.setShowSeconds(v);
-            LocaleController.getInstance().recreateFormatters();
             toggled(view, v);
         } else if (position == folderTitleRow) {
             boolean v = !RawUiConfig.folderNameAsTitle();
@@ -672,9 +665,7 @@ public class RawUiSettingsActivity extends BaseFragment {
                     } else if (position == hideSearchRow) {
                         cell.setTextAndCheck("Скрыть поле поиска", RawUiConfig.hideDialogsSearchField(), true);
                     } else if (position == hideFabRow) {
-                        cell.setTextAndCheck("Скрыть плавающие кнопки", RawUiConfig.disableDialogsFab(), true);
-                    } else if (position == showSecondsRow) {
-                        cell.setTextAndCheck("Секунды во времени сообщений", RawUiConfig.showSeconds(), false);
+                        cell.setTextAndCheck("Скрыть плавающие кнопки", RawUiConfig.disableDialogsFab(), false);
                     } else if (position == folderTitleRow) {
                         cell.setTextAndCheck("Название папки вместо заголовка", RawUiConfig.folderNameAsTitle(), true);
                     }
@@ -708,7 +699,7 @@ public class RawUiSettingsActivity extends BaseFragment {
                 case TYPE_INFO: {
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
                     if (position == previewInfoRow) {
-                        cell.setText("Пример обновляется сразу. Системный шрифт, набор иконок и скрытие «Контактов» применяются после перезапуска.");
+                        cell.setText("Пример обновляется сразу.");
                     } else if (position == titleInfoRow) {
                         cell.setText("Название папки показывается вместо заголовка, пока открыта папка.");
                     } else if (position == foldersInfoRow) {
@@ -724,7 +715,7 @@ public class RawUiSettingsActivity extends BaseFragment {
                     } else if (position == switchInfoRow) {
                         cell.setText("Нажми на образец, чтобы увидеть оба положения.");
                     } else if (position == lookInfoRow) {
-                        cell.setText("Разделители — линии между пунктами и тени под разделами. Системный шрифт — после перезапуска. "
+                        cell.setText("Системный шрифт — после перезапуска. Разделители — линии между пунктами и тени под разделами. "
                                 + "Анимации — плавные переходы в окнах и меню rawGram; в режиме энергосбережения они выключены.");
                     } else if (position == settingsInfoRow) {
                         cell.setText("Premium — Звёзды, TON, Business, подарки. Вместо номера будет «Номер скрыт» — удобно для скриншотов.");

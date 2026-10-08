@@ -89,6 +89,8 @@ public class RawChatUiSettingsActivity extends BaseFragment {
     private static final int CHECK_FULL_NUMBERS = 101;
     private static final int CHECK_HIDE_KEYBOARD = 102;
     private static final int CHECK_CAMERA_BUTTON = 103;
+    private static final int CHECK_SHOW_SECONDS = 104; // RawUiConfig
+    private static final int CHECK_DETAILS = 105; // RawgramConfig, also in RawDevSettingsActivity
 
     /** Sliders (Row.id), stored in RawgramConfig. */
     private static final int SLIDER_STICKER_SIZE = 1;
@@ -101,6 +103,7 @@ public class RawChatUiSettingsActivity extends BaseFragment {
     private ListAdapter adapter;
     private ChatPreviewCell previewCell;
     private StickerPreviewCell stickerPreviewCell;
+    private boolean needRebuild;
 
     private void header(String text) {
         rows.add(new Row(TYPE_HEADER, text, null, 0));
@@ -120,22 +123,44 @@ public class RawChatUiSettingsActivity extends BaseFragment {
             case CHECK_FULL_NUMBERS: return RawgramConfig.isFullNumbers();
             case CHECK_HIDE_KEYBOARD: return RawgramConfig.isHideKeyboardOnScroll();
             case CHECK_CAMERA_BUTTON: return RawgramConfig.isHideAttachCamera();
+            case CHECK_SHOW_SECONDS: return RawUiConfig.showSeconds();
+            case CHECK_DETAILS: return RawgramConfig.isMessageDetails();
             default: return false;
         }
     }
 
-    private static void toggleCustomCheck(int id) {
+    private void toggleCustomCheck(int id) {
         switch (id) {
             case CHECK_CLASSIC: RawClassicUi.setEnabled(!RawClassicUi.isEnabled()); break;
             case CHECK_FULL_NUMBERS: RawgramConfig.setFullNumbers(!RawgramConfig.isFullNumbers()); break;
             case CHECK_HIDE_KEYBOARD: RawgramConfig.setHideKeyboardOnScroll(!RawgramConfig.isHideKeyboardOnScroll()); break;
             case CHECK_CAMERA_BUTTON: RawgramConfig.setHideAttachCamera(!RawgramConfig.isHideAttachCamera()); break;
+            case CHECK_SHOW_SECONDS:
+                // the day formatter is shared with the chats list: rebuild the open screens on exit, as RawUiSettingsActivity does
+                RawUiConfig.setShowSeconds(!RawUiConfig.showSeconds());
+                LocaleController.getInstance().recreateFormatters();
+                needRebuild = true;
+                break;
+            case CHECK_DETAILS: RawgramConfig.setMessageDetails(!RawgramConfig.isMessageDetails()); break;
+        }
+    }
+
+    @Override
+    public void onFragmentDestroy() {
+        super.onFragmentDestroy();
+        if (needRebuild && parentLayout != null) {
+            final org.telegram.ui.ActionBar.INavigationLayout layout = parentLayout;
+            AndroidUtilities.runOnUIThread(() -> layout.rebuildAllFragmentViews(false, false));
         }
     }
 
     private void updatePreview() {
         if (previewCell != null) {
             previewCell.bind();
+        }
+        if (stickerPreviewCell != null) {
+            // sticker time and the time format show on this preview too
+            stickerPreviewCell.updateSticker();
         }
     }
 
@@ -158,22 +183,34 @@ public class RawChatUiSettingsActivity extends BaseFragment {
 
         header("Вид чата");
         check("Классический вид чата", CHECK_CLASSIC);
-        info("Сплошная шапка и поле ввода во всю ширину вместо «пилюль». Действует на чаты, открытые после переключения.");
-
-        header("Сообщения");
         check("Заголовок чата по центру", RawChatUiConfig.centerTitle);
         check("Скрыть кнопку звонка в шапке", RawChatUiConfig.hideCallButton);
-        check("Скрыть время у стикеров", RawChatUiConfig.hideStickerTime);
+        value("Снег в чате", VALUE_SNOW);
+        info("Классический вид — сплошная шапка и поле ввода во всю ширину вместо «пилюль». "
+                + "Изменения действуют на чаты, открытые после переключения.");
+
+        header("Сообщения");
         check("ID сообщения в пузыре", RawChatUiConfig.showMessageId);
         value("Метка «изменено»", VALUE_EDITED_MODE);
         if (RawChatUiConfig.editedMode.get() == RawChatUiConfig.EDITED_CUSTOM) {
             value("Текст метки", VALUE_EDITED_TEXT);
         }
+        check("Секунды во времени сообщений", CHECK_SHOW_SECONDS);
         check("Не округлять числа", CHECK_FULL_NUMBERS);
         check("Скрыть «Поделиться» у постов каналов", RawChatUiConfig.hideChannelShare);
-        value("Снег в чате", VALUE_SNOW);
-        info("Время у стикера видно, пока сообщение выделено. Числа без округления — в просмотрах, реакциях и подписчиках. "
+        info("Секунды видны и в списке чатов. Числа без округления — в просмотрах, реакциях и подписчиках. "
                 + "Применяется при следующем открытии чата.");
+
+        header("Двойное нажатие");
+        value("Входящие", VALUE_TAP_IN);
+        value("Свои", VALUE_TAP_OUT);
+        info("Если действие недоступно для сообщения, двойное нажатие ничего не делает.");
+
+        header("Стикеры");
+        check("Скрыть время у стикеров", RawChatUiConfig.hideStickerTime);
+        check("«Добавить в…»", RawChatUiConfig.addToPack);
+        info("Время у стикера видно, пока сообщение выделено. «Добавить в…» копирует стикер или эмодзи в свой набор или в новый — "
+                + "в меню превью и в меню сообщения со стикером.");
 
         header("Размер стикеров");
         slider(SLIDER_STICKER_SIZE);
@@ -194,44 +231,45 @@ public class RawChatUiSettingsActivity extends BaseFragment {
 
         header("Поле ввода");
         check("Скрыть клавиатуру при прокрутке", CHECK_HIDE_KEYBOARD);
+        check("Информация о юзере по ID", RawChatUiConfig.usinfobotHint);
+        info("Клавиатура и панель эмодзи прячутся при прокрутке чата, набранный текст остаётся. "
+                + "Если в поле ввода только ID, над ним появляется «Информация о юзере»: нажатие отправляет в чат ответ @usinfobot по этому ID.");
+
+        header("Камера");
         check("Камера во вложениях — кнопкой", CHECK_CAMERA_BUTTON);
         value("Камера для кружков", VALUE_ROUND_CAMERA);
-        info("Клавиатура и панель эмодзи прячутся при прокрутке чата, набранный текст остаётся. "
-                + "Камера во вложениях — круглая кнопка вместо большой плитки в галерее. "
+        info("Камера во вложениях — круглая кнопка вместо большой плитки в галерее. "
                 + "«Спрашивать»: при удержании кнопки кружка появляется выбор камеры, дальше запись идёт без удержания.");
 
-        header("Поведение");
+        header("Пересылка и удаление");
+        check("По умолчанию скрывать отправителя", RawChatUiConfig.fwdHideSender);
+        check("По умолчанию скрывать подписи", RawChatUiConfig.fwdHideCaptions);
+        check("Запоминать «Также удалить для…»", RawChatUiConfig.rememberDeleteForAll);
+        info("При пересылке «Скрыть имя отправителя» и «Скрыть подпись» сразу включены. "
+                + "Вместе с подписями скрывается и отправитель. «Также удалить для…» в личных чатах запоминает последний выбор.");
+
+        header("Группы и каналы");
         check("Без свайпа к следующему каналу", RawChatUiConfig.noSwipeNextChannel);
         check("Без свайпа к следующей теме", RawChatUiConfig.noSwipeNextTopic);
-        value("Двойное нажатие: входящие", VALUE_TAP_IN);
-        value("Двойное нажатие: свои", VALUE_TAP_OUT);
-        check("Запоминать «Также удалить для…»", RawChatUiConfig.rememberDeleteForAll);
-        info("Если действие недоступно для сообщения, двойное нажатие ничего не делает. "
-                + "«Также удалить для…» в личных чатах запоминает последний выбор.");
+        check("Карандаш без прав администратора", RawChatUiConfig.chatViewOnly);
+        check("Стикеры, GIF, игры и боты раздельно", RawChatUiConfig.splitMediaRights);
+        info("В группах и каналах без прав администратора карандаш в профиле открывает «Изменить» только для просмотра: "
+                + "разрешения, администраторы и их права, участники и бусты. "
+                + "В разрешениях «Стикеры и GIF» делятся на стикеры, GIF, игры и инлайн-ботов.");
 
         header("Сохранение файлов");
         value("Папка", VALUE_SAVE_FOLDER);
         check("Сохранять по названию чата", RawChatUiConfig.saveByChat);
         info("Папка внутри «Загрузок», «Изображений», «Видео» и «Музыки». Оставь пустой, чтобы сохранять напрямую.");
 
-        header("Пересылка");
-        check("По умолчанию скрывать отправителя", RawChatUiConfig.fwdHideSender);
-        check("По умолчанию скрывать подписи", RawChatUiConfig.fwdHideCaptions);
-        info("При пересылке «Скрыть имя отправителя» и «Скрыть подпись» сразу включены. "
-                + "Вместе с подписями скрывается и отправитель.");
-
-        header("Интеграции");
-        check("Информация о юзере по ID", RawChatUiConfig.usinfobotHint);
-        info("Если в поле ввода только ID, над ним появляется «Информация о юзере». "
-                + "Нажатие отправляет в чат ответ @usinfobot по этому ID.");
-
         header("Меню сообщения");
         check("Компактное меню", RawChatUiConfig.menuCompact);
         check("Повторить сообщение", RawChatUiConfig.menuRepeat);
         check("В Избранное", RawChatUiConfig.menuSaveToSaved);
         check("История", RawChatUiConfig.menuHistory);
+        check("Подробности", CHECK_DETAILS);
         info("Компактное меню: «Ответить», «Удалить», «Копировать» и «Изменить» — строкой иконок внизу, остальное — списком. "
-                + "«История» — все сообщения отправителя в группе.");
+                + "«История» — все сообщения отправителя в группе. «Подробности» — ID, даты, просмотры и другие данные сообщения.");
 
         header("Скрыть из меню сообщения");
         check("Перевести", RawChatUiConfig.menuHideTranslate);
@@ -242,29 +280,16 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         check("Копировать ссылку", RawChatUiConfig.menuHideCopyLink);
         check("Статистика", RawChatUiConfig.menuHideStatistics);
         check("Факт-чек", RawChatUiConfig.menuHideFactCheck);
-        info("«Подробности» включаются в Инструментах разработчика.");
+        info("Отмеченные пункты не показываются в меню сообщения.");
 
         header("Меню чата «⋮»");
         check("К началу", RawChatUiConfig.menuToBeginning);
-        info("Прыжок к самому первому сообщению чата.");
-
-        header("Стикеры и эмодзи");
-        check("«Добавить в…»", RawChatUiConfig.addToPack);
-        info("Копирует стикер или эмодзи в свой набор или в новый. Пункт есть в меню превью и в меню сообщения со стикером.");
-
-        header("Ярлыки администратора");
         check("Разрешения / чёрный список", RawChatUiConfig.shortcutPermissions);
         check("Администраторы", RawChatUiConfig.shortcutAdmins);
         check("Участники / подписчики", RawChatUiConfig.shortcutMembers);
         check("Недавние действия", RawChatUiConfig.shortcutRecentActions);
-        info("Появляются в меню «⋮» групп и каналов, где есть права администратора.");
-
-        header("Профиль чата");
-        check("Карандаш без прав администратора", RawChatUiConfig.chatViewOnly);
-        check("Стикеры, GIF, игры и боты раздельно", RawChatUiConfig.splitMediaRights);
-        info("В группах и каналах без прав администратора карандаш в профиле открывает «Изменить» только для просмотра: "
-                + "разрешения, администраторы и их права, участники и бусты. "
-                + "В разрешениях «Стикеры и GIF» делятся на стикеры, GIF, игры и инлайн-ботов.");
+        info("«К началу» — прыжок к самому первому сообщению чата. Остальные пункты появляются в группах и каналах, "
+                + "где есть права администратора.");
     }
 
     @Override
@@ -501,10 +526,7 @@ public class RawChatUiSettingsActivity extends BaseFragment {
             cell.bind(RawgramConfig.STICKER_SCALE_MIN, RawgramConfig.STICKER_SCALE_MAX, RawgramConfig.STICKER_SCALE_STEP,
                     RawgramConfig.getStickerScalePercent(), "%", value -> {
                         RawgramConfig.setStickerScalePercent(value);
-                        if (stickerPreviewCell != null) {
-                            stickerPreviewCell.updateSticker();
-                        }
-                        updatePreview();
+                        updatePreview(); // also re-lays out the sticker preview
                     });
         }
     }
