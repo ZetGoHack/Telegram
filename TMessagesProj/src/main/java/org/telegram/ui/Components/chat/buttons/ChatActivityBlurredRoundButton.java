@@ -234,7 +234,7 @@ public class ChatActivityBlurredRoundButton extends FrameLayout implements Facto
         }
 
         if (rawClassicSolidPaint != null) {
-            rawClassicSolidPaint.setColor(Theme.getColor(Theme.key_chat_goDownButton, resourcesProvider));
+            rawClassicSolidPaint.setColor(org.telegram.rawgram.RawClassicUi.solidColor(Theme.key_chat_messagePanelBackground, resourcesProvider));
             rawClassicSolidPaint.setShadowLayer(dp(1.66f), 0, dp(0.66f), 0x2f000000);
         }
         final int color = Theme.getColor(iconColorKey(), resourcesProvider);

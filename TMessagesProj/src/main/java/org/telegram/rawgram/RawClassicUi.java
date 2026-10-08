@@ -32,6 +32,15 @@ public class RawClassicUi {
         return ApplicationLoader.applicationContext.getSharedPreferences("rawgram_classic", Context.MODE_PRIVATE);
     }
 
+    /**
+     * A theme colour made opaque, for the classic solid round buttons (page down, mentions, reactions). They take the
+     * colour the stock glass buttons and the input panel use (chat_messagePanelBackground) rather than the legacy
+     * chat_goDownButton, which current themes no longer set reliably (it came out translucent).
+     */
+    public static int solidColor(int key, Theme.ResourcesProvider resourcesProvider) {
+        return ColorUtils.setAlphaComponent(Theme.getColor(key, resourcesProvider), 255);
+    }
+
     public static boolean isEnabled() {
         if (enabled == null) {
             try {
