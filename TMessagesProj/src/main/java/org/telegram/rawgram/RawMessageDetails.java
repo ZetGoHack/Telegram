@@ -489,7 +489,7 @@ public class RawMessageDetails {
         return null;
     }
 
-    private static void copyMedia(Context context, int currentAccount, MessageObject message, Runnable onClose) {
+    static void copyMedia(Context context, int currentAccount, MessageObject message, Runnable onClose) {
         File file = mediaFile(currentAccount, message);
         if (file == null) {
             RawNotify.show(R.drawable.msg_download, "Фото ещё не загружено");
@@ -531,6 +531,7 @@ public class RawMessageDetails {
 
     /** MediaController.saveFile type: 0 pictures, 1 movies, 2 downloads, 3 music (Telegram's own folders). */
     private static int saveType(MessageObject message) {
+        if (RawStickerExport.isSticker(message)) return RawStickerExport.saveType(message);
         String mime = mime(message);
         if (isImage(message)) return 0;
         if (isVideoLike(message) || mime.startsWith("video/")) return 1;
@@ -581,6 +582,10 @@ public class RawMessageDetails {
                 RawNotify.show(R.drawable.msg_gallery, saveType >= 2 ? "Сохранено" : "Сохранено в галерею");
             }
         };
+        if (RawStickerExport.isSticker(message)) {
+            RawStickerExport.save(activity, env.account, message, onSaved);
+            return;
+        }
         if (message.isLivePhoto()) {
             TLRPC.MessageMedia media = MessageObject.getMedia(message.messageOwner);
             TLRPC.Document videoDoc = media != null ? media.document : null;

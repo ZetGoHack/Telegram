@@ -2195,6 +2195,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     private final static int gallery_menu_create_sticker = 25;
     private final static int gallery_menu_delete2 = 26;
     private final static int gallery_menu_rawgram_copy = 100;
+    private final static int gallery_menu_rawgram_frame = 101;
+    private final static int gallery_menu_rawgram_avatar = 102;
+    private final static int gallery_menu_rawgram_qr = 103;
 
     private final static int ads_sponsor_info = 101;
     private final static int ads_about = 102;
@@ -4919,6 +4922,12 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     closePhoto(true, false);
                 } else if (id == gallery_menu_rawgram_copy) {
                     org.telegram.rawgram.RawPhotoCopy.copy(rawgramPhotoItem(), containerView, resourcesProvider);
+                } else if (id == gallery_menu_rawgram_frame) {
+                    org.telegram.rawgram.RawViewerExtras.copyFrame(parentActivity, videoTextureView);
+                } else if (id == gallery_menu_rawgram_avatar) {
+                    org.telegram.rawgram.RawViewerExtras.setAvatar(parentActivity, currentAccount, org.telegram.rawgram.RawViewerExtras.photo(rawgramPhotoItem()));
+                } else if (id == gallery_menu_rawgram_qr) {
+                    org.telegram.rawgram.RawViewerExtras.scanQr(parentActivity, org.telegram.rawgram.RawViewerExtras.photo(rawgramPhotoItem()));
                 } else if (id == gallery_menu_save) {
                     if (Build.VERSION.SDK_INT >= 23 && (Build.VERSION.SDK_INT <= 28 || BuildVars.NO_SCOPED_STORAGE) && parentActivity.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                         parentActivity.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
@@ -5911,6 +5920,12 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         // rawGram: copy the current photo to the clipboard; shown in onShowSubMenu
         menuItem.addSubItem(gallery_menu_rawgram_copy, R.drawable.msg_copy, "Скопировать фото").setColors(0xfffafafa, 0xfffafafa);
         menuItem.hideSubItem(gallery_menu_rawgram_copy);
+        menuItem.addSubItem(gallery_menu_rawgram_frame, R.drawable.msg_copy_photo, "Копировать кадр").setColors(0xfffafafa, 0xfffafafa);
+        menuItem.addSubItem(gallery_menu_rawgram_avatar, R.drawable.msg_openprofile, "Поставить на аватарку").setColors(0xfffafafa, 0xfffafafa);
+        menuItem.addSubItem(gallery_menu_rawgram_qr, R.drawable.msg_qrcode, "Сканировать QR-код").setColors(0xfffafafa, 0xfffafafa);
+        menuItem.hideSubItem(gallery_menu_rawgram_frame);
+        menuItem.hideSubItem(gallery_menu_rawgram_avatar);
+        menuItem.hideSubItem(gallery_menu_rawgram_qr);
         galleryGap = menuItem.addColoredGap();
         galleryGap.setColor(0xff181818);
         menuItem.addSubItem(gallery_menu_openin, R.drawable.msg_openin, getString(R.string.OpenInExternalApp)).setColors(0xfffafafa, 0xfffafafa);
@@ -5944,6 +5959,11 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 }
                 // rawGram: "Скопировать фото" only where saving is allowed and the item is a still image
                 menuItem.setSubItemShown(gallery_menu_rawgram_copy, galleryButton.getVisibility() == View.VISIBLE && org.telegram.rawgram.RawPhotoCopy.isPhoto(rawgramPhotoItem()));
+                final boolean rawExtras = org.telegram.rawgram.RawViewerExtras.enabled() && galleryButton.getVisibility() == View.VISIBLE;
+                final boolean rawPhoto = rawExtras && org.telegram.rawgram.RawPhotoCopy.isPhoto(rawgramPhotoItem());
+                menuItem.setSubItemShown(gallery_menu_rawgram_frame, rawExtras && isCurrentVideo && videoTextureView != null);
+                menuItem.setSubItemShown(gallery_menu_rawgram_avatar, rawPhoto);
+                menuItem.setSubItemShown(gallery_menu_rawgram_qr, rawPhoto);
             }
 
             @Override
@@ -5952,6 +5972,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     scheduleActionBarHide();
                 }
                 menuItem.hideSubItem(gallery_menu_rawgram_copy);
+                menuItem.hideSubItem(gallery_menu_rawgram_frame);
+                menuItem.hideSubItem(gallery_menu_rawgram_avatar);
+                menuItem.hideSubItem(gallery_menu_rawgram_qr);
             }
         });
 

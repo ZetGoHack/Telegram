@@ -638,12 +638,14 @@ public class SpoilerEffect extends Drawable {
      * @param spoilers     Spoilers list to populate
      */
     public static void addSpoilers(@Nullable View v, Layout textLayout, @Nullable Stack<SpoilerEffect> spoilersPool, List<SpoilerEffect> spoilers) {
+        if (org.telegram.rawgram.RawChatUiConfig.revealSpoilers.get()) return; // rawGram
         if (textLayout.getText() instanceof Spanned) {
             addSpoilers(v, textLayout, (Spanned) textLayout.getText(), spoilersPool, spoilers);
         }
     }
 
     public static void addSpoilers(@Nullable View v, Layout textLayout, int left, int right, @Nullable Stack<SpoilerEffect> spoilersPool, List<SpoilerEffect> spoilers) {
+        if (org.telegram.rawgram.RawChatUiConfig.revealSpoilers.get()) return; // rawGram
         if (textLayout.getText() instanceof Spanned) {
             addSpoilers(v, textLayout, left, right, (Spanned) textLayout.getText(), spoilersPool, spoilers, null);
         }

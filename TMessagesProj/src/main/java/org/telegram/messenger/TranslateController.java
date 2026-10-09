@@ -137,6 +137,7 @@ public class TranslateController extends BaseController {
     }
 
     public static boolean isSummarizable(MessageObject messageObject) {
+        if (org.telegram.rawgram.RawChatUiConfig.hideAiSummary.get()) return false; // rawGram
         return (
             messageObject != null &&
             messageObject.messageOwner != null &&

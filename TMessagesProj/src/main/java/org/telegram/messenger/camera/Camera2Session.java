@@ -492,6 +492,7 @@ public class Camera2Session {
             if (recordingVideo) {
                 captureRequestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, new Range<Integer>(30, 60));
                 captureRequestBuilder.set(CaptureRequest.CONTROL_CAPTURE_INTENT, CaptureRequest.CONTROL_CAPTURE_INTENT_VIDEO_RECORD);
+                org.telegram.rawgram.RawBehaviour.stabilize(captureRequestBuilder, cameraCharacteristics); // rawGram
             }
 
             if (sensorSize != null && Math.abs(currentZoom - 1f) >= 0.01f) {

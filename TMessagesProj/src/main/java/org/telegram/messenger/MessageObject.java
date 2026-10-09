@@ -644,7 +644,7 @@ public class MessageObject {
     }
 
     public boolean hasMediaSpoilers() {
-        return !isRepostPreview && (messageOwner.media != null && messageOwner.media.spoiler || needDrawBluredPreview()) || isHiddenSensitive();
+        return !isRepostPreview && (messageOwner.media != null && messageOwner.media.spoiler && !org.telegram.rawgram.RawChatUiConfig.revealSpoilers.get() || needDrawBluredPreview()) || isHiddenSensitive(); // rawGram: revealSpoilers
     }
 
     public Boolean isSensitiveCached;

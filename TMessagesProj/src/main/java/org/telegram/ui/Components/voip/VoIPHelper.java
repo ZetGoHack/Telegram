@@ -101,6 +101,7 @@ public class VoIPHelper {
 			}
 			return;
 		}
+		if (org.telegram.rawgram.RawBehaviour.askBeforeCall(activity, user, videoCall, () -> startCall(user, videoCall, canVideoCall, activity, userFull, accountInstance))) return; // rawGram
 
 		if (Build.VERSION.SDK_INT >= 23) {
 			int code;

@@ -5808,8 +5808,10 @@ public class EmojiView extends FrameLayout implements
             gifTabs.addIconTab(0, gifIcons[0]).setContentDescription(getString(R.string.RecentStickers));
         }
 
+        if (!org.telegram.rawgram.RawChatUiConfig.hideTrendingGifs.get()) { // rawGram
         gifTrendingTabNum = gifTabsCount++;
         gifTabs.addIconTab(1, gifIcons[1]).setContentDescription(getString(R.string.FeaturedGifs));
+        }
 
         gifFirstEmojiTabNum = gifTabsCount;
         final int hPadding = AndroidUtilities.dp(13);
@@ -8827,6 +8829,7 @@ public class EmojiView extends FrameLayout implements
         }
 
         public void loadTrendingGifs() {
+            if (org.telegram.rawgram.RawChatUiConfig.hideTrendingGifs.get()) return; // rawGram
             search("", "", true, true, true);
         }
 

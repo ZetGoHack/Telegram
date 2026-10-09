@@ -84,6 +84,24 @@ public class MessageDrawable extends Drawable {
     };
 
     public static final int TYPE_TEXT = 0;
+    // rawGram: bubbles without the tail (Nagram's RemoveMessageTail); the cached shapes are dropped when it changes
+    private boolean rawTailCache;
+    private boolean rawTailCacheSet;
+
+    private boolean rawEnsureTailCache() {
+        boolean removeMessageTail = org.telegram.rawgram.RawChatUiConfig.noBubbleTail.get();
+        if (!rawTailCacheSet || rawTailCache != removeMessageTail) {
+            rawTailCacheSet = true;
+            rawTailCache = removeMessageTail;
+            for (int i = 0; i < currentBackgroundDrawableRadius.length; i++) {
+                java.util.Arrays.fill(currentBackgroundDrawableRadius[i], -1);
+            }
+            java.util.Arrays.fill(currentShadowDrawableRadius, -1);
+            transitionDrawable = null;
+        }
+        return removeMessageTail;
+    }
+
     public static final int TYPE_MEDIA = 1;
     public static final int TYPE_PREVIEW = 2;
 
@@ -318,6 +336,7 @@ public class MessageDrawable extends Drawable {
     }
 
     public Drawable getBackgroundDrawable() {
+        rawEnsureTailCache(); // rawGram
         int newRad;
         if (overrideRoundRadius != 0) {
             newRad = overrideRoundRadius;
@@ -406,6 +425,7 @@ public class MessageDrawable extends Drawable {
     }
 
     public Drawable getTransitionDrawable(int color) {
+        rawEnsureTailCache(); // rawGram
         if (transitionDrawable == null) {
             Bitmap bitmap = Bitmap.createBitmap(dp(50), dp(40), Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(bitmap);
@@ -436,6 +456,7 @@ public class MessageDrawable extends Drawable {
     }
 
     public Drawable getShadowDrawable() {
+        rawEnsureTailCache(); // rawGram
         if (isCrossfadeBackground) {
             return null;
         }
@@ -598,7 +619,7 @@ public class MessageDrawable extends Drawable {
         boolean invalidatePath;
         if (pathDrawCacheParams != null) {
             path = pathDrawCacheParams.path;
-            invalidatePath = pathDrawCacheParams.invalidatePath(bounds, drawFullBottom, drawFullTop);
+            invalidatePath = pathDrawCacheParams.invalidatePath(bounds, drawFullBottom, drawFullTop, org.telegram.rawgram.RawChatUiConfig.noBubbleTail.get()); // rawGram
         } else {
             path = this.path;
             invalidatePath = true;
@@ -651,7 +672,7 @@ public class MessageDrawable extends Drawable {
         boolean invalidatePath;
         if (pathDrawCacheParams != null) {
             path = pathDrawCacheParams.path;
-            invalidatePath = pathDrawCacheParams.invalidatePath(bounds, drawFullBottom, drawFullTop);
+            invalidatePath = pathDrawCacheParams.invalidatePath(bounds, drawFullBottom, drawFullTop, org.telegram.rawgram.RawChatUiConfig.noBubbleTail.get()); // rawGram
         } else {
             path = this.path;
             invalidatePath = true;
@@ -668,11 +689,12 @@ public class MessageDrawable extends Drawable {
         if (rad > heightHalf) {
             rad = heightHalf;
         }
+        boolean removeMessageTail = org.telegram.rawgram.RawChatUiConfig.noBubbleTail.get(); // rawGram
         if (isOut) {
             // LEFT-BOTTOM <- RIGHT-BOTTOM
             if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) {
                 int radToUse = botButtonsBottom ? nearRad : rad;
-                if (currentType == TYPE_MEDIA) {
+                if (currentType == TYPE_MEDIA || removeMessageTail) { // rawGram
                     path.moveTo(bounds.right - dp(8) - radToUse, bounds.bottom - padding);
                 } else {
                     path.moveTo(bounds.right - dp(2.6f), bounds.bottom - padding);
@@ -724,9 +746,16 @@ public class MessageDrawable extends Drawable {
                 }
             } else {
                 if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) {
+                    if (removeMessageTail) { // rawGram
+                        int radToUse = isBottomNear ? nearRad : rad;
+                        path.lineTo(bounds.right - dp(8), bounds.bottom - padding - radToUse);
+                        rect.set(bounds.right - dp(8) - radToUse * 2, bounds.bottom - padding - radToUse * 2, bounds.right - dp(8), bounds.bottom - padding);
+                        path.arcTo(rect, 0, 90, false);
+                    } else {
                     path.lineTo(bounds.right - dp(8), bounds.bottom - padding - smallRad - dp(3));
                     rect.set(bounds.right - dp(8), bounds.bottom - padding - smallRad * 2 - dp(9), bounds.right - dp(7) + smallRad * 2, bounds.bottom - padding - dp(1));
                     path.arcTo(rect, 180, -83, false);
+                    }
                 } else {
                     path.lineTo(bounds.right - dp(8), top - topY + currentBackgroundHeight);
                 }
@@ -781,9 +810,16 @@ public class MessageDrawable extends Drawable {
                 }
             } else {
                 if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) {
+                    if (removeMessageTail) { // rawGram
+                        int radToUse = isBottomNear || botButtonsBottom ? nearRad : rad;
+                        path.lineTo(bounds.left + dp(8), bounds.bottom - padding - radToUse);
+                        rect.set(bounds.left + dp(8), bounds.bottom - padding - radToUse * 2, bounds.left + dp(8) + radToUse * 2, bounds.bottom - padding);
+                        path.arcTo(rect, 180, -90, false);
+                    } else {
                     path.lineTo(bounds.left + dp(8), bounds.bottom - padding - smallRad - dp(3));
                     rect.set(bounds.left + dp(7) - smallRad * 2, bounds.bottom - padding - smallRad * 2 - dp(9), bounds.left + dp(8), bounds.bottom - padding - dp(1));
                     path.arcTo(rect, 0, 83, false);
+                    }
                 } else {
                     path.lineTo(bounds.left + dp(8), top - topY + currentBackgroundHeight);
                 }
@@ -854,8 +890,11 @@ public class MessageDrawable extends Drawable {
         boolean lastDrawFullTop;
         boolean lastDrawFullBottom;
 
-        public boolean invalidatePath(Rect bounds, boolean drawFullBottom, boolean drawFullTop) {
-            boolean invalidate = lastRect.isEmpty() || lastRect.top != bounds.top || lastRect.bottom != bounds.bottom || lastRect.right != bounds.right || lastRect.left != bounds.left || lastDrawFullTop != drawFullTop || lastDrawFullBottom != drawFullBottom || !drawFullTop || !drawFullBottom;
+        boolean lastRemoveMessageTail; // rawGram
+
+        public boolean invalidatePath(Rect bounds, boolean drawFullBottom, boolean drawFullTop, boolean removeMessageTail) {
+            boolean invalidate = lastRect.isEmpty() || lastRect.top != bounds.top || lastRect.bottom != bounds.bottom || lastRect.right != bounds.right || lastRect.left != bounds.left || lastDrawFullTop != drawFullTop || lastDrawFullBottom != drawFullBottom || lastRemoveMessageTail != removeMessageTail || !drawFullTop || !drawFullBottom;
+            lastRemoveMessageTail = removeMessageTail;
             lastDrawFullTop = drawFullTop;
             lastDrawFullBottom = drawFullBottom;
             lastRect.set(bounds);

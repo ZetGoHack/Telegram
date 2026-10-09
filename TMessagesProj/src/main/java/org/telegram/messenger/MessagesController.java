@@ -11456,7 +11456,7 @@ public class MessagesController extends BaseController implements NotificationCe
             } else if (action == 9) {
                 req.action = new TLRPC.TL_sendMessageUploadAudioAction();
             } else if (action == 10) {
-                req.action = new TLRPC.TL_sendMessageChooseStickerAction();
+                req.action = org.telegram.rawgram.RawChatUiConfig.typingForStickers.get() ? new TLRPC.TL_sendMessageTypingAction() : new TLRPC.TL_sendMessageChooseStickerAction(); // rawGram
             } else if (action == 11) {
                 TLRPC.TL_sendMessageEmojiInteractionSeen interactionSeen = new TLRPC.TL_sendMessageEmojiInteractionSeen();
                 interactionSeen.emoticon = emojicon;
@@ -23674,6 +23674,7 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public boolean storiesEnabled() {
+        if (org.telegram.rawgram.RawChatUiConfig.disableStories.get()) return false; // rawGram
         switch (storiesPosting) {
             case "premium":
                 return getUserConfig().isPremium();

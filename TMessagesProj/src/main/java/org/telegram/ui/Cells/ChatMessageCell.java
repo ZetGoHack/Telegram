@@ -410,6 +410,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     }
 
     public boolean hasSpoilers() {
+        if (org.telegram.rawgram.RawChatUiConfig.revealSpoilers.get()) return false; // rawGram
         if (captionLayout != null && captionLayout.textLayoutBlocks != null) {
             for (MessageObject.TextLayoutBlock bl : captionLayout.textLayoutBlocks) {
                 if (!bl.spoilers.isEmpty()) {
@@ -13416,10 +13417,14 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                                     radii[a * 2] = radii[a * 2 + 1] = dp(pinnedBottom ? Math.min(5, SharedConfig.bubbleRadius) : SharedConfig.bubbleRadius);
                                     continue;
                                 }
+                                if (org.telegram.rawgram.RawChatUiConfig.noBubbleTail.get() && a == (out ? 2 : 3)) { // rawGram
+                                    radii[a * 2] = radii[a * 2 + 1] = dp(SharedConfig.bubbleRadius);
+                                    continue;
+                                }
                             }
                             radii[a * 2] = radii[a * 2 + 1] = 0;
                         }
-                        if (!out && !drawPinnedBottom && currentPosition == null && (currentPosition == null || pollInstantViewTouchesBottom)) {
+                        if (!out && !drawPinnedBottom && currentPosition == null && (currentPosition == null || pollInstantViewTouchesBottom) && !org.telegram.rawgram.RawChatUiConfig.noBubbleTail.get()) { // rawGram
                             path.moveTo(rect.left + dp(6), rect.top);
                             path.lineTo(rect.left + dp(6), rect.bottom - dp(6) - dp(2 + 3));
                             AndroidUtilities.rectTmp.set(
@@ -19175,7 +19180,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 lastLine = TextUtils.ellipsize(lastLine, Theme.chat_forwardNamePaint, forwardedNameWidth, TextUtils.TruncateAt.END);
                 try {
                     forwardedNameLayout[1] = new StaticLayout(lastLine, Theme.chat_forwardNamePaint, forwardedNameWidth + dp(2), Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
-                    lastLine = TextUtils.ellipsize(AndroidUtilities.replaceTags(forwardedString), Theme.chat_forwardNamePaint, forwardedNameWidth, TextUtils.TruncateAt.END);
+                    lastLine = TextUtils.ellipsize(AndroidUtilities.replaceTags(org.telegram.rawgram.RawChatUiConfig.withForwardDate(forwardedString, messageObject)), Theme.chat_forwardNamePaint, forwardedNameWidth, TextUtils.TruncateAt.END);
                     forwardedNameLayout[0] = new StaticLayout(lastLine, Theme.chat_forwardNamePaint, forwardedNameWidth + dp(2), Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
                     if (forwardBg == null) {
                         forwardBg = new ForwardBackground(this);
@@ -23278,7 +23283,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 buttonX -= dp(10);
             }
             commentButtonRect.set(
-                    buttonX - dp((currentMessageObject == null || !currentMessageObject.isOutOwner()) && !drawPinnedBottom && currentPosition == null && (currentMessageObject == null || currentMessageObject.type != MessageObject.TYPE_POLL || pollInstantViewTouchesBottom) ? 6 : 0),
+                    buttonX - dp((currentMessageObject == null || !currentMessageObject.isOutOwner()) && !drawPinnedBottom && currentPosition == null && (currentMessageObject == null || currentMessageObject.type != MessageObject.TYPE_POLL || pollInstantViewTouchesBottom) && !org.telegram.rawgram.RawChatUiConfig.noBubbleTail.get() ? 6 : 0), // rawGram
                     (int) buttonY,
                     endX - dp(14),
                     layoutHeight - dp(h) + 1

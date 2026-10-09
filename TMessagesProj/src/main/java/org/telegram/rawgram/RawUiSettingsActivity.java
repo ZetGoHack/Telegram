@@ -80,6 +80,12 @@ public class RawUiSettingsActivity extends BaseFragment {
     private int foldersPreviewRow;
     private int tabsTitleTypeRow;
     private int hideAllTabRow;
+    private int tabStrokeRow;
+    private int noTabCountersRow;
+    private int archivePullRow;
+    private int noUnarchiveRow;
+    private int downloadsRow;
+    private int tabsOrderRow;
     private int foldersInfoRow;
 
     private int titleHeaderRow;
@@ -92,6 +98,10 @@ public class RawUiSettingsActivity extends BaseFragment {
     private int chatsHeaderRow;
     private int hideSearchRow;
     private int hideFabRow;
+    private int hidePremiumHintsRow;
+    private int hideBirthdaysRow;
+    private int hideStoriesHeaderRow;
+    private int disableStoriesRow;
     private int chatsInfoRow;
 
     private int iconHeaderRow;
@@ -139,16 +149,26 @@ public class RawUiSettingsActivity extends BaseFragment {
         foldersPreviewRow = rowCount++;
         tabsTitleTypeRow = rowCount++;
         hideAllTabRow = rowCount++;
+        tabStrokeRow = rowCount++;
+        noTabCountersRow = rowCount++;
         foldersInfoRow = rowCount++;
 
         chatsHeaderRow = rowCount++;
         hideSearchRow = rowCount++;
         hideFabRow = rowCount++;
+        hidePremiumHintsRow = rowCount++;
+        hideBirthdaysRow = rowCount++;
+        hideStoriesHeaderRow = rowCount++;
+        disableStoriesRow = rowCount++;
+        archivePullRow = rowCount++;
+        noUnarchiveRow = rowCount++;
+        downloadsRow = rowCount++;
         chatsInfoRow = rowCount++;
 
         bottomTabsHeaderRow = rowCount++;
         tabsHideTitlesRow = rowCount++;
         tabsHideContactsRow = rowCount++;
+        tabsOrderRow = rowCount++;
         bottomTabsInfoRow = rowCount++;
 
         avatarHeaderRow = rowCount++;
@@ -272,6 +292,40 @@ public class RawUiSettingsActivity extends BaseFragment {
             boolean v = !RawUiConfig.disableDialogsFab();
             RawUiConfig.setDisableDialogsFab(v);
             toggled(view, v);
+        } else if (position == tabStrokeRow) {
+            RawChatUiConfig.tabStroke.toggle();
+            toggled(view, RawChatUiConfig.tabStroke.get());
+        } else if (position == noTabCountersRow) {
+            RawChatUiConfig.noTabCounters.toggle();
+            toggled(view, RawChatUiConfig.noTabCounters.get());
+        } else if (position == archivePullRow) {
+            RawChatUiConfig.archiveOnPull.toggle();
+            toggled(view, RawChatUiConfig.archiveOnPull.get());
+        } else if (position == noUnarchiveRow) {
+            RawChatUiConfig.noUnarchiveSwipe.toggle();
+            toggled(view, RawChatUiConfig.noUnarchiveSwipe.get());
+        } else if (position == downloadsRow) {
+            RawChatUiConfig.alwaysDownloads.toggle();
+            toggled(view, RawChatUiConfig.alwaysDownloads.get());
+        } else if (position == tabsOrderRow) {
+            RawMainTabs.showEditor(getParentActivity(), () -> {
+                if (adapter != null) adapter.notifyItemChanged(tabsOrderRow);
+                showRestartNotice(this);
+            });
+        } else if (position == hidePremiumHintsRow) {
+            RawChatUiConfig.hidePremiumHints.toggle();
+            toggled(view, RawChatUiConfig.hidePremiumHints.get());
+        } else if (position == hideBirthdaysRow) {
+            RawChatUiConfig.hideBirthdays.toggle();
+            toggled(view, RawChatUiConfig.hideBirthdays.get());
+        } else if (position == hideStoriesHeaderRow) {
+            RawChatUiConfig.hideStoriesHeader.toggle();
+            toggled(view, RawChatUiConfig.hideStoriesHeader.get());
+            showRestartNotice(this);
+        } else if (position == disableStoriesRow) {
+            RawChatUiConfig.disableStories.toggle();
+            toggled(view, RawChatUiConfig.disableStories.get());
+            showRestartNotice(this);
         } else if (position == folderTitleRow) {
             boolean v = !RawUiConfig.folderNameAsTitle();
             RawUiConfig.setFolderNameAsTitle(v);
@@ -562,7 +616,7 @@ public class RawUiSettingsActivity extends BaseFragment {
                     || position == iconHeaderRow || position == switchHeaderRow) {
                 return TYPE_HEADER;
             }
-            if (position == tabsTitleTypeRow || position == titleModeRow || position == customTitleRow || position == snowRow) {
+            if (position == tabsOrderRow || position == tabsTitleTypeRow || position == titleModeRow || position == customTitleRow || position == snowRow) {
                 return TYPE_VALUE;
             }
             if (position == avatarSliderRow) {
@@ -659,13 +713,31 @@ public class RawUiSettingsActivity extends BaseFragment {
                     } else if (position == tabsHideTitlesRow) {
                         cell.setTextAndCheck("Скрыть подписи вкладок", RawUiConfig.mainTabsHideTitles(), true);
                     } else if (position == tabsHideContactsRow) {
-                        cell.setTextAndCheck("Скрыть вкладку «Контакты»", RawUiConfig.mainTabsHideContacts(), false);
+                        cell.setTextAndCheck("Скрыть вкладку «Контакты»", RawUiConfig.mainTabsHideContacts(), true);
                     } else if (position == hideAllTabRow) {
-                        cell.setTextAndCheck("Скрыть вкладку «Все чаты»", RawUiConfig.hideAllTab(), false);
+                        cell.setTextAndCheck("Скрыть вкладку «Все чаты»", RawUiConfig.hideAllTab(), true);
                     } else if (position == hideSearchRow) {
                         cell.setTextAndCheck("Скрыть поле поиска", RawUiConfig.hideDialogsSearchField(), true);
                     } else if (position == hideFabRow) {
-                        cell.setTextAndCheck("Скрыть плавающие кнопки", RawUiConfig.disableDialogsFab(), false);
+                        cell.setTextAndCheck("Скрыть плавающие кнопки", RawUiConfig.disableDialogsFab(), true);
+                    } else if (position == hidePremiumHintsRow) {
+                        cell.setTextAndCheck("Скрыть рекламу Premium", RawChatUiConfig.hidePremiumHints.get(), true);
+                    } else if (position == hideBirthdaysRow) {
+                        cell.setTextAndCheck("Скрыть дни рождения", RawChatUiConfig.hideBirthdays.get(), true);
+                    } else if (position == hideStoriesHeaderRow) {
+                        cell.setTextAndCheck("Скрыть истории над чатами", RawChatUiConfig.hideStoriesHeader.get(), true);
+                    } else if (position == disableStoriesRow) {
+                        cell.setTextAndCheck("Отключить истории", RawChatUiConfig.disableStories.get(), true);
+                    } else if (position == archivePullRow) {
+                        cell.setTextAndCheck("Открывать архив потягиванием", RawChatUiConfig.archiveOnPull.get(), true);
+                    } else if (position == noUnarchiveRow) {
+                        cell.setTextAndCheck("Не разархивировать свайпом", RawChatUiConfig.noUnarchiveSwipe.get(), true);
+                    } else if (position == downloadsRow) {
+                        cell.setTextAndCheck("Всегда показывать загрузки", RawChatUiConfig.alwaysDownloads.get(), false);
+                    } else if (position == tabStrokeRow) {
+                        cell.setTextAndCheck("Обводка выбранной папки", RawChatUiConfig.tabStroke.get(), true);
+                    } else if (position == noTabCountersRow) {
+                        cell.setTextAndCheck("Без счётчиков на папках", RawChatUiConfig.noTabCounters.get(), false);
                     } else if (position == folderTitleRow) {
                         cell.setTextAndCheck("Название папки вместо заголовка", RawUiConfig.folderNameAsTitle(), true);
                     }
@@ -682,6 +754,8 @@ public class RawUiSettingsActivity extends BaseFragment {
                     } else if (position == customTitleRow) {
                         String t = RawUiConfig.customTitle().trim();
                         cell.setTextAndValue("Текст заголовка", t.isEmpty() ? "не задан" : t, true);
+                    } else if (position == tabsOrderRow) {
+                        cell.setTextAndValue("Порядок вкладок", RawMainTabs.summary(), false);
                     } else if (position == snowRow) {
                         int s = RawUiConfig.snowMode();
                         cell.setTextAndValue("Снег", s == RawUiConfig.SNOW_ALWAYS ? "Всегда" : s == RawUiConfig.SNOW_OFF ? "Выключен" : "По дате", false);
@@ -703,11 +777,16 @@ public class RawUiSettingsActivity extends BaseFragment {
                     } else if (position == titleInfoRow) {
                         cell.setText("Название папки показывается вместо заголовка, пока открыта папка.");
                     } else if (position == foldersInfoRow) {
-                        cell.setText("Без «Все чаты» список открывается на первой папке. Иконки подбираются по эмодзи папки.");
+                        cell.setText("Без «Все чаты» список открывается на первой папке. Иконки подбираются по эмодзи папки. "
+                                + "Обводка — выбранная папка выделена рамкой вместо заливки.");
                     } else if (position == chatsInfoRow) {
-                        cell.setText("Без поля поиска поиск открывается лупой в шапке. Плавающие кнопки — «Новое сообщение» и «История».");
+                        cell.setText("Без поля поиска поиск открывается лупой в шапке. Плавающие кнопки — «Новое сообщение» и «История». "
+                                + "Реклама Premium и дни рождения контактов — плашки над списком чатов. "
+                                + "Без историй пропадают их кольца на аватарках, строка над чатами и вкладка в профиле. Истории — после перезапуска. "
+                                + "Архив открывается, если потянуть список вниз до конца. Свайп в архиве не возвращает чат в общий список. "
+                                + "Значок загрузок виден в шапке, даже когда ничего не скачивается.");
                     } else if (position == bottomTabsInfoRow) {
-                        cell.setText("Скрытие «Контактов» применяется после перезапуска.");
+                        cell.setText("Скрытие «Контактов» и порядок вкладок применяются после перезапуска.");
                     } else if (position == avatarInfoRow) {
                         cell.setText("100% — круглые, как в Telegram. Действует в списке чатов, группах и шапке чата.");
                     } else if (position == iconInfoRow) {

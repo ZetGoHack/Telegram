@@ -2274,6 +2274,16 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                                 if (AndroidUtilities.isAccessibilityScreenReaderEnabled()) {
                                     AndroidUtilities.makeAccessibilityAnnouncement(LocaleController.getString(R.string.AccDescrArchivedChatsShown));
                                 }
+                                if (org.telegram.rawgram.RawChatUiConfig.archiveOnPull.get()) { // rawGram: open the archive (delay as PullForegroundDrawable.startOutAnimation)
+                                    AndroidUtilities.runOnUIThread(() -> {
+                                        Bundle args = new Bundle();
+                                        args.putInt("folderId", 1);
+                                        args.putBoolean("onlySelect", onlySelect);
+                                        DialogsActivity archive = new DialogsActivity(args);
+                                        archive.setDelegate(delegate);
+                                        presentFragment(archive, onlySelect);
+                                    }, 200);
+                                }
                             }
                         }
 
@@ -2440,6 +2450,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     try {
                         currentDialogsType = parentPage.dialogsAdapter.getDialogsType();
                     } catch (Exception ignore) {
+                    }
+                    if (folderId != 0 && org.telegram.rawgram.RawChatUiConfig.noUnarchiveSwipe.get() && !DialogObject.isFolderDialogId(dialogId)) { // rawGram
+                        dialogCell.setSliding(false);
+                        return 0;
                     }
                     if ((filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE && SharedConfig.getChatSwipeAction(currentAccount) == SwipeGestureSettingsView.SWIPE_GESTURE_FOLDERS) || !allowSwipeDuringCurrentTouch || ((dialogId == getUserConfig().clientUserId || dialogId == 777000 || currentDialogsType == 7 || currentDialogsType == 8) && SharedConfig.getChatSwipeAction(currentAccount) == SwipeGestureSettingsView.SWIPE_GESTURE_ARCHIVE) || getMessagesController().isPromoDialog(dialogId, false) && getMessagesController().promoDialogType != MessagesController.PROMO_TYPE_PSA) {
                         return 0;
@@ -3667,7 +3681,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
                 @Override
                 public int getTabCounter(int tabId) {
-                    if (initialDialogsType == DIALOGS_TYPE_FORWARD) {
+                    if (initialDialogsType == DIALOGS_TYPE_FORWARD || org.telegram.rawgram.RawChatUiConfig.noTabCounters.get()) { // rawGram
                         return 0;
                     }
                     if (tabId == filterTabsView.getDefaultTabId()) {
@@ -5801,6 +5815,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     }
 
     public boolean isPremiumRestoreHintVisible() {
+        if (org.telegram.rawgram.RawChatUiConfig.hidePremiumHints.get()) return false; // rawGram
         if (!MessagesController.getInstance(currentAccount).premiumFeaturesBlocked() && folderId == 0 && communityId == 0) {
             return MessagesController.getInstance(currentAccount).pendingSuggestions.contains("PREMIUM_RESTORE") && !getUserConfig().isPremium() && MediaDataController.getInstance(currentAccount).getPremiumHintAnnualDiscount(false) != null;
         }
@@ -5808,6 +5823,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     }
 
     public boolean isPremiumChristmasHintVisible() {
+        if (org.telegram.rawgram.RawChatUiConfig.hidePremiumHints.get()) return false; // rawGram
         if (!MessagesController.getInstance(currentAccount).premiumFeaturesBlocked() && folderId == 0 && communityId == 0) {
             return MessagesController.getInstance(currentAccount).pendingSuggestions.contains("PREMIUM_CHRISTMAS");
         }
@@ -5815,6 +5831,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     }
 
     public boolean isPremiumHintVisible() {
+        if (org.telegram.rawgram.RawChatUiConfig.hidePremiumHints.get()) return false; // rawGram
         if (!MessagesController.getInstance(currentAccount).premiumFeaturesBlocked() && folderId == 0 && communityId == 0) {
             if (MessagesController.getInstance(currentAccount).pendingSuggestions.contains("PREMIUM_UPGRADE") && getUserConfig().isPremium() || MessagesController.getInstance(currentAccount).pendingSuggestions.contains("PREMIUM_ANNUAL") && !getUserConfig().isPremium()) {
                 if (UserConfig.getInstance(currentAccount).isPremium() ? !BuildVars.useInvoiceBilling() && MediaDataController.getInstance(currentAccount).getPremiumHintAnnualDiscount(true) != null : MediaDataController.getInstance(currentAccount).getPremiumHintAnnualDiscount(false) != null) {
@@ -6080,7 +6097,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 MessagesController.getInstance(currentAccount).removeSuggestion(0, "STARS_SUBSCRIPTION_LOW_BALANCE");
                 updateDialogsHint();
             });
-        } else if (folderId == 0 && communityId == 0 && !getMessagesController().premiumPurchaseBlocked() && BirthdayController.getInstance(currentAccount).contains() && !getMessagesController().dismissedSuggestions.contains("BIRTHDAY_CONTACTS_TODAY")) {
+        } else if (folderId == 0 && communityId == 0 && !getMessagesController().premiumPurchaseBlocked() && BirthdayController.getInstance(currentAccount).contains() && !getMessagesController().dismissedSuggestions.contains("BIRTHDAY_CONTACTS_TODAY") && !org.telegram.rawgram.RawChatUiConfig.hideBirthdays.get()) { // rawGram
             BirthdayController.BirthdayState state = BirthdayController.getInstance(currentAccount).getState();
             ArrayList<TLRPC.User> users = state.today;
             dialogsHintCellVisible = true;
@@ -10247,6 +10264,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 break;
             }
         }
+        showDownloads |= org.telegram.rawgram.RawChatUiConfig.alwaysDownloads.get(); // rawGram
         if ((getDownloadController().hasUnviewedDownloads() || showDownloads || (downloadsItem.getVisibility() == View.VISIBLE && downloadsItem.getAlpha() == 1 && !force))) {
             downloadsItemVisible = true;
         } else {
@@ -12762,6 +12780,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     }
 
     public void updateStoriesVisibility(boolean animated) {
+        if (org.telegram.rawgram.RawChatUiConfig.hideStoriesHeader.get() || org.telegram.rawgram.RawChatUiConfig.disableStories.get()) return; // rawGram
         if (dialogStoriesCell == null || storiesVisibilityAnimator != null || rightSlidingDialogContainer != null && rightSlidingDialogContainer.hasFragment() || searchIsShowed || actionBar == null || actionBar.isActionModeShowed() || onlySelect) {
             return;
         }

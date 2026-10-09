@@ -18,6 +18,12 @@ import org.telegram.tgnet.TLRPC;
  * CenterActionBarTitle, hideTimeForSticker, ShowMessageID, UseEditedIcon + CustomEditedMessage,
  * HideShareButtonInChannel, disableSwipeToNext(Channel/Topic), Shortcuts*, DoubleTapAction(Out), Show* menu toggles,
  * ChatDecoration, customSavePath + SaveToChatSubfolder, showViewHistory, DeleteChatForBothSides (as "remember")
+ * DisableMarkdown, disableChoosingSticker, hideSendAsChannel, showSpoilersDirectly, askBeforeCall, confirmAVMessage,
+ * ConfirmAllLinks, RememberLastUsedCamera, CameraStabilization, DisableTrending*, dontSendGreetingSticker, DisableStories,
+ * HideStoriesFromHeader, disableVibration, RemoveMessageTail, DateOfForwardedMsg, unreadBadgeOnBackButton, ShowFullAbout,
+ * ShowOnlineStatus, HideAiEditor, HideAiSummary, ShowCopyPhoto/Frame, showDeleteDownloadedFile, ShowSetReminder, ShowText*,
+ * MediaViewerMenuItem*, ChatMenuItemGoToMessage, ChatMenuItemDeleteOwnMessages, openArchiveOnPull, DoNotUnarchiveBySwipe,
+ * IgnoreUnreadCount, AlwaysShowDownloadIcon, tabStyleStroke
  * — https://github.com/NextAlone/Nagram, https://github.com/NekoX-Dev/NekoX.
  */
 public class RawChatUiConfig {
@@ -99,6 +105,20 @@ public class RawChatUiConfig {
     public static final Flag hideStickerTime = new Flag("hideStickerTime", false);
     public static final Flag showMessageId = new Flag("showMessageId", false);
     public static final Flag hideChannelShare = new Flag("hideChannelShare", false);
+    /** The original date in the «Переслано от» line (Nagram's DateOfForwardedMsg). */
+    public static final Flag forwardDate = new Flag("forwardDate", false);
+    /** Profile «О себе» / description without the «ещё» fold (Nagram's ShowFullAbout). */
+    public static final Flag fullAbout = new Flag("fullAbout", false);
+    /** Unread chats count over the chat's back arrow (RawBackBadge; NekoX's unreadBadgeOnBackButton). */
+    public static final Flag backBadge = new Flag("backBadge", false);
+    /** Green dot on the avatars of online senders in groups (RawOnlineDot). */
+    public static final Flag onlineDot = new Flag("onlineDot", false);
+    /** No «Краткое содержание» (AI summary) button on long posts (Nagram's HideAiSummary). */
+    public static final Flag hideAiSummary = new Flag("hideAiSummary", false);
+    /** No AI button in the input field and captions (it shows from three lines on; Nagram's HideAiEditor). */
+    public static final Flag hideAiEditor = new Flag("hideAiEditor", false);
+    /** Bubbles without the tail (Nagram's RemoveMessageTail). */
+    public static final Flag noBubbleTail = new Flag("noBubbleTail", false);
 
     public static final int EDITED_STOCK = 0;
     public static final int EDITED_PENCIL = 1;
@@ -152,6 +172,9 @@ public class RawChatUiConfig {
 
     /** Chat ⋮ menu: «К началу», jumps to the first message (Nagram's ChatMenuItemToBeginning). */
     public static final Flag menuToBeginning = new Flag("menuToBeginning", true);
+    /** Chat ⋮ menu: «Перейти к сообщению» (by ID or date) and «Удалить свои сообщения» in groups (RawChatJump). */
+    public static final Flag menuGoToMessage = new Flag("menuGoToMessage", false);
+    public static final Flag menuDeleteOwn = new Flag("menuDeleteOwn", false);
 
     /** «Добавить в…»: copy a sticker / custom emoji into an own set (RawAddToPack). */
     public static final Flag addToPack = new Flag("addToPack", true);
@@ -212,6 +235,58 @@ public class RawChatUiConfig {
         }
     }
 
+    // ---- sending and input (Nagram's DisableMarkdown, disableChoosingSticker, hideSendAsChannel, showSpoilersDirectly) ----
+
+    /** `code`, **bold**, __italic__, ~~strike~~ and ||spoiler|| are sent as typed text. */
+    public static final Flag noMarkdown = new Flag("noMarkdown", false);
+    /** «печатает» instead of «выбирает стикер» while the sticker panel is open. */
+    public static final Flag typingForStickers = new Flag("typingForStickers", false);
+    /** No «Отправить как» avatar button in the input of groups and channels. */
+    public static final Flag hideSendAs = new Flag("hideSendAs", false);
+    /** Text spoilers are shown revealed (media spoilers stay). */
+    public static final Flag revealSpoilers = new Flag("revealSpoilers", false);
+
+    /** No haptic feedback anywhere in the app (RawHaptics; after a restart). */
+    public static final Flag noVibration = new Flag("noVibration", false);
+
+    // ---- confirmations (askBeforeCall, confirmAVMessage, ConfirmAllLinks) ----
+
+    public static final Flag confirmCall = new Flag("confirmCall", false);
+    /** Releasing the record button stops into the preview instead of sending. */
+    public static final Flag confirmVoice = new Flag("confirmVoice", false);
+    public static final Flag confirmLinks = new Flag("confirmLinks", false);
+
+    // ---- camera (RememberLastUsedCamera, CameraStabilization) ----
+
+    public static final Flag cameraRemember = new Flag("cameraRemember", false);
+    public static final Flag cameraStabilization = new Flag("cameraStabilization", false);
+    static final Flag cameraLastFront = new Flag("cameraLastFront", false);
+
+    // ---- promo and suggestions (DisableTrending*, dontSendGreetingSticker) ----
+
+    public static final Flag hideTrendingStickers = new Flag("hideTrendingStickers", false);
+    public static final Flag hideTrendingGifs = new Flag("hideTrendingGifs", false);
+    public static final Flag hideTrendingEmoji = new Flag("hideTrendingEmoji", false);
+    public static final Flag hideEmojiTags = new Flag("hideEmojiTags", false);
+
+    public static final Flag hidePhoneShare = new Flag("hidePhoneShare", false);
+    public static final Flag hidePaidReaction = new Flag("hidePaidReaction", false);
+    public static final Flag noGreetingSticker = new Flag("noGreetingSticker", false);
+    /** Main screen: Premium offers above the chats list, birthdays of contacts. */
+    public static final Flag hidePremiumHints = new Flag("hidePremiumHints", false);
+    public static final Flag hideBirthdays = new Flag("hideBirthdays", false);
+    /** Stories: off everywhere (rings, header, profile, posting) / only the row above the chats list. */
+    public static final Flag disableStories = new Flag("disableStories", false);
+    public static final Flag hideStoriesHeader = new Flag("hideStoriesHeader", false);
+
+    // ---- main screen (RawMainScreen) ----
+
+    public static final Flag archiveOnPull = new Flag("archiveOnPull", false);
+    public static final Flag noUnarchiveSwipe = new Flag("noUnarchiveSwipe", false);
+    public static final Flag noTabCounters = new Flag("noTabCounters", false);
+    public static final Flag alwaysDownloads = new Flag("alwaysDownloads", false);
+    public static final Flag tabStroke = new Flag("tabStroke", false);
+
     // ---- message menu ----
 
     public static final Flag menuHideTranslate = new Flag("menuHideTranslate", false);
@@ -224,6 +299,14 @@ public class RawChatUiConfig {
     public static final Flag menuHideFactCheck = new Flag("menuHideFactCheck", false);
     public static final Flag menuRepeat = new Flag("menuRepeat", false);
     public static final Flag menuSaveToSaved = new Flag("menuSaveToSaved", false);
+    /** «Копировать фото» / «Копировать кадр», «Удалить скачанный файл», «Напомнить» (RawMessageExtras). */
+    public static final Flag menuCopyPhoto = new Flag("menuCopyPhoto", false);
+    public static final Flag menuDeleteFile = new Flag("menuDeleteFile", false);
+    public static final Flag menuReminder = new Flag("menuReminder", false);
+    /** Text formatting menu: bitmask of hidden items (RawFormatMenu). */
+    /** Media viewer ⋮: «Копировать кадр», «Поставить на аватарку», «Сканировать QR-код» (RawViewerExtras). */
+    public static final Flag viewerExtras = new Flag("viewerExtras", false);
+    public static final Choice formatHidden = new Choice("formatHidden", 0);
     /** «История»: the chat search for the sender's messages (groups; Nagram's showViewHistory). */
     public static final Flag menuHistory = new Flag("menuHistory", true);
     /** Reply / delete / copy / edit as an icon row at the bottom of the message menu (RawMessageMenu). */
@@ -249,6 +332,18 @@ public class RawChatUiConfig {
             return time;
         }
         return time + " | " + message.getId();
+    }
+
+    /** «Переслано от …» + " · date time" of the original message when «Дата оригинала» is on. */
+    public static String withForwardDate(String line, MessageObject message) {
+        if (!forwardDate.get() || line == null || message == null || message.messageOwner == null
+                || message.messageOwner.fwd_from == null || message.messageOwner.fwd_from.date == 0) {
+            return line;
+        }
+        long date = message.messageOwner.fwd_from.date;
+        String day = LocaleController.formatDate(date);
+        String time = LocaleController.getInstance().getFormatterDay().format(new java.util.Date(date * 1000L));
+        return line + " · " + (day.equals(time) ? day : day + " " + time);
     }
 
     /** True when the sticker time + checks shouldn't be drawn. */

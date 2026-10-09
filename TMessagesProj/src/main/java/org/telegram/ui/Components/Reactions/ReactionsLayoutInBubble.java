@@ -192,7 +192,7 @@ public class ReactionsLayoutInBubble {
                 boolean includeEmptyDislikeButton = forceLikeDislikeReactions;
 
                 final TLRPC.ChatFull chatInfo = MessagesController.getInstance(currentAccount).getChatFull(-messageObject.getDialogId());
-                if (!isSmall && !messageObject.messageOwner.reactions.results.isEmpty() && chatInfo != null && chatInfo.paid_reactions_available) {
+                if (!isSmall && !messageObject.messageOwner.reactions.results.isEmpty() && chatInfo != null && chatInfo.paid_reactions_available && !org.telegram.rawgram.RawChatUiConfig.hidePaidReaction.get()) { // rawGram
                     boolean hasPaidReaction = false;
                     for (int i = 0; i < messageObject.messageOwner.reactions.results.size(); i++) {
                         TLRPC.ReactionCount reactionCount = messageObject.messageOwner.reactions.results.get(i);

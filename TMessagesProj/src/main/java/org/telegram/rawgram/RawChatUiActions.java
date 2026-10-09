@@ -40,6 +40,8 @@ public class RawChatUiActions {
     public static final int ITEM_MEMBERS = 9312;
     public static final int ITEM_RECENT_ACTIONS = 9313;
     public static final int ITEM_TO_BEGINNING = 9314;
+    public static final int ITEM_GO_TO_MESSAGE = 9315;
+    public static final int ITEM_DELETE_OWN = 9316;
 
     // message menu items rawGram adds; ChatActivity.processSelectedOption hands them back here
     public static final int OPTION_REPEAT = 9320;
@@ -229,6 +231,7 @@ public class RawChatUiActions {
         if (plain) {
             addCopyOptions(chat, message, options, items, icons, canSend);
         }
+        addExtras(chat, message, options, items, icons, plain);
         if (historyPeer(chat, message) != null) {
             // right after «В Избранное», else after «Переслать» / «Ответить»
             int at = options.indexOf(OPTION_SAVE_TO_SAVED);
@@ -242,6 +245,35 @@ public class RawChatUiActions {
             options.add(at, OPTION_HISTORY);
             items.add(at, "История");
             icons.add(at, R.drawable.msg_recent);
+        }
+    }
+
+    /** «Копировать фото / кадр» after «Копировать», «Напомнить» after «Переслать», «Удалить скачанный файл» before «Удалить». */
+    private void addExtras(ChatActivity chat, MessageObject message, ArrayList<Integer> options, ArrayList<CharSequence> items, ArrayList<Integer> icons, boolean plain) {
+        int account = host.account();
+        if (plain && RawMessageExtras.canRemind(message)) {
+            int at = options.indexOf(OPTION_SAVE_TO_SAVED);
+            if (at < 0) at = options.indexOf(ChatActivity.OPTION_FORWARD);
+            at = at < 0 ? options.size() : at + 1;
+            options.add(at, RawMessageExtras.OPTION_REMINDER);
+            items.add(at, "Напомнить");
+            icons.add(at, R.drawable.msg_calendar2);
+        }
+        if (plain && (RawMessageExtras.canCopyPhoto(message) || RawMessageExtras.canCopyFrame(message))) {
+            boolean photo = RawMessageExtras.canCopyPhoto(message);
+            int at = options.indexOf(ChatActivity.OPTION_COPY);
+            if (at < 0) at = options.indexOf(ChatActivity.OPTION_REPLY);
+            at = at < 0 ? 0 : at + 1;
+            options.add(at, photo ? RawMessageExtras.OPTION_COPY_PHOTO : RawMessageExtras.OPTION_COPY_FRAME);
+            items.add(at, photo ? "Копировать фото" : "Копировать кадр");
+            icons.add(at, R.drawable.msg_copy_photo);
+        }
+        if (RawMessageExtras.canDeleteFile(account, message)) {
+            int at = options.indexOf(ChatActivity.OPTION_DELETE);
+            at = at < 0 ? options.size() : at;
+            options.add(at, RawMessageExtras.OPTION_DELETE_FILE);
+            items.add(at, "Удалить скачанный файл");
+            icons.add(at, R.drawable.msg_clear);
         }
     }
 
@@ -310,6 +342,23 @@ public class RawChatUiActions {
             }
             return true;
         }
+        if (option == RawMessageExtras.OPTION_COPY_PHOTO || option == RawMessageExtras.OPTION_COPY_FRAME
+                || option == RawMessageExtras.OPTION_DELETE_FILE || option == RawMessageExtras.OPTION_REMINDER) {
+            ChatActivity chat = chat();
+            if (chat == null || message == null || chat.getParentActivity() == null) {
+                return true;
+            }
+            if (option == RawMessageExtras.OPTION_COPY_PHOTO) {
+                RawMessageExtras.copyPhoto(chat.getParentActivity(), host.account(), message);
+            } else if (option == RawMessageExtras.OPTION_COPY_FRAME) {
+                RawMessageExtras.copyFrame(chat, host.account(), message);
+            } else if (option == RawMessageExtras.OPTION_DELETE_FILE) {
+                RawMessageExtras.deleteFile(chat, host.account(), message);
+            } else {
+                RawMessageExtras.remind(chat, host.account(), message, group);
+            }
+            return true;
+        }
         if (option != OPTION_REPEAT && option != OPTION_SAVE_TO_SAVED) {
             return false;
         }
@@ -371,10 +420,28 @@ public class RawChatUiActions {
         if (headerItem != null && RawChatUiConfig.menuToBeginning.get()) {
             headerItem.lazilyAddSubItem(ITEM_TO_BEGINNING, R.drawable.ic_upward, "К началу");
         }
+        if (headerItem != null && RawChatUiConfig.menuGoToMessage.get()) {
+            headerItem.lazilyAddSubItem(ITEM_GO_TO_MESSAGE, R.drawable.msg_go_up, "Перейти к сообщению");
+        }
+        ChatActivity chat = chat();
+        if (headerItem != null && chat != null && RawChatJump.canDeleteOwn(chat)) {
+            headerItem.lazilyAddSubItem(ITEM_DELETE_OWN, R.drawable.msg_delete, "Удалить свои сообщения");
+        }
     }
 
     /** Chat menu click; returns true if it was a rawGram shortcut. */
     public boolean onHeaderItemClick(int id) {
+        if (id == ITEM_GO_TO_MESSAGE || id == ITEM_DELETE_OWN) {
+            ChatActivity chat = chat();
+            if (chat != null) {
+                if (id == ITEM_GO_TO_MESSAGE) {
+                    RawChatJump.goToMessage(chat);
+                } else {
+                    RawChatJump.deleteOwn(chat);
+                }
+            }
+            return true;
+        }
         if (id == ITEM_TO_BEGINNING) {
             ChatActivity chat = chat();
             if (chat != null) {

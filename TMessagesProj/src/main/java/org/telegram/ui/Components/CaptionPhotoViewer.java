@@ -529,7 +529,7 @@ public class CaptionPhotoViewer extends CaptionContainerView {
 
     private boolean shownAiButton;
     private void showAiButton(boolean show_) {
-        final boolean show = show_;
+        final boolean show = show_ && !org.telegram.rawgram.RawChatUiConfig.hideAiEditor.get(); // rawGram
 
         if (shownAiButton == show) return;
         if (show) {

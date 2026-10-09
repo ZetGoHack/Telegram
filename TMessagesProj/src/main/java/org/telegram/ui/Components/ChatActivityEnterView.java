@@ -3022,8 +3022,10 @@ public class ChatActivityEnterView extends FrameLayout implements
                                     });
                                     return true;
                                 }
-                                delegate.needStartRecordVideo(1, true, 0, 0, voiceOnce ? 0x7FFFFFFF : 0, effectId, 0);
+                                delegate.needStartRecordVideo(org.telegram.rawgram.RawChatUiConfig.confirmVoice.get() ? 3 : 1, true, 0, 0, voiceOnce ? 0x7FFFFFFF : 0, effectId, 0); // rawGram: confirmVoice → preview
                                 sendButton.setEffect(effectId = 0);
+                            } else if (org.telegram.rawgram.RawChatUiConfig.confirmVoice.get()) { // rawGram
+                                MediaController.getInstance().stopRecording(2, true, 0, voiceOnce, 0);
                             } else {
                                 if (recordingAudioVideo && isInScheduleMode()) {
                                     AlertsCreator.createScheduleDatePickerDialog(parentActivity, parentFragment.getDialogId(), (notify, scheduleDate, scheduleRepeatPeriod) -> MediaController.getInstance().stopRecording(1, notify, scheduleDate, false, 0), () -> MediaController.getInstance().stopRecording(0, false, 0, false, 0), resourcesProvider);
@@ -3052,12 +3054,14 @@ public class ChatActivityEnterView extends FrameLayout implements
                                 MediaController.getInstance().stopRecording(isInScheduleMode() ? 3 : 1, true, 0, voiceOnce, 0);
                                 delegate.needStartRecordAudio(0);
                             }
+                            if (!org.telegram.rawgram.RawChatUiConfig.confirmVoice.get()) { // rawGram
                             recordingAudioVideo = false;
                             messageTransitionIsRunning = false;
                             AndroidUtilities.runOnUIThread(moveToSendStateRunnable = () -> {
                                 moveToSendStateRunnable = null;
                                 updateRecordInterface(RECORD_STATE_SENDING, true);
                             }, 200);
+                            }
                         }
                         getParent().requestDisallowInterceptTouchEvent(true);
                         return true;
@@ -3145,7 +3149,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                                     return true;
                                 }
                                 CameraController.getInstance().cancelOnInitRunnable(onFinishInitCameraRunnable);
-                                delegate.needStartRecordVideo(1, true, 0, 0, voiceOnce ? 0x7FFFFFFF : 0, effectId, 0);
+                                delegate.needStartRecordVideo(org.telegram.rawgram.RawChatUiConfig.confirmVoice.get() ? 3 : 1, true, 0, 0, voiceOnce ? 0x7FFFFFFF : 0, effectId, 0); // rawGram: confirmVoice → preview
                                 sendButton.setEffect(effectId = 0);
                             } else if (!sendVoiceEnabled) {
                                 delegate.needShowMediaBanHint();
@@ -3164,18 +3168,20 @@ public class ChatActivityEnterView extends FrameLayout implements
                                     });
                                     return true;
                                 }
-                                if (recordingAudioVideo && isInScheduleMode()) {
+                                if (!org.telegram.rawgram.RawChatUiConfig.confirmVoice.get() && recordingAudioVideo && isInScheduleMode()) { // rawGram
                                     AlertsCreator.createScheduleDatePickerDialog(parentActivity, parentFragment.getDialogId(), (notify, scheduleDate, scheduleRepeatPeriod) -> MediaController.getInstance().stopRecording(1, notify, scheduleDate, false, 0), () -> MediaController.getInstance().stopRecording(0, false, 0, false, 0), resourcesProvider);
                                 }
                                 delegate.needStartRecordAudio(0);
-                                MediaController.getInstance().stopRecording(isInScheduleMode() ? 3 : 1, true, 0, voiceOnce, 0);
+                                MediaController.getInstance().stopRecording(org.telegram.rawgram.RawChatUiConfig.confirmVoice.get() ? 2 : isInScheduleMode() ? 3 : 1, true, 0, voiceOnce, 0); // rawGram
                             }
+                            if (!org.telegram.rawgram.RawChatUiConfig.confirmVoice.get()) { // rawGram
                             recordingAudioVideo = false;
                             messageTransitionIsRunning = false;
                             AndroidUtilities.runOnUIThread(moveToSendStateRunnable = () -> {
                                 moveToSendStateRunnable = null;
                                 updateRecordInterface(RECORD_STATE_SENDING, true);
                             }, shouldDrawBackground ? 500 : 0);
+                            }
                         }
                     }
                     return true;
@@ -6096,7 +6102,7 @@ public class ChatActivityEnterView extends FrameLayout implements
 
     private boolean shownAiButton;
     private void showAiButton(boolean show_) {
-        final boolean show = (show_ || richDraftActive) && parentFragment != null && !parentFragment.isSecretChat();
+        final boolean show = (show_ || richDraftActive) && parentFragment != null && !parentFragment.isSecretChat() && !org.telegram.rawgram.RawChatUiConfig.hideAiEditor.get(); // rawGram
 
         if (shownAiButton == show) return;
         if (show) {
@@ -11219,7 +11225,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         if (defPeer == null && delegate.getSendAsPeers() != null && !delegate.getSendAsPeers().peers.isEmpty()) {
             defPeer = delegate.getSendAsPeers().peers.get(0).peer;
         }
-        final boolean isVisible = !forceHide && defPeer != null
+        final boolean isVisible = !forceHide && !org.telegram.rawgram.RawChatUiConfig.hideSendAs.get() && defPeer != null // rawGram
             && (delegate.getSendAsPeers() == null || delegate.getSendAsPeers().peers.size() > 1)
             && !isEditingMessage() && !isRecordingAudioVideo()
             && (recordedAudioPanel == null || recordedAudioPanel.getVisibility() != View.VISIBLE)
@@ -11582,7 +11588,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             sendButton.setEffect(effectId = 0);
             SendMessagesHelper.getInstance(currentAccount).sendMessage(params);
         } else if (buttonTypeUrl != null) {
-            if (Browser.urlMustNotHaveConfirmation(buttonTypeUrl.url)) {
+            if (Browser.urlMustNotHaveConfirmation(buttonTypeUrl.url) && !org.telegram.rawgram.RawChatUiConfig.confirmLinks.get()) { // rawGram
                 Browser.openUrl(parentActivity, Uri.parse(buttonTypeUrl.url), true, true, progress);
             } else {
                 AlertsCreator.showOpenUrlAlert(parentFragment, buttonTypeUrl.url, false, true, true, progress, resourcesProvider);

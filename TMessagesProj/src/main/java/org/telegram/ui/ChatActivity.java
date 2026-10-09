@@ -6448,7 +6448,7 @@ public class ChatActivity extends BaseFragment implements
                             canvas.scale(1f - getSideMenuAlpha(), 1f - getSideMenuAlpha(), imageReceiver.getImageX2(), imageReceiver.getImageY2());
                             canvas.translate(dp(24) * getSideMenuAlpha(), 0f);
                         }
-                        imageReceiver.draw(canvas);
+                        org.telegram.rawgram.RawOnlineDot.draw(canvas, imageReceiver, mcell instanceof ChatMessageCell ? ((ChatMessageCell) mcell).getCurrentUser() : null, currentAccount); // rawGram
                         canvas.restore();
 
                         if (!replaceAnimation && child.getTranslationY() != 0) {
@@ -8990,7 +8990,7 @@ public class ChatActivity extends BaseFragment implements
             }
         }
 
-        if (getDialogId() == getUserConfig().getClientUserId()) {
+        if (getDialogId() == getUserConfig().getClientUserId() && !org.telegram.rawgram.RawChatUiConfig.hideEmojiTags.get()) { // rawGram
             actionBarSearchTags = new SearchTagsList(context, ChatActivity.this, currentAccount, getSavedDialogId(), themeDelegate) {
                 @Override
                 protected boolean setFilter(ReactionsLayoutInBubble.VisibleReaction reaction) {
@@ -27769,6 +27769,7 @@ public class ChatActivity extends BaseFragment implements
 //            menu.add(R.id.menu_groupbolditalic, R.id.menu_translate, order++, "Translate");
 //        }
         menu.add(R.id.menu_groupbolditalic, R.id.menu_regular, order++, LocaleController.getString(R.string.Regular));
+        org.telegram.rawgram.RawFormatMenu.filter(menu); // rawGram
     }
 
     private void updateScheduledInterface(boolean animated) {
@@ -29500,7 +29501,7 @@ public class ChatActivity extends BaseFragment implements
                 }
                 addToContactsButton.setTag(null);
                 addToContactsButton.setVisibility(View.VISIBLE);
-            } else if (showShare && !user.self) {
+            } else if (showShare && !user.self && !org.telegram.rawgram.RawChatUiConfig.hidePhoneShare.get()) { // rawGram
                 createTopPanel();
                 if (topChatPanelView == null) {
                     return;
@@ -32245,7 +32246,7 @@ public class ChatActivity extends BaseFragment implements
                         sheet.show();
                     }));
                 }
-                if (isReactionsAvailable && (!tags || !getMessagesController().premiumFeaturesBlocked())) {
+                if (isReactionsAvailable && (!tags || !getMessagesController().premiumFeaturesBlocked() && !org.telegram.rawgram.RawChatUiConfig.hideEmojiTags.get())) { // rawGram
                     int pad = 22;
                     int sPad = 24;
                     reactionsLayout.setPadding(dp(4) + (LocaleController.isRTL ? 0 : sPad), dp(4), dp(4) + (LocaleController.isRTL ? sPad : 0), dp(pad));
@@ -36808,7 +36809,7 @@ public class ChatActivity extends BaseFragment implements
                         return;
                     }
                 }
-                if (Browser.urlMustNotHaveConfirmation(urlFinal)) {
+                if (Browser.urlMustNotHaveConfirmation(urlFinal) && !org.telegram.rawgram.RawChatUiConfig.confirmLinks.get()) { // rawGram
                     forceAlert = false;
                 }
                 processExternalUrl(2, urlFinal, url, cell, forceAlert, false);

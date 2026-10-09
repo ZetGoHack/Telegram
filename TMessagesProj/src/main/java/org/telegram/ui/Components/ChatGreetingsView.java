@@ -426,9 +426,10 @@ public class ChatGreetingsView extends LinearLayout {
         }
         stickerToSendView.setVisibility(View.VISIBLE);
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-        if (getMeasuredHeight() > MeasureSpec.getSize(heightMeasureSpec) && !preview) {
+        if ((org.telegram.rawgram.RawChatUiConfig.noGreetingSticker.get() || getMeasuredHeight() > MeasureSpec.getSize(heightMeasureSpec)) && !preview) { // rawGram
             descriptionView.setVisibility(View.GONE);
             stickerToSendView.setVisibility(View.GONE);
+            if (org.telegram.rawgram.RawChatUiConfig.noGreetingSticker.get()) stickerContainer.setVisibility(View.GONE); // rawGram
         } else {
             if (!preview) {
                 descriptionView.setVisibility(View.VISIBLE);

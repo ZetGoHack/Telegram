@@ -92,10 +92,12 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     public static final int TABS_COUNT = 4;
     // rawGram: the Contacts tab can be hidden (read once, when the class loads)
     private static final boolean RAW_HIDE_CONTACTS = org.telegram.rawgram.RawUiConfig.mainTabsHideContacts();
-    private static final int POSITION_CHATS = 0;
-    private static final int POSITION_CONTACTS = RAW_HIDE_CONTACTS ? -1 : 1;
-    private static final int POSITION_CALLS_OR_SETTINGS = RAW_HIDE_CONTACTS ? 1 : 2;
-    private static final int POSITION_PROFILE = RAW_HIDE_CONTACTS ? 2 : 3;
+    // rawGram: and the tabs can be reordered (RawMainTabs; slot 0 chats, 1 contacts, 2 calls / settings, 3 profile)
+    private static final int[] RAW_POSITIONS = org.telegram.rawgram.RawMainTabs.positions(RAW_HIDE_CONTACTS);
+    private static final int POSITION_CHATS = RAW_POSITIONS[0];
+    private static final int POSITION_CONTACTS = RAW_POSITIONS[1];
+    private static final int POSITION_CALLS_OR_SETTINGS = RAW_POSITIONS[2];
+    private static final int POSITION_PROFILE = RAW_POSITIONS[3];
 
     private static final int INDEX_CHATS = 0;
     private static final int INDEX_CONTACTS = 1;
@@ -104,10 +106,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     private static final int INDEX_PROFILE = 4;
 
     private static int indexToPosition(int index) {
-        if (RAW_HIDE_CONTACTS) {
-            return index == INDEX_CHATS ? POSITION_CHATS : index == INDEX_CONTACTS ? POSITION_CONTACTS : index == INDEX_PROFILE ? POSITION_PROFILE : POSITION_CALLS_OR_SETTINGS;
-        }
-        return index > 2 ? index - 1 : index;
+        return index == INDEX_CHATS ? POSITION_CHATS : index == INDEX_CONTACTS ? POSITION_CONTACTS : index == INDEX_PROFILE ? POSITION_PROFILE : POSITION_CALLS_OR_SETTINGS;
     }
 
     private static final int ANIMATOR_ID_TABS_VISIBLE = 0;
@@ -240,7 +239,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         return ColorUtils.blendARGB(
                 getThemedColor(Theme.key_windowBackgroundGray),
                 getThemedColor(Theme.key_windowBackgroundWhite),
-                viewPager != null ? viewPager.getPositionVisibility(0) : 1);
+                viewPager != null ? viewPager.getPositionVisibility(POSITION_CHATS) : 1); // rawGram: chats may not be first
     }
 
     private boolean tabletLayout;
@@ -331,7 +330,8 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         tabsView.addTabToIgnoreClick(tabs[INDEX_PROFILE]);
         tabsView.addTabToIgnoreClick(tabs[INDEX_CALLS]);
 
-        for (int index = 0; index < tabs.length; index++) {
+        for (int rawI = 0; rawI < tabs.length; rawI++) {
+            final int index = rawTabAt(rawI); // rawGram: views in pager order
             final GlassTabView view = tabs[index];
 
             final int position = indexToPosition(index);
@@ -775,7 +775,17 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
     @Override
     protected int getFragmentsCount() {
-        return POSITION_PROFILE + 1;
+        return org.telegram.rawgram.RawMainTabs.count(RAW_HIDE_CONTACTS); // rawGram
+    }
+
+    /** rawGram: the tab index at {@code i} when the tab views are sorted by pager position (hidden contacts last). */
+    private static int rawTabAt(int i) {
+        Integer[] order = {INDEX_CHATS, INDEX_CONTACTS, INDEX_SETTINGS, INDEX_CALLS, INDEX_PROFILE};
+        java.util.Arrays.sort(order, (a, b) -> {
+            int pa = indexToPosition(a), pb = indexToPosition(b);
+            return Integer.compare(pa < 0 ? 99 : pa * 2 + (a == INDEX_CALLS ? 1 : 0), pb < 0 ? 99 : pb * 2 + (b == INDEX_CALLS ? 1 : 0));
+        });
+        return order[i];
     }
 
     @Override

@@ -201,6 +201,7 @@ public class ProfileStoriesView extends View implements NotificationCenter.Notif
     }
 
     private void updateStories(boolean animated, boolean asUpdate) {
+        if (org.telegram.rawgram.RawChatUiConfig.disableStories.get()) return; // rawGram
         if (isTopic) {
             return;
         }

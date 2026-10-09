@@ -91,6 +91,9 @@ public class RawChatUiSettingsActivity extends BaseFragment {
     private static final int CHECK_CAMERA_BUTTON = 103;
     private static final int CHECK_SHOW_SECONDS = 104; // RawUiConfig
     private static final int CHECK_DETAILS = 105; // RawgramConfig, also in RawDevSettingsActivity
+    private static final int CHECK_HD_PHOTO = 106; // Telegram's own SharedConfig.photoHighQualityDefault
+    private static final int CHECK_NO_VIBRATION = 107; // RawChatUiConfig.noVibration, needs a restart
+    private static final int CHECK_FORMAT = 200; // + RawFormatMenu index
 
     /** Sliders (Row.id), stored in RawgramConfig. */
     private static final int SLIDER_STICKER_SIZE = 1;
@@ -125,7 +128,9 @@ public class RawChatUiSettingsActivity extends BaseFragment {
             case CHECK_CAMERA_BUTTON: return RawgramConfig.isHideAttachCamera();
             case CHECK_SHOW_SECONDS: return RawUiConfig.showSeconds();
             case CHECK_DETAILS: return RawgramConfig.isMessageDetails();
-            default: return false;
+            case CHECK_HD_PHOTO: return org.telegram.messenger.SharedConfig.photoHighQualityDefault;
+            case CHECK_NO_VIBRATION: return RawChatUiConfig.noVibration.get();
+            default: return id >= CHECK_FORMAT && RawFormatMenu.shown(id - CHECK_FORMAT);
         }
     }
 
@@ -142,6 +147,20 @@ public class RawChatUiSettingsActivity extends BaseFragment {
                 needRebuild = true;
                 break;
             case CHECK_DETAILS: RawgramConfig.setMessageDetails(!RawgramConfig.isMessageDetails()); break;
+            default:
+                if (id >= CHECK_FORMAT) {
+                    RawFormatMenu.toggle(id - CHECK_FORMAT);
+                }
+                break;
+            case CHECK_NO_VIBRATION:
+                RawChatUiConfig.noVibration.toggle();
+                RawUiSettingsActivity.showRestartNotice(this);
+                break;
+            case CHECK_HD_PHOTO:
+                org.telegram.messenger.SharedConfig.photoHighQualityDefault = !org.telegram.messenger.SharedConfig.photoHighQualityDefault;
+                org.telegram.messenger.MessagesController.getGlobalMainSettings().edit()
+                        .putBoolean("photoHighQualityDefault", org.telegram.messenger.SharedConfig.photoHighQualityDefault).apply();
+                break;
         }
     }
 
@@ -185,8 +204,13 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         check("Классический вид чата", CHECK_CLASSIC);
         check("Заголовок чата по центру", RawChatUiConfig.centerTitle);
         check("Скрыть кнопку звонка в шапке", RawChatUiConfig.hideCallButton);
+        check("Счётчик на кнопке «Назад»", RawChatUiConfig.backBadge);
+        check("Пузыри без хвостика", RawChatUiConfig.noBubbleTail);
+        check("Онлайн-статус на аватарках", RawChatUiConfig.onlineDot);
         value("Снег в чате", VALUE_SNOW);
         info("Классический вид — сплошная шапка и поле ввода во всю ширину вместо «пилюль». "
+                + "Счётчик — сколько чатов с непрочитанными, над стрелкой «Назад». "
+                + "Онлайн-статус — зелёная точка на аватарках собеседников в группах, как в списке чатов. "
                 + "Изменения действуют на чаты, открытые после переключения.");
 
         header("Сообщения");
@@ -198,8 +222,11 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         check("Секунды во времени сообщений", CHECK_SHOW_SECONDS);
         check("Не округлять числа", CHECK_FULL_NUMBERS);
         check("Скрыть «Поделиться» у постов каналов", RawChatUiConfig.hideChannelShare);
+        check("Сразу показывать спойлеры", RawChatUiConfig.revealSpoilers);
+        check("Дата оригинала у пересланных", RawChatUiConfig.forwardDate);
         info("Секунды видны и в списке чатов. Числа без округления — в просмотрах, реакциях и подписчиках. "
-                + "Применяется при следующем открытии чата.");
+                + "Спойлеры в тексте и на фото и видео открыты без нажатия. "
+                + "У пересланного сообщения рядом с автором — когда было отправлено оригинальное. Применяется при следующем открытии чата.");
 
         header("Двойное нажатие");
         value("Входящие", VALUE_TAP_IN);
@@ -232,14 +259,51 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         header("Поле ввода");
         check("Скрыть клавиатуру при прокрутке", CHECK_HIDE_KEYBOARD);
         check("Информация о юзере по ID", RawChatUiConfig.usinfobotHint);
+        check("Скрыть «Отправить как»", RawChatUiConfig.hideSendAs);
         info("Клавиатура и панель эмодзи прячутся при прокрутке чата, набранный текст остаётся. "
-                + "Если в поле ввода только ID, над ним появляется «Информация о юзере»: нажатие отправляет в чат ответ @usinfobot по этому ID.");
+                + "Если в поле ввода только ID, над ним появляется «Информация о юзере»: нажатие отправляет в чат ответ @usinfobot по этому ID. "
+                + "«Отправить как» — аватарка слева от поля ввода в группах и каналах, где можно писать от имени канала.");
+
+        header("Отправка");
+        check("Отключить разметку", RawChatUiConfig.noMarkdown);
+        check("Фото в HD по умолчанию", CHECK_HD_PHOTO);
+        check("«Печатает» вместо «выбирает стикер»", RawChatUiConfig.typingForStickers);
+        info("Без разметки `код`, **жирный**, __курсив__, ~~зачёркнутый~~ и ||спойлер|| отправляются как набраны; "
+                + "форматирование из меню выделения работает. HD можно переключить у каждого фото перед отправкой.");
+
+        header("Вибрация");
+        check("Отключить вибрацию", CHECK_NO_VIBRATION);
+        info("Без отклика на нажатия, свайпы, реакции и в мини-приложениях. Применяется после перезапуска.");
+
+        header("Подтверждения");
+        check("Перед звонком", RawChatUiConfig.confirmCall);
+        check("Перед отправкой голосового и кружка", RawChatUiConfig.confirmVoice);
+        check("Перед открытием любой ссылки", RawChatUiConfig.confirmLinks);
+        info("Голосовое или кружок после записи открываются для прослушивания, отправка — кнопкой. "
+                + "Ссылки спрашивают подтверждение, даже если адрес виден целиком, и в кнопках ботов.");
 
         header("Камера");
         check("Камера во вложениях — кнопкой", CHECK_CAMERA_BUTTON);
         value("Камера для кружков", VALUE_ROUND_CAMERA);
+        check("Запоминать камеру во вложениях", RawChatUiConfig.cameraRemember);
+        check("Стабилизация видео", RawChatUiConfig.cameraStabilization);
         info("Камера во вложениях — круглая кнопка вместо большой плитки в галерее. "
-                + "«Спрашивать»: при удержании кнопки кружка появляется выбор камеры, дальше запись идёт без удержания.");
+                + "«Спрашивать»: при удержании кнопки кружка появляется выбор камеры, дальше запись идёт без удержания. "
+                + "Камера во вложениях открывается той, что была выбрана в прошлый раз. Стабилизация — оптическая, если она есть у камеры, иначе цифровая.");
+
+        header("Скрыть подсказки");
+        check("Популярные стикеры", RawChatUiConfig.hideTrendingStickers);
+        check("Популярные GIF", RawChatUiConfig.hideTrendingGifs);
+        check("Популярные эмодзи", RawChatUiConfig.hideTrendingEmoji);
+        check("Теги реакций", RawChatUiConfig.hideEmojiTags);
+        check("Стикер-приветствие", RawChatUiConfig.noGreetingSticker);
+        check("Предложение поделиться номером", RawChatUiConfig.hidePhoneShare);
+        check("Кнопка платной реакции", RawChatUiConfig.hidePaidReaction);
+        check("Кнопка ИИ в поле ввода", RawChatUiConfig.hideAiEditor);
+        check("Краткое содержание постов", RawChatUiConfig.hideAiSummary);
+        info("Популярные наборы пропадают из панели стикеров, GIF и эмодзи. Теги реакций — поиск по тегам в Избранном и теги в меню реакций. "
+                + "Стикер-приветствие — стикер в пустом новом чате. Кнопка платной реакции — пустая ⭐ под постами каналов. "
+                + "Кнопка ИИ появляется в поле ввода и в подписи с трёх строк текста.");
 
         header("Пересылка и удаление");
         check("По умолчанию скрывать отправителя", RawChatUiConfig.fwdHideSender);
@@ -253,9 +317,11 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         check("Без свайпа к следующей теме", RawChatUiConfig.noSwipeNextTopic);
         check("Карандаш без прав администратора", RawChatUiConfig.chatViewOnly);
         check("Стикеры, GIF, игры и боты раздельно", RawChatUiConfig.splitMediaRights);
+        check("«О себе» целиком", RawChatUiConfig.fullAbout);
         info("В группах и каналах без прав администратора карандаш в профиле открывает «Изменить» только для просмотра: "
                 + "разрешения, администраторы и их права, участники и бусты. "
-                + "В разрешениях «Стикеры и GIF» делятся на стикеры, GIF, игры и инлайн-ботов.");
+                + "В разрешениях «Стикеры и GIF» делятся на стикеры, GIF, игры и инлайн-ботов. "
+                + "«О себе» и описание в профиле показываются полностью, без «ещё».");
 
         header("Сохранение файлов");
         value("Папка", VALUE_SAVE_FOLDER);
@@ -267,9 +333,16 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         check("Повторить сообщение", RawChatUiConfig.menuRepeat);
         check("В Избранное", RawChatUiConfig.menuSaveToSaved);
         check("История", RawChatUiConfig.menuHistory);
+        check("Копировать фото и кадр", RawChatUiConfig.menuCopyPhoto);
+        check("Напомнить", RawChatUiConfig.menuReminder);
+        check("Удалить скачанный файл", RawChatUiConfig.menuDeleteFile);
+        check("Больше пунктов в просмотрщике", RawChatUiConfig.viewerExtras);
         check("Подробности", CHECK_DETAILS);
         info("Компактное меню: «Ответить», «Удалить», «Копировать» и «Изменить» — строкой иконок внизу, остальное — списком. "
-                + "«История» — все сообщения отправителя в группе. «Подробности» — ID, даты, просмотры и другие данные сообщения.");
+                + "«История» — все сообщения отправителя в группе. «Подробности» — ID, даты, просмотры и другие данные сообщения. "
+                + "Копировать кадр — тот, что сейчас в пузыре видео. «Напомнить» пересылает сообщение в Избранное в выбранное время. "
+                + "«Удалить скачанный файл» освобождает место, сообщение остаётся. "
+                + "В просмотрщике фото и видео в меню «⋮» — «Копировать кадр», «Поставить на аватарку» и «Сканировать QR-код».");
 
         header("Скрыть из меню сообщения");
         check("Перевести", RawChatUiConfig.menuHideTranslate);
@@ -282,13 +355,22 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         check("Факт-чек", RawChatUiConfig.menuHideFactCheck);
         info("Отмеченные пункты не показываются в меню сообщения.");
 
+        header("Меню форматирования");
+        for (int i = 0; i < RawFormatMenu.NAMES.length; i++) {
+            check(RawFormatMenu.NAMES[i], CHECK_FORMAT + i);
+        }
+        info("Пункты меню, которое появляется при выделении текста в поле ввода. Выключенные не показываются.");
+
         header("Меню чата «⋮»");
         check("К началу", RawChatUiConfig.menuToBeginning);
+        check("Перейти к сообщению", RawChatUiConfig.menuGoToMessage);
+        check("Удалить свои сообщения", RawChatUiConfig.menuDeleteOwn);
         check("Разрешения / чёрный список", RawChatUiConfig.shortcutPermissions);
         check("Администраторы", RawChatUiConfig.shortcutAdmins);
         check("Участники / подписчики", RawChatUiConfig.shortcutMembers);
         check("Недавние действия", RawChatUiConfig.shortcutRecentActions);
-        info("«К началу» — прыжок к самому первому сообщению чата. Остальные пункты появляются в группах и каналах, "
+        info("«К началу» — прыжок к самому первому сообщению чата. «Перейти к сообщению» — по ID или по дате. "
+                + "«Удалить свои сообщения» — все твои сообщения в группе, с возможностью отменить в течение нескольких секунд. Остальные пункты появляются в группах и каналах, "
                 + "где есть права администратора.");
     }
 

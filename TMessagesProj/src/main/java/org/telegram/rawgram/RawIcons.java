@@ -285,6 +285,7 @@ public final class RawIcons {
         put(m, R.drawable.msg_contacts_name, R.drawable.msg_contacts_name_solar);
         put(m, R.drawable.msg_contacts_time, R.drawable.msg_contacts_time_solar);
         put(m, R.drawable.msg_copy, R.drawable.msg_copy_solar);
+        put(m, R.drawable.msg_copy_photo, R.drawable.msg_copy_photo_solar);
         put(m, R.drawable.msg_copy_filled, R.drawable.msg_copy_filled_solar);
         put(m, R.drawable.msg_current_location, R.drawable.msg_current_location_solar);
         put(m, R.drawable.msg_customize, R.drawable.msg_photo_settings_solar);

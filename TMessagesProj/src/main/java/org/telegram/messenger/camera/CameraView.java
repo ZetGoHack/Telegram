@@ -656,6 +656,7 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
             cameraSession[0] = null;
         }
         isFrontface = !isFrontface;
+        org.telegram.rawgram.RawBehaviour.onCameraSwitched(isFrontface); // rawGram
     }
 
     public void resetCamera() {

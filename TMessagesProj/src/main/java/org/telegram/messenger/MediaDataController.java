@@ -1763,10 +1763,12 @@ public class MediaDataController extends BaseController {
     }
 
     public ArrayList<TLRPC.StickerSetCovered> getFeaturedStickerSets() {
+        if (org.telegram.rawgram.RawChatUiConfig.hideTrendingStickers.get()) return new ArrayList<>(); // rawGram
         return featuredStickerSets[0];
     }
 
     public ArrayList<TLRPC.StickerSetCovered> getFeaturedEmojiSets() {
+        if (org.telegram.rawgram.RawChatUiConfig.hideTrendingEmoji.get()) return new ArrayList<>(); // rawGram
         return featuredStickerSets[1];
     }
 
@@ -2269,7 +2271,7 @@ public class MediaDataController extends BaseController {
     }
 
     public void loadFeaturedStickers(boolean emoji, boolean cache) {
-        if (loadingFeaturedStickers[emoji ? 1 : 0]) {
+        if (loadingFeaturedStickers[emoji ? 1 : 0] || (emoji ? org.telegram.rawgram.RawChatUiConfig.hideTrendingEmoji : org.telegram.rawgram.RawChatUiConfig.hideTrendingStickers).get()) { // rawGram
             return;
         }
         loadingFeaturedStickers[emoji ? 1 : 0] = true;
@@ -7363,7 +7365,7 @@ public class MediaDataController extends BaseController {
     }
 
     public ArrayList<TLRPC.MessageEntity> getEntities(CharSequence[] message, boolean allowStrike) {
-        return getEntities(message, allowStrike, true);
+        return getEntities(message, allowStrike, !org.telegram.rawgram.RawChatUiConfig.noMarkdown.get()); // rawGram
     }
 
     public ArrayList<TLRPC.MessageEntity> getEntities(CharSequence[] message, boolean allowStrike, boolean parseMarkdown) {

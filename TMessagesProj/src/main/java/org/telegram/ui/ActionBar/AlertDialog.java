@@ -1389,6 +1389,7 @@ public class AlertDialog extends Dialog implements Drawable.Callback, Notificati
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (getWindow() != null) org.telegram.rawgram.RawHaptics.attach(getWindow().getDecorView()); // rawGram
         inflateContent(true);
         NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.emojiLoaded);
     }

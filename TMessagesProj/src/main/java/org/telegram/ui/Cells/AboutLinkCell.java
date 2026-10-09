@@ -705,7 +705,7 @@ public class AboutLinkCell extends FrameLayout {
         }
         if (stringBuilder != null && (maxWidth != lastMaxWidth || force)) {
             textLayout = makeTextLayout(stringBuilder, maxWidth);
-            shouldExpand = textLayout.getLineCount() >= 4; // && valueTextView.getVisibility() != View.VISIBLE;
+            shouldExpand = textLayout.getLineCount() >= 4 && !org.telegram.rawgram.RawChatUiConfig.fullAbout.get(); // && valueTextView.getVisibility() != View.VISIBLE; rawGram
 
             if (textLayout.getLineCount() >= 3 && shouldExpand) {
                 int end = Math.max(textLayout.getLineStart(2), textLayout.getLineEnd(2));

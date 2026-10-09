@@ -834,6 +834,7 @@ public class ActionBarPopupWindow extends PopupWindow {
     public void showAsDropDown(View anchor, int xoff, int yoff) {
         try {
             super.showAsDropDown(anchor, xoff, yoff);
+            org.telegram.rawgram.RawHaptics.attach(getContentView()); // rawGram
             registerListener(anchor);
         } catch (Exception e) {
             FileLog.e(e);
@@ -1009,6 +1010,7 @@ public class ActionBarPopupWindow extends PopupWindow {
     @Override
     public void showAtLocation(View parent, int gravity, int x, int y) {
         super.showAtLocation(parent, gravity, x, y);
+        org.telegram.rawgram.RawHaptics.attach(getContentView()); // rawGram
         unregisterListener();
     }
 

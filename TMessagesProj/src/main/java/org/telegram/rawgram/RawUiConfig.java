@@ -51,6 +51,7 @@ public class RawUiConfig {
     private static boolean hidePhone;
     private static int snowMode;
     private static int iconPack;
+    private static String mainTabsOrder;
 
     private static SharedPreferences prefs() {
         return ApplicationLoader.applicationContext.getSharedPreferences("rawgram_ui", Context.MODE_PRIVATE);
@@ -84,6 +85,7 @@ public class RawUiConfig {
             hidePhone = p.getBoolean("hidePhone", false);
             snowMode = p.getInt("snowMode", SNOW_BY_DATE);
             iconPack = p.getInt("iconPack", 0);
+            mainTabsOrder = p.getString("mainTabsOrder", RawMainTabs.DEFAULT);
             loaded = true;
         }
     }
@@ -126,6 +128,9 @@ public class RawUiConfig {
     public static void setMainTabsHideTitles(boolean v) { ensureLoaded(); mainTabsHideTitles = v; put("mainTabsHideTitles", v); }
     public static boolean mainTabsHideContacts() { ensureLoaded(); return mainTabsHideContacts; }
     public static void setMainTabsHideContacts(boolean v) { ensureLoaded(); mainTabsHideContacts = v; put("mainTabsHideContacts", v); }
+
+    public static String mainTabsOrder() { ensureLoaded(); return mainTabsOrder; }
+    public static void setMainTabsOrder(String v) { ensureLoaded(); mainTabsOrder = v; put("mainTabsOrder", v); }
 
     // ---- folder tabs ----
     public static boolean hideAllTab() { ensureLoaded(); return hideAllTab; }

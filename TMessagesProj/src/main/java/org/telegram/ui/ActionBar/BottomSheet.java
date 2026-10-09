@@ -1356,6 +1356,7 @@ public class BottomSheet extends Dialog implements BaseFragment.AttachedSheet {
             window = getWindow();
             window.setWindowAnimations(R.style.DialogNoAnimation);
             setContentView(container, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            org.telegram.rawgram.RawHaptics.attach(container); // rawGram
         }
 
         if (useLightStatusBar && Build.VERSION.SDK_INT >= 23) {

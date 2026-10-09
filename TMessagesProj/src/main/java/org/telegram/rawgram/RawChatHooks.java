@@ -153,9 +153,15 @@ public class RawChatHooks {
         AndroidUtilities.runOnUIThread(() -> updateStashButton(false));
     }
 
+    private RawBackBadge backBadge;
+
     public void onResume() {
         updateHideButton();
         updateStashButton(false);
+        if (backBadge == null) {
+            backBadge = new RawBackBadge(host.fragment(), host.account());
+        }
+        backBadge.onResume();
     }
 
     // the tray switch may change while this chat is in the back stack
@@ -167,6 +173,9 @@ public class RawChatHooks {
     }
 
     public void onDestroy() {
+        if (backBadge != null) {
+            backBadge.onDestroy();
+        }
         RawRerollController.dismissActive();
         RawInlineStash.removeListener(stashListener);
     }

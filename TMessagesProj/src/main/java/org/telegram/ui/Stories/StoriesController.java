@@ -247,6 +247,7 @@ public class StoriesController {
     }
 
     public boolean hasStories(long dialogId) {
+        if (org.telegram.rawgram.RawChatUiConfig.disableStories.get()) return false; // rawGram
         if (dialogId == 0) {
             return false;
         }
@@ -280,6 +281,7 @@ public class StoriesController {
     }
 
     public boolean hasStories() {
+        if (org.telegram.rawgram.RawChatUiConfig.disableStories.get()) return false; // rawGram
         return (dialogListStories != null && dialogListStories.size() > 0) || hasSelfStories();
     }
 
@@ -1069,6 +1071,7 @@ public class StoriesController {
     }
 
     public boolean hasSelfStories() {
+        if (org.telegram.rawgram.RawChatUiConfig.disableStories.get()) return false; // rawGram
         long clientUserId = UserConfig.getInstance(currentAccount).clientUserId;
         TL_stories.PeerStories storyItem = allStoriesMap.get(clientUserId);
         if (storyItem != null && !storyItem.stories.isEmpty()) {

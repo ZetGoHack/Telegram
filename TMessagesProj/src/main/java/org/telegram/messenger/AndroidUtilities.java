@@ -6491,6 +6491,7 @@ public class AndroidUtilities {
     }
 
     public static void vibrateCursor(View view) {
+        if (org.telegram.rawgram.RawHaptics.off()) return; // rawGram
         try {
             if (view == null || view.getContext() == null) return;
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
@@ -6500,6 +6501,7 @@ public class AndroidUtilities {
     }
 
     public static void vibrate(View view) {
+        if (org.telegram.rawgram.RawHaptics.off()) return; // rawGram
         try {
             if (view == null || view.getContext() == null) return;
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
