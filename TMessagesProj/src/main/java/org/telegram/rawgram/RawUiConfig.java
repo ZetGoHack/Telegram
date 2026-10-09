@@ -30,10 +30,16 @@ public class RawUiConfig {
 
     public static final int AVATAR_CORNERS_DEFAULT = 100;
 
+    /** «Шрифт»: Telegram's Roboto, the system font, or the user's own file (RawTypeface). */
+    public static final int FONT_TELEGRAM = 0;
+    public static final int FONT_SYSTEM = 1;
+    public static final int FONT_CUSTOM = 2;
+
     private static volatile boolean loaded;
 
     private static boolean hideDividers;
     private static boolean systemFont;
+    private static int fontMode;
     private static int switchStyle;
     private static boolean hidePremiumSection;
     private static boolean hideHelpSection;
@@ -72,6 +78,7 @@ public class RawUiConfig {
             SharedPreferences p = prefs();
             hideDividers = p.getBoolean("hideDividers", false);
             systemFont = p.getBoolean("systemFont", false);
+            fontMode = p.getInt("fontMode", systemFont ? FONT_SYSTEM : FONT_TELEGRAM);
             switchStyle = p.getInt("switchStyle", SWITCH_DEFAULT);
             hidePremiumSection = p.getBoolean("hidePremiumSection", false);
             hideHelpSection = p.getBoolean("hideHelpSection", false);
@@ -120,6 +127,8 @@ public class RawUiConfig {
     // ---- system font (applies after restart: typefaces are cached) ----
     public static boolean systemFont() { ensureLoaded(); return systemFont; }
     public static void setSystemFont(boolean v) { ensureLoaded(); systemFont = v; put("systemFont", v); }
+    public static int fontMode() { ensureLoaded(); return fontMode; }
+    public static void setFontMode(int v) { ensureLoaded(); fontMode = v; put("fontMode", v); setSystemFont(v == FONT_SYSTEM); }
 
     // ---- switch style ----
     public static int switchStyle() { ensureLoaded(); return switchStyle; }

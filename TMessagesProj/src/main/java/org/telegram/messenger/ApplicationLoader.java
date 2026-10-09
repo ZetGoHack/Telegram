@@ -293,6 +293,7 @@ public class ApplicationLoader extends Application {
 
         // AndroidUtilities must be initialized before FileLog
         final String helloWorld = AndroidUtilities.getHelloWorld();
+        org.telegram.rawgram.RawCustomFont.applyDefault(); // rawGram: custom font as the default typeface
 
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d(helloWorld);

@@ -118,6 +118,8 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
     private int lookHeaderRow;
     private int hideDividersRow;
     private int systemFontRow;
+    private int fontFileRow;
+    private int fontBoldRow;
     private int motionRow;
     private int badgesRow;
     private int lookInfoRow;
@@ -194,6 +196,8 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
 
         lookHeaderRow = rowCount++;
         systemFontRow = rowCount++;
+        fontFileRow = RawUiConfig.fontMode() == RawUiConfig.FONT_CUSTOM ? rowCount++ : -1;
+        fontBoldRow = RawUiConfig.fontMode() == RawUiConfig.FONT_CUSTOM ? rowCount++ : -1;
         hideDividersRow = rowCount++;
         motionRow = rowCount++;
         badgesRow = rowCount++;
@@ -243,10 +247,32 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
             Theme.applyCommonTheme();
             toggled(view, v);
         } else if (position == systemFontRow) {
-            boolean v = !RawUiConfig.systemFont();
-            RawUiConfig.setSystemFont(v);
-            toggled(view, v);
-            showRestartNotice(this);
+            choose("Шрифт", new CharSequence[]{"Telegram (Roboto)", "Системный", "Свой файл"}, which -> {
+                RawUiConfig.setFontMode(which);
+                updateRows();
+                if (adapter != null) adapter.notifyDataSetChanged();
+                if (which == RawUiConfig.FONT_CUSTOM && !RawCustomFont.regularFile().exists()) {
+                    RawCustomFont.pick(this, RawCustomFont.REQUEST_REGULAR);
+                } else {
+                    showRestartNotice(this);
+                }
+            });
+        } else if (position == fontFileRow) {
+            RawCustomFont.pick(this, RawCustomFont.REQUEST_REGULAR);
+        } else if (position == fontBoldRow) {
+            if (RawCustomFont.boldFile().exists()) {
+                choose("Жирное начертание", new CharSequence[]{"Выбрать другой файл", "Убрать"}, which -> {
+                    if (which == 0) {
+                        RawCustomFont.pick(this, RawCustomFont.REQUEST_BOLD);
+                    } else {
+                        RawCustomFont.removeBold();
+                        if (adapter != null) adapter.notifyDataSetChanged();
+                        showRestartNotice(this);
+                    }
+                });
+            } else {
+                RawCustomFont.pick(this, RawCustomFont.REQUEST_BOLD);
+            }
         } else if (position == badgesRow) {
             boolean v = !RawgramConfig.isExteraBadges();
             RawgramConfig.setExteraBadges(v);
@@ -439,6 +465,15 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
         activity.startActivity(Intent.makeRestartActivityTask(launch.getComponent()));
         activity.finishAffinity();
         Runtime.getRuntime().exit(0);
+    }
+
+    @Override
+    public void onActivityResultFragment(int requestCode, int resultCode, android.content.Intent data) {
+        super.onActivityResultFragment(requestCode, resultCode, data);
+        RawCustomFont.onActivityResult(requestCode, resultCode, data, () -> {
+            if (adapter != null) adapter.notifyDataSetChanged();
+            showRestartNotice(this);
+        });
     }
 
     private void choose(String title, CharSequence[] names, Utilities.Callback<Integer> onChosen) {
@@ -641,7 +676,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                     || position == iconHeaderRow || position == switchHeaderRow) {
                 return TYPE_HEADER;
             }
-            if (position == tabsOrderRow || position == tabsTitleTypeRow || position == titleModeRow || position == customTitleRow || position == snowRow) {
+            if (position == systemFontRow || position == fontFileRow || position == fontBoldRow || position == tabsOrderRow || position == tabsTitleTypeRow || position == titleModeRow || position == customTitleRow || position == snowRow) {
                 return TYPE_VALUE;
             }
             if (position == avatarSliderRow) {
@@ -725,8 +760,6 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                     TextCheckCell cell = (TextCheckCell) holder.itemView;
                     if (position == hideDividersRow) {
                         cell.setTextAndCheck("Скрыть разделители", RawUiConfig.hideDividers(), true);
-                    } else if (position == systemFontRow) {
-                        cell.setTextAndCheck("Системный шрифт", RawUiConfig.systemFont(), true);
                     } else if (position == motionRow) {
                         cell.setTextAndCheck("Анимации rawGram", RawMotion.isEnabled(), true);
                     } else if (position == badgesRow) {
@@ -791,6 +824,13 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                     } else if (position == customTitleRow) {
                         String t = RawUiConfig.customTitle().trim();
                         cell.setTextAndValue("Текст заголовка", t.isEmpty() ? "не задан" : t, true);
+                    } else if (position == systemFontRow) {
+                        int f = RawUiConfig.fontMode();
+                        cell.setTextAndValue("Шрифт", f == RawUiConfig.FONT_CUSTOM ? "Свой файл" : f == RawUiConfig.FONT_SYSTEM ? "Системный" : "Telegram", true);
+                    } else if (position == fontFileRow) {
+                        cell.setTextAndValue("Файл шрифта", RawCustomFont.regularFile().exists() ? "выбран" : "не выбран", true);
+                    } else if (position == fontBoldRow) {
+                        cell.setTextAndValue("Жирное начертание", RawCustomFont.boldFile().exists() ? "отдельный файл" : "из основного", true);
                     } else if (position == tabsOrderRow) {
                         cell.setTextAndValue("Порядок вкладок", RawMainTabs.summary(), true);
                     } else if (position == snowRow) {
@@ -834,7 +874,10 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                     } else if (position == switchInfoRow) {
                         cell.setText("Нажми на образец, чтобы увидеть оба положения.");
                     } else if (position == lookInfoRow) {
-                        cell.setText("Системный шрифт — после перезапуска. Разделители — линии между пунктами и тени под разделами. "
+                        String fontStatus = RawUiConfig.fontMode() == RawUiConfig.FONT_CUSTOM && !RawCustomFont.status().isEmpty()
+                                ? " Обычный текст (проверка): " + RawCustomFont.status() + "." : "";
+                        cell.setText("Шрифт применяется после перезапуска. Системный — шрифт телефона с его начертаниями. "
+                                + "Свой файл — .ttf или .otf; жирное начертание берётся из отдельного файла, из самого шрифта, если он переменный, или рисуется полужирным." + fontStatus + " Разделители — линии между пунктами и тени под разделами. "
                                 + "Анимации — плавные переходы в окнах и меню rawGram; в режиме энергосбережения они выключены. "
                                 + "Бейджи exteraGram — значки поддержавших exteraGram и его разработчиков рядом с именами в чатах, списках и профилях; "
                                 + "список загружается с сервера exteraGram раз в несколько часов.");

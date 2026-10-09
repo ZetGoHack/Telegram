@@ -2261,6 +2261,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     }
 
     private boolean checkNameStatusMotionEvent(MotionEvent event) {
+        if (org.telegram.rawgram.RawBadges.onBubbleBadgeTouch(event, getEventX(event), getEventY(event), currentNameEmojiStatusDrawable, currentUser, currentNameBotVerificationId)) return true; // rawGram: badge in the left slot
         if (!drawNameLayout || nameLayout == null || nameLayoutSelector == null || currentUser == null && currentChat == null || currentNameStatus == null || currentNameStatusDrawable == null) {
             nameStatusPressed = false;
             return false;

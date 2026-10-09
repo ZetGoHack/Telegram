@@ -265,6 +265,43 @@ public final class RawBadges {
     }
 
     /** Chat bubble status tap: shows the badge info instead of the premium sheet. Returns true if handled. */
+    private static boolean bubbleBadgeDown;
+
+    /**
+     * ChatMessageCell: a tap on the badge drawn in the slot left of the sender name (where a bot verification mark goes;
+     * used when the sender has an emoji status) shows the badge bulletin. {@code slot} is that drawable, its bounds
+     * set while drawing, in the cell's coordinates.
+     */
+    public static boolean onBubbleBadgeTouch(android.view.MotionEvent ev, float x, float y, android.graphics.drawable.Drawable slot, TLRPC.User user, long slotId) {
+        if (slot == null || user == null || slotId == 0 || slotId != secondaryDocumentId(user)) {
+            bubbleBadgeDown = false;
+            return false;
+        }
+        android.graphics.Rect b = slot.getBounds();
+        int pad = org.telegram.messenger.AndroidUtilities.dp(6);
+        boolean inside = !b.isEmpty() && x >= b.left - pad && x <= b.right + pad && y >= b.top - pad && y <= b.bottom + pad;
+        switch (ev.getAction()) {
+            case android.view.MotionEvent.ACTION_DOWN:
+                bubbleBadgeDown = inside;
+                return inside;
+            case android.view.MotionEvent.ACTION_UP:
+                if (bubbleBadgeDown) {
+                    bubbleBadgeDown = false;
+                    if (inside) {
+                        showInfo(org.telegram.ui.LaunchActivity.getLastFragment(), user);
+                    }
+                    return true;
+                }
+                return false;
+            case android.view.MotionEvent.ACTION_CANCEL:
+                boolean was = bubbleBadgeDown;
+                bubbleBadgeDown = false;
+                return was;
+            default:
+                return bubbleBadgeDown;
+        }
+    }
+
     public static boolean onChatStatusPressed(BaseFragment fragment, TLRPC.User user) {
         if (chatStatus(user) == null) {
             return false;
