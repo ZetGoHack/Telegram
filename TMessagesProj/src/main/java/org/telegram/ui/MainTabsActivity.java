@@ -119,6 +119,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
     private UpdateLayoutWrapper updateLayoutWrapper;
     private FrameLayout tabsViewWrapper;
+    private View rawSearchButton; // rawGram: RawTabsSearch
     private MainTabsLayout tabsView;
     private BlurredBackgroundDrawable tabsViewBackground;
     private View fadeView;
@@ -389,6 +390,11 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         tabsViewWrapper.setOnClickListener(v -> {});
         tabsViewWrapper.addView(tabsView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
         tabsViewWrapper.setClipToPadding(false);
+        rawSearchButton = org.telegram.rawgram.RawTabsSearch.attach(tabsViewWrapper, tabsView, iBlur3FactoryGlass, BlurredBackgroundProviderImpl.mainTabs(resourceProvider), resourceProvider, () -> { // rawGram
+            selectTab(POSITION_CHATS, true);
+            viewPager.scrollToPosition(POSITION_CHATS);
+            if (dialogsActivity != null) dialogsActivity.rawOpenSearch();
+        });
         contentView.addView(tabsViewWrapper, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM));
 
         updateLayoutWrapper = new UpdateLayoutWrapper(context);
@@ -773,6 +779,11 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     }
 
 
+    /** rawGram: the chats page is shown (RawSideMenu edge swipe). */
+    public boolean rawIsChatsPage() {
+        return viewPager != null && viewPager.getCurrentPosition() == POSITION_CHATS && !viewPager.isManualScrolling();
+    }
+
     @Override
     protected int getFragmentsCount() {
         return org.telegram.rawgram.RawMainTabs.count(RAW_HIDE_CONTACTS); // rawGram
@@ -1101,6 +1112,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         tabsView.setEnabled(factor > 1);
         tabsView.setAlpha(factor);
         tabsView.setVisibility(factor > 0 ? View.VISIBLE : View.GONE);
+        org.telegram.rawgram.RawTabsSearch.sync(rawSearchButton, factor); // rawGram
     }
 
     private void checkUi_callTabVisible(boolean callTabsVisible, boolean animated) {

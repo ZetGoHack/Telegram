@@ -514,6 +514,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         drawerLayoutContainer.setClipToPadding(false);
 
         frameLayout.addView(drawerLayoutContainer, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        org.telegram.rawgram.RawSideMenu.attach(this, frameLayout); // rawGram
 
         themeSwitchSunView = new ImageView(this) {
             @Override
@@ -8302,7 +8303,21 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     }
 
     @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) { // rawGram: side menu swipe from the left edge of the chats list
+        if (org.telegram.rawgram.RawSideMenu.onTouch(ev, rawOnChatsList(), e -> super.dispatchTouchEvent(e))) {
+            return true;
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+    private boolean rawOnChatsList() {
+        BaseFragment last = actionBarLayout != null ? actionBarLayout.getLastFragment() : null;
+        return last instanceof MainTabsActivity && ((MainTabsActivity) last).rawIsChatsPage();
+    }
+
+    @Override
     public void onBackPressed() {
+        if (org.telegram.rawgram.RawSideMenu.closeIfOpen()) return; // rawGram
         if (!onBackPressed(true)) {
             return;
         }

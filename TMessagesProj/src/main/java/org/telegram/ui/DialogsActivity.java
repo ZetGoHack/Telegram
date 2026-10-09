@@ -1029,7 +1029,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         drawBlurRect(canvas, 0, blurBounds, actionBarSearchPaint, true);
                     }
                     if (fragmentSearchField != null) {
-                        fragmentSearchField.setTranslationY(top + actionBarHeight - (actionBar.getHeight() + (filterTabsView != null ? filterTabsView.getMeasuredHeight() : 0)) + getSearchFieldAdditionOffset());
+                        fragmentSearchField.setTranslationY(top + actionBarHeight - (actionBar.getHeight() + (filterTabsView != null && !org.telegram.rawgram.RawFoldersBottom.on() ? filterTabsView.getMeasuredHeight() : 0)) + getSearchFieldAdditionOffset()); // rawGram
                     }
                 }
             } else if (!inPreviewMode) {
@@ -1057,7 +1057,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 if (dialogStoriesCellVisible) {
                     storiesAlpha = 1f - Utilities.clamp(rightSlidingProgress / 0.5f, 1f, 0f);
                 }
-                if (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE) {
+                if (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE && !org.telegram.rawgram.RawFoldersBottom.on()) { // rawGram
                     tabsYOffset -= (1f - animatorFilterTabsVisible.getFloatValue()) * filterTabsView.getMeasuredHeight();
                 }
                 if (fragmentSearchField != null) {
@@ -1308,7 +1308,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     childTop = actionBar.getMeasuredHeight();
                 } else if (child instanceof ViewPage) {
                     childTop = 0;
-                } else if (child == topPanelLayout || child == topBubblesFadeView || child == filterTabsView) {
+                } else if (child == topPanelLayout || child == topBubblesFadeView || child == filterTabsView && !org.telegram.rawgram.RawFoldersBottom.on()) { // rawGram: at the bottom it keeps its gravity
                     childTop += actionBar.getMeasuredHeight();
                     childTop += org.telegram.rawgram.RawUi.searchFieldHeight();
                 } else if (dialogStoriesCell != null && dialogStoriesCell.getPremiumHint() == child) {
@@ -2070,7 +2070,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
             additionalPadding = 0;
 
-            final float filterTabsVisibility = getFilterTabsVisibilityFactor(false);
+            final float filterTabsVisibility = org.telegram.rawgram.RawFoldersBottom.on() ? 0f : getFilterTabsVisibilityFactor(false); // rawGram
             final float topPanelsVisibility = topPanelLayout != null ? topPanelLayout.getMetadata().getTotalVisibility() : 0f;
 
             t += (int) (dp(36 + 14) * filterTabsVisibility);
@@ -3512,6 +3512,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         } else {
             if (searchString != null || folderId != 0 || communityId != 0) {
                 actionBar.setBackButtonDrawable(backDrawable = new BackDrawable(false));
+            } else if (org.telegram.rawgram.RawSideMenu.enabled()) { // rawGram: ☰ opens the side menu
+                actionBar.setBackButtonDrawable(new MenuDrawable());
             }
             if (folderId != 0) {
                 actionBar.setTitle(getString(R.string.ArchivedChats));
@@ -3880,6 +3882,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             public void onItemClick(int id) {
                 if ((id == SearchViewPager.forwardItemId || id == SearchViewPager.gotoItemId || id == SearchViewPager.deleteItemId || id == SearchViewPager.speedItemId) && searchViewPager != null) {
                     searchViewPager.onActionBarItemClick(id);
+                    return;
+                }
+                if (id == -1 && !actionBar.isActionModeShowed() && !searchIsShowed && actionBar.getBackButton() != null
+                        && actionBar.getBackButton().getDrawable() instanceof MenuDrawable && org.telegram.rawgram.RawSideMenu.open()) { // rawGram
                     return;
                 }
                 if (id == -1) {
@@ -4591,7 +4597,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         }
                         if (applyScrollY) {
                             int maxScrollYOffset = getMaxScrollYOffset();
-                            if (!(filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE && animatorFilterTabsVisible.getValue())) {
+                            if (!(filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE && !org.telegram.rawgram.RawFoldersBottom.on() && animatorFilterTabsVisible.getValue())) { // rawGram
                                 maxScrollYOffset = org.telegram.rawgram.RawUi.searchFieldHeight();
                             }
                             if (newTranslation < -maxScrollYOffset) {
@@ -5162,7 +5168,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             textPaint.setTypeface(AndroidUtilities.bold());
         }
 
-        if (filterTabsView != null) {
+        if (filterTabsView != null && org.telegram.rawgram.RawFoldersBottom.on()) { // rawGram: folders above the bottom tabs
+            org.telegram.rawgram.RawFoldersBottom.setup(contentView, filterTabsView, iBlur3FactoryLiquidGlass, resourceProvider);
+        } else if (filterTabsView != null) {
             BlurredBackgroundDrawable filterTabsViewBackground = iBlur3FactoryLiquidGlass.create(filterTabsView, BlurredBackgroundProviderImpl.topPanel(resourceProvider));
             filterTabsViewBackground.setRadius(dp(18));
             filterTabsViewBackground.setPadding(dp(6.666f));
@@ -6609,7 +6617,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         float topPanelsVisibility = 0;
         float fadeViewT = totalOffset;
 
-        if (filterTabsView != null) {
+        if (filterTabsView != null && !org.telegram.rawgram.RawFoldersBottom.on()) { // rawGram
             filterTabsView.setTranslationY(totalOffset - searchOffset);
             filtersTabVisibility = filterTabsView.getAlpha();
             filtersTabHeight = dp(36 + 7) * filtersTabVisibility;
@@ -7208,7 +7216,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             public int getTopOffset(int tag) {
                 return (
                     (actionBar != null ? actionBar.getMeasuredHeight() : 0) +
-                    (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE ? filterTabsView.getMeasuredHeight() : 0) +
+                    (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE && !org.telegram.rawgram.RawFoldersBottom.on() ? filterTabsView.getMeasuredHeight() : 0) + // rawGram
                     (topPanelLayout != null ? topPanelLayout.getHeight() : 0) +
                     (dialogStoriesCell != null && dialogStoriesCellVisible ? (int) ((1f - dialogStoriesCell.getCollapsedProgress()) * dp(DialogStoriesCell.HEIGHT_IN_DP)) : 0) +
                     (org.telegram.rawgram.RawUi.searchFieldHeight())
@@ -7356,7 +7364,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
             closeSearchFieldOnHide = false;
         }
-        if (!hasStories && filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE && animatorFilterTabsVisible.getValue()) {
+        if (!hasStories && filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE && !org.telegram.rawgram.RawFoldersBottom.on() && animatorFilterTabsVisible.getValue()) { // rawGram
             int scrollY = (int) -scrollYOffset;
             int actionBarHeight = ActionBar.getCurrentActionBarHeight();
             if (scrollY != 0 && scrollY != actionBarHeight) {
@@ -7483,6 +7491,13 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         if (fragmentSearchField != null) {
             fragmentSearchField.editText.setText(query);
             fragmentSearchField.editText.setSelection(query.length());
+        }
+    }
+
+    /** rawGram: the chats search, as the header's search icon opens it (RawTabsSearch). */
+    public void rawOpenSearch() {
+        if (searchItem != null && !searchIsShowed) {
+            searchItem.callOnClick();
         }
     }
 
@@ -8893,7 +8908,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private void updateFloatingButtonOffset() {
         final float top = -navigationBarHeight - additionFloatingButtonOffset - additionalFloatingTranslation;
         final float baseTranslationY = top
-            - floatingButtonPanOffset;
+            - floatingButtonPanOffset - org.telegram.rawgram.RawFoldersBottom.fabShift(filterTabsView); // rawGram
+        org.telegram.rawgram.RawFoldersBottom.place(filterTabsView, navigationBarHeight, additionNavigationBarHeight); // rawGram
 
         if (floatingButton3 != null) {
             floatingButton3.setTranslationY(baseTranslationY);
@@ -14054,6 +14070,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             if (alphaChanged && viewPages[0] != null) {
                 viewPages[0].listView.requestLayout();
             }
+            if (org.telegram.rawgram.RawFoldersBottom.on()) updateFloatingButtonOffset(); // rawGram
         }
         updateContextViewPosition();
     }
@@ -14211,7 +14228,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         final int actionBarHeight = actionBar.getMeasuredHeight()
             + org.telegram.rawgram.RawUi.searchFieldHeight()
             + dp(hasStories ? DialogStoriesCell.HEIGHT_IN_DP : 0)
-            + (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE ? filterTabsView.getMeasuredHeight() : 0)
+            + (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE && !org.telegram.rawgram.RawFoldersBottom.on() ? filterTabsView.getMeasuredHeight() : 0) // rawGram
             + (topPanelLayout != null && topPanelLayout.getVisibility() == View.VISIBLE ? topPanelLayout.getSumHeightOfAllVisibleChild() : 0)
             + ((int) scrollYOffset);
 
@@ -14223,7 +14240,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
         boolean hasBottomBlur = false;
         if (hasMainTabs) {
-            iBlur3PositionMainTabs.set(0, mainTabTop, fragmentView.getMeasuredWidth(), mainTabBottom);
+            iBlur3PositionMainTabs.set(0, mainTabTop - org.telegram.rawgram.RawFoldersBottom.blurExtra(filterTabsView), fragmentView.getMeasuredWidth(), mainTabBottom); // rawGram
             iBlur3PositionMainTabs.inset(0, LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0 : -dp(48));
 
             hasBottomBlur = true;
@@ -14255,7 +14272,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         } else if (communityId != 0) {
             return navigationBarHeight + dp(12 + 48 + 12);
         } else {
-            return navigationBarHeight + additionNavigationBarHeight;
+            return navigationBarHeight + additionNavigationBarHeight + org.telegram.rawgram.RawFoldersBottom.listPadding(filterTabsView); // rawGram
         }
     }
 

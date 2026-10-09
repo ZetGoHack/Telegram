@@ -9848,6 +9848,9 @@ public class MessagesController extends BaseController implements NotificationCe
         if (dialogs == null) {
             return new ArrayList<>();
         }
+        if (folderId != 1 && org.telegram.rawgram.RawUiConfig.hideArchive()) { // rawGram: no archive row (Nagram's HideArchive)
+            removeFolder(1);
+        }
         return dialogs;
     }
 

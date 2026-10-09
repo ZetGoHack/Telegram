@@ -286,6 +286,8 @@ public class RawChatUiConfig {
     public static final Flag noTabCounters = new Flag("noTabCounters", false);
     public static final Flag alwaysDownloads = new Flag("alwaysDownloads", false);
     public static final Flag tabStroke = new Flag("tabStroke", false);
+    /** Sender avatar before «Имя: текст» in group rows (RawPreviewAvatar). */
+    public static final Flag previewAvatars = new Flag("previewAvatars", false);
 
     // ---- message menu ----
 

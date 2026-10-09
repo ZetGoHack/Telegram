@@ -81,11 +81,16 @@ public class RawUiSettingsActivity extends BaseFragment {
     private int tabsTitleTypeRow;
     private int hideAllTabRow;
     private int tabStrokeRow;
+    private int foldersBottomRow;
     private int noTabCountersRow;
     private int archivePullRow;
     private int noUnarchiveRow;
     private int downloadsRow;
     private int tabsOrderRow;
+    private int tabsSearchRow;
+    private int sideMenuRow;
+    private int hideArchiveRow;
+    private int previewAvatarsRow;
     private int foldersInfoRow;
 
     private int titleHeaderRow;
@@ -150,6 +155,7 @@ public class RawUiSettingsActivity extends BaseFragment {
         tabsTitleTypeRow = rowCount++;
         hideAllTabRow = rowCount++;
         tabStrokeRow = rowCount++;
+        foldersBottomRow = rowCount++;
         noTabCountersRow = rowCount++;
         foldersInfoRow = rowCount++;
 
@@ -160,15 +166,19 @@ public class RawUiSettingsActivity extends BaseFragment {
         hideBirthdaysRow = rowCount++;
         hideStoriesHeaderRow = rowCount++;
         disableStoriesRow = rowCount++;
+        hideArchiveRow = rowCount++;
         archivePullRow = rowCount++;
         noUnarchiveRow = rowCount++;
         downloadsRow = rowCount++;
+        previewAvatarsRow = rowCount++;
         chatsInfoRow = rowCount++;
 
         bottomTabsHeaderRow = rowCount++;
         tabsHideTitlesRow = rowCount++;
         tabsHideContactsRow = rowCount++;
         tabsOrderRow = rowCount++;
+        tabsSearchRow = rowCount++;
+        sideMenuRow = rowCount++;
         bottomTabsInfoRow = rowCount++;
 
         avatarHeaderRow = rowCount++;
@@ -292,6 +302,11 @@ public class RawUiSettingsActivity extends BaseFragment {
             boolean v = !RawUiConfig.disableDialogsFab();
             RawUiConfig.setDisableDialogsFab(v);
             toggled(view, v);
+        } else if (position == foldersBottomRow) {
+            boolean v = !RawUiConfig.foldersAtBottom();
+            RawUiConfig.setFoldersAtBottom(v);
+            toggled(view, v);
+            showRestartNotice(this);
         } else if (position == tabStrokeRow) {
             RawChatUiConfig.tabStroke.toggle();
             toggled(view, RawChatUiConfig.tabStroke.get());
@@ -307,6 +322,24 @@ public class RawUiSettingsActivity extends BaseFragment {
         } else if (position == downloadsRow) {
             RawChatUiConfig.alwaysDownloads.toggle();
             toggled(view, RawChatUiConfig.alwaysDownloads.get());
+        } else if (position == sideMenuRow) {
+            boolean v = !RawUiConfig.sideMenu();
+            RawUiConfig.setSideMenu(v);
+            toggled(view, v);
+            showRestartNotice(this);
+        } else if (position == hideArchiveRow) {
+            boolean v = !RawUiConfig.hideArchive();
+            RawUiConfig.setHideArchive(v);
+            toggled(view, v);
+            if (!v) showRestartNotice(this);
+        } else if (position == tabsSearchRow) {
+            boolean v = !RawUiConfig.mainTabsSearch();
+            RawUiConfig.setMainTabsSearch(v);
+            toggled(view, v);
+            showRestartNotice(this);
+        } else if (position == previewAvatarsRow) {
+            RawChatUiConfig.previewAvatars.toggle();
+            toggled(view, RawChatUiConfig.previewAvatars.get());
         } else if (position == tabsOrderRow) {
             RawMainTabs.showEditor(getParentActivity(), () -> {
                 if (adapter != null) adapter.notifyItemChanged(tabsOrderRow);
@@ -733,7 +766,17 @@ public class RawUiSettingsActivity extends BaseFragment {
                     } else if (position == noUnarchiveRow) {
                         cell.setTextAndCheck("Не разархивировать свайпом", RawChatUiConfig.noUnarchiveSwipe.get(), true);
                     } else if (position == downloadsRow) {
-                        cell.setTextAndCheck("Всегда показывать загрузки", RawChatUiConfig.alwaysDownloads.get(), false);
+                        cell.setTextAndCheck("Всегда показывать загрузки", RawChatUiConfig.alwaysDownloads.get(), true);
+                    } else if (position == previewAvatarsRow) {
+                        cell.setTextAndCheck("Аватарки отправителей", RawChatUiConfig.previewAvatars.get(), false);
+                    } else if (position == tabsSearchRow) {
+                        cell.setTextAndCheck("Кнопка поиска", RawUiConfig.mainTabsSearch(), true);
+                    } else if (position == sideMenuRow) {
+                        cell.setTextAndCheck("Боковое меню", RawUiConfig.sideMenu(), false);
+                    } else if (position == hideArchiveRow) {
+                        cell.setTextAndCheck("Скрыть архив", RawUiConfig.hideArchive(), true);
+                    } else if (position == foldersBottomRow) {
+                        cell.setTextAndCheck("Папки внизу", RawUiConfig.foldersAtBottom(), true);
                     } else if (position == tabStrokeRow) {
                         cell.setTextAndCheck("Обводка выбранной папки", RawChatUiConfig.tabStroke.get(), true);
                     } else if (position == noTabCountersRow) {
@@ -755,7 +798,7 @@ public class RawUiSettingsActivity extends BaseFragment {
                         String t = RawUiConfig.customTitle().trim();
                         cell.setTextAndValue("Текст заголовка", t.isEmpty() ? "не задан" : t, true);
                     } else if (position == tabsOrderRow) {
-                        cell.setTextAndValue("Порядок вкладок", RawMainTabs.summary(), false);
+                        cell.setTextAndValue("Порядок вкладок", RawMainTabs.summary(), true);
                     } else if (position == snowRow) {
                         int s = RawUiConfig.snowMode();
                         cell.setTextAndValue("Снег", s == RawUiConfig.SNOW_ALWAYS ? "Всегда" : s == RawUiConfig.SNOW_OFF ? "Выключен" : "По дате", false);
@@ -778,15 +821,18 @@ public class RawUiSettingsActivity extends BaseFragment {
                         cell.setText("Название папки показывается вместо заголовка, пока открыта папка.");
                     } else if (position == foldersInfoRow) {
                         cell.setText("Без «Все чаты» список открывается на первой папке. Иконки подбираются по эмодзи папки. "
-                                + "Обводка — выбранная папка выделена рамкой вместо заливки.");
+                                + "Обводка — выбранная папка выделена рамкой вместо заливки. Папки внизу — над нижними вкладками, применяется после перезапуска.");
                     } else if (position == chatsInfoRow) {
                         cell.setText("Без поля поиска поиск открывается лупой в шапке. Плавающие кнопки — «Новое сообщение» и «История». "
                                 + "Реклама Premium и дни рождения контактов — плашки над списком чатов. "
                                 + "Без историй пропадают их кольца на аватарках, строка над чатами и вкладка в профиле. Истории — после перезапуска. "
-                                + "Архив открывается, если потянуть список вниз до конца. Свайп в архиве не возвращает чат в общий список. "
-                                + "Значок загрузок виден в шапке, даже когда ничего не скачивается.");
+                                + "Скрытый архив открывается из бокового меню. Архив открывается, если потянуть список вниз до конца. Свайп в архиве не возвращает чат в общий список. "
+                                + "Значок загрузок виден в шапке, даже когда ничего не скачивается. "
+                                + "Аватарки отправителей — маленькое фото автора последнего сообщения в группах, перед его именем.");
                     } else if (position == bottomTabsInfoRow) {
-                        cell.setText("Скрытие «Контактов» и порядок вкладок применяются после перезапуска.");
+                        cell.setText("Кнопка поиска — круглая кнопка справа от вкладок, открывает поиск по чатам. "
+                                + "Боковое меню — аккаунты, ночной режим и быстрые пункты; открывается кнопкой ☰ в списке чатов или свайпом от левого края. "
+                                + "Скрытие «Контактов», порядок вкладок, кнопка поиска и боковое меню применяются после перезапуска.");
                     } else if (position == avatarInfoRow) {
                         cell.setText("100% — круглые, как в Telegram. Действует в списке чатов, группах и шапке чата.");
                     } else if (position == iconInfoRow) {

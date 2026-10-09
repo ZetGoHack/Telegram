@@ -52,6 +52,10 @@ public class RawUiConfig {
     private static int snowMode;
     private static int iconPack;
     private static String mainTabsOrder;
+    private static boolean mainTabsSearch;
+    private static boolean foldersAtBottom;
+    private static boolean sideMenu;
+    private static boolean hideArchive;
 
     private static SharedPreferences prefs() {
         return ApplicationLoader.applicationContext.getSharedPreferences("rawgram_ui", Context.MODE_PRIVATE);
@@ -86,6 +90,10 @@ public class RawUiConfig {
             snowMode = p.getInt("snowMode", SNOW_BY_DATE);
             iconPack = p.getInt("iconPack", 0);
             mainTabsOrder = p.getString("mainTabsOrder", RawMainTabs.DEFAULT);
+            mainTabsSearch = p.getBoolean("mainTabsSearch", false);
+            foldersAtBottom = p.getBoolean("foldersAtBottom", false);
+            sideMenu = p.getBoolean("sideMenu", false);
+            hideArchive = p.getBoolean("hideArchive", false);
             loaded = true;
         }
     }
@@ -129,6 +137,14 @@ public class RawUiConfig {
     public static boolean mainTabsHideContacts() { ensureLoaded(); return mainTabsHideContacts; }
     public static void setMainTabsHideContacts(boolean v) { ensureLoaded(); mainTabsHideContacts = v; put("mainTabsHideContacts", v); }
 
+    public static boolean sideMenu() { ensureLoaded(); return sideMenu; }
+    public static void setSideMenu(boolean v) { ensureLoaded(); sideMenu = v; put("sideMenu", v); }
+    public static boolean hideArchive() { ensureLoaded(); return hideArchive; }
+    public static void setHideArchive(boolean v) { ensureLoaded(); hideArchive = v; put("hideArchive", v); }
+    public static boolean foldersAtBottom() { ensureLoaded(); return foldersAtBottom; }
+    public static void setFoldersAtBottom(boolean v) { ensureLoaded(); foldersAtBottom = v; put("foldersAtBottom", v); }
+    public static boolean mainTabsSearch() { ensureLoaded(); return mainTabsSearch; }
+    public static void setMainTabsSearch(boolean v) { ensureLoaded(); mainTabsSearch = v; put("mainTabsSearch", v); }
     public static String mainTabsOrder() { ensureLoaded(); return mainTabsOrder; }
     public static void setMainTabsOrder(String v) { ensureLoaded(); mainTabsOrder = v; put("mainTabsOrder", v); }
 

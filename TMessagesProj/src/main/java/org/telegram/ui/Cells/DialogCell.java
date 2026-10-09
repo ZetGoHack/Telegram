@@ -504,6 +504,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
     private int printingStringType;
     private boolean draftVoice;
     private TLRPC.DraftMessage draftMessage;
+    private final org.telegram.rawgram.RawPreviewAvatar rawPreviewAvatar = new org.telegram.rawgram.RawPreviewAvatar(this); // rawGram
 
     private final AnimatedFloat premiumBlockedT = new AnimatedFloat(this, 0, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
     private boolean premiumBlocked;
@@ -904,6 +905,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
+        rawPreviewAvatar.detach(); // rawGram
         isSliding = false;
         drawRevealBackground = false;
         currentRevealProgress = 0.0f;
@@ -940,6 +942,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        rawPreviewAvatar.attach(); // rawGram
         avatarImage.onAttachedToWindow();
         for (int i = 0; i < thumbImage.length; ++i) {
             thumbImage[i].onAttachedToWindow();
@@ -2625,6 +2628,14 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             drawMention = false;
         }
 
+        if (rawPreviewAvatar.shown() && !useForceThreeLines) { // rawGram: room for the sender avatar
+            messageNameLeft += dp(org.telegram.rawgram.RawPreviewAvatar.WIDTH);
+            if (!SharedConfig.useThreeLinesLayout || hasTags()) {
+                messageLeft += dp(org.telegram.rawgram.RawPreviewAvatar.WIDTH);
+                messageWidth -= dp(org.telegram.rawgram.RawPreviewAvatar.WIDTH);
+            }
+        }
+
         if (checkMessage) {
             if (messageString == null) {
                 messageString = "";
@@ -3574,6 +3585,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 }
             }
 
+            rawPreviewAvatar.update(currentAccount, message, chat, draftMessage != null || draftVoice, currentDialogFolderId, drawAvatar); // rawGram
             if (animated && (oldUnreadCount != unreadCount || oldMarkUnread != markUnread) && (!isDialogCell || (System.currentTimeMillis() - lastDialogChangedTime) > 100)) {
                 if (countAnimator != null) {
                     countAnimator.cancel();
@@ -4596,6 +4608,13 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     openButtonText.draw(canvas, openButtonRect.left + dp(13), openButtonRect.centerY(), Theme.getColor(Theme.key_featuredStickers_buttonText, resourcesProvider), 1.0f);
                 }
                 canvas.restore();
+            }
+
+            if (rawPreviewAvatar.shown() && !useForceThreeLines) { // rawGram
+                boolean threeLines = SharedConfig.useThreeLinesLayout && !hasTags();
+                int avatarTop = threeLines ? messageNameTop : messageTop - (hasTags() || isForumCell() ? dp(isForumCell() ? 10 : 11) : 0);
+                int avatarLeft = (threeLines ? messageNameLeft : messageLeft) - dp(org.telegram.rawgram.RawPreviewAvatar.WIDTH);
+                rawPreviewAvatar.draw(canvas, avatarLeft, avatarTop + dp(1), 1f - updateHelper.typingProgres);
             }
 
             if (thumbsCount > 0 && updateHelper.typingProgres != 1f) {
