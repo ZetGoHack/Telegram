@@ -801,6 +801,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         }
 
                         final float fixedProgress = Math.max(0, progress - LAZY_START) / (1 - LAZY_START);
+                        org.telegram.rawgram.RawSideMenu.onBackProgress(fixedProgress); // rawGram
 
                         if (AndroidUtilities.isTablet()) return;
                         if (actionBarLayout != null) {
@@ -810,6 +811,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
                     @Override
                     public void onBackCancelled() {
+                        org.telegram.rawgram.RawSideMenu.onBackCancelled(); // rawGram
                         started = false;
                         invoked = false;
                         if (locked) {
@@ -8304,20 +8306,11 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) { // rawGram: side menu swipe from the left edge of the chats list
-        if (org.telegram.rawgram.RawSideMenu.onTouch(ev, rawOnChatsList(), e -> super.dispatchTouchEvent(e))) {
-            return true;
-        }
-        return super.dispatchTouchEvent(ev);
-    }
-
-    private boolean rawOnChatsList() {
-        BaseFragment last = actionBarLayout != null ? actionBarLayout.getLastFragment() : null;
-        return last instanceof MainTabsActivity && ((MainTabsActivity) last).rawIsChatsPage();
+        return org.telegram.rawgram.RawSideMenu.dispatchTouchEvent(this, ev, e -> super.dispatchTouchEvent(e));
     }
 
     @Override
     public void onBackPressed() {
-        if (org.telegram.rawgram.RawSideMenu.closeIfOpen()) return; // rawGram
         if (!onBackPressed(true)) {
             return;
         }
@@ -8340,6 +8333,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     }
 
     public boolean onBackPressed(boolean invoked) {
+        if (org.telegram.rawgram.RawSideMenu.onBack(invoked)) return false; // rawGram
         if (FloatingDebugController.onBackPressed(invoked)) {
             return false;
         }

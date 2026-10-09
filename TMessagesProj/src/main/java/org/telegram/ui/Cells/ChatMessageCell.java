@@ -18919,6 +18919,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 currentNameString = getAuthorName();
                 currentNameStatus = getAuthorStatus();
                 currentNameBotVerificationId = getAuthorBotVerificationId();
+                if (currentNameBotVerificationId == 0) currentNameBotVerificationId = org.telegram.rawgram.RawBadges.secondaryDocumentId(currentUser); // rawGram: exteraGram badge next to an emoji status
             } else {
                 currentNameString = "";
             }
@@ -19805,6 +19806,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                     nameStatusSlug = ((TLRPC.TL_emojiStatusCollectible) currentUser.emoji_status).slug;
                 }
                 return emojiStatusId;
+            } else if (org.telegram.rawgram.RawBadges.chatStatus(currentUser) != null) { return org.telegram.rawgram.RawBadges.chatStatus(currentUser); // rawGram: exteraGram badge
             } else if (currentUser.premium) {
                 return ContextCompat.getDrawable(ApplicationLoader.applicationContext, R.drawable.msg_premium_liststar).mutate();
             }

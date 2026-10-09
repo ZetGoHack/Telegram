@@ -19,7 +19,6 @@ import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -29,8 +28,10 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
+import org.telegram.rawgram.settings.RawPreferencesFragment;
+import org.telegram.rawgram.settings.RawPreviewCard;
+import org.telegram.rawgram.settings.RawSeekBarCell;
 import org.telegram.tgnet.TLRPC;
-import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
@@ -49,9 +50,10 @@ import java.util.ArrayList;
 
 /**
  * "Чаты": chat look and behaviour (RawChatUiConfig, classic look, input panel, stickers, message menu).
- * Every switch is off by default, which is stock Telegram. Option set ported from Nagram / NekoX / exteraGram settings.
+ * Every switch is off by default, which is stock Telegram. Option set ported from Nagram / NekoX / exteraGram settings;
+ * laid out like exteraGram (RawPreferencesFragment, previews on cards, titled sliders).
  */
-public class RawChatUiSettingsActivity extends BaseFragment {
+public class RawChatUiSettingsActivity extends RawPreferencesFragment {
 
     private static final int TYPE_HEADER = 0;
     private static final int TYPE_CHECK = 1;
@@ -102,7 +104,6 @@ public class RawChatUiSettingsActivity extends BaseFragment {
     private static final int SLIDER_PREVIEW_MENU = 4;
 
     private final ArrayList<Row> rows = new ArrayList<>();
-    private RecyclerListView listView;
     private ListAdapter adapter;
     private ChatPreviewCell previewCell;
     private StickerPreviewCell stickerPreviewCell;
@@ -191,8 +192,9 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         rows.add(new Row(TYPE_INFO, text, null, 0));
     }
 
-    private void slider(int id) {
-        rows.add(new Row(TYPE_SLIDER, null, null, id));
+    /** A slider titled like exteraGram's: {@code title} is shown in bold over it instead of a separate header. */
+    private void slider(String title, int id) {
+        rows.add(new Row(TYPE_SLIDER, title, null, id));
     }
 
     private void buildRows() {
@@ -239,21 +241,17 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         info("Время у стикера видно, пока сообщение выделено. «Добавить в…» копирует стикер или эмодзи в свой набор или в новый — "
                 + "в меню превью и в меню сообщения со стикером.");
 
-        header("Размер стикеров");
-        slider(SLIDER_STICKER_SIZE);
+        slider("Размер стикеров", SLIDER_STICKER_SIZE);
         rows.add(new Row(TYPE_STICKER, null, null, 0));
-        header("Недавние стикеры в панели");
-        slider(SLIDER_RECENT_STICKERS);
+        slider("Недавние стикеры в панели", SLIDER_RECENT_STICKERS);
         info("Сколько недавних стикеров показывать в панели. По умолчанию 20, максимум — "
                 + MessagesController.getInstance(currentAccount).maxRecentStickersCount + ".");
 
-        header("Долгое нажатие");
-        slider(SLIDER_LONG_PRESS);
+        slider("Долгое нажатие", SLIDER_LONG_PRESS);
         info("Через сколько открывается превью стикера или GIF и raw инлайн-результата. Системная задержка — "
                 + ViewConfiguration.getLongPressTimeout() + " мс.");
 
-        header("Меню под превью");
-        slider(SLIDER_PREVIEW_MENU);
+        slider("Меню под превью", SLIDER_PREVIEW_MENU);
         info("Через сколько после открытия превью появляются кнопки «Отправить», «В избранное» и другие. В обычном Telegram — 1,3 с, у GIF — 2 с.");
 
         header("Поле ввода");
@@ -375,30 +373,15 @@ public class RawChatUiSettingsActivity extends BaseFragment {
     }
 
     @Override
-    public View createView(Context context) {
-        actionBar.setBackButtonImage(R.drawable.ic_ab_back);
-        actionBar.setAllowOverlayTitle(true);
-        actionBar.setTitle("Чаты");
-        actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
-            @Override
-            public void onItemClick(int id) {
-                if (id == -1) {
-                    finishFragment();
-                }
-            }
-        });
+    protected String getTitle() {
+        return "Чаты";
+    }
 
+    @Override
+    protected RecyclerListView createListView(Context context) {
         buildRows();
 
-        FrameLayout frameLayout = new FrameLayout(context);
-        frameLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
-        fragmentView = frameLayout;
-
-        listView = new RecyclerListView(context);
-        listView.setSections();
-        actionBar.setAdaptiveBackground(listView);
-        listView.setLayoutManager(new LinearLayoutManager(context));
-        listView.setVerticalScrollBarEnabled(false);
+        RecyclerListView listView = new RecyclerListView(context);
         listView.setAdapter(adapter = new ListAdapter(context));
         listView.setOnItemClickListener((view, position) -> {
             if (position < 0 || position >= rows.size()) {
@@ -417,8 +400,7 @@ public class RawChatUiSettingsActivity extends BaseFragment {
                 onValueClick(row.id, position);
             }
         });
-        frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-        return fragmentView;
+        return listView;
     }
 
     private void pick(String title, CharSequence[] names, Runnable done, PickCallback callback) {
@@ -594,18 +576,18 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         }
     }
 
-    private void bindSlider(RawUiSettingsActivity.SliderCell cell, int id) {
+    private void bindSlider(RawSeekBarCell cell, String title, int id) {
         if (id == SLIDER_PREVIEW_MENU) {
-            cell.bind(RawgramConfig.PREVIEW_MENU_MIN, RawgramConfig.PREVIEW_MENU_MAX, RawgramConfig.PREVIEW_MENU_STEP,
+            cell.bind(title, RawgramConfig.PREVIEW_MENU_MIN, RawgramConfig.PREVIEW_MENU_MAX, RawgramConfig.PREVIEW_MENU_STEP,
                     RawgramConfig.getPreviewMenuDelay(), " мс", RawgramConfig::setPreviewMenuDelay);
         } else if (id == SLIDER_LONG_PRESS) {
-            cell.bind(RawgramConfig.LONG_PRESS_MIN, RawgramConfig.LONG_PRESS_MAX, RawgramConfig.LONG_PRESS_STEP,
+            cell.bind(title, RawgramConfig.LONG_PRESS_MIN, RawgramConfig.LONG_PRESS_MAX, RawgramConfig.LONG_PRESS_STEP,
                     RawgramConfig.getLongPressDelay(), " мс", RawgramConfig::setLongPressDelay);
         } else if (id == SLIDER_RECENT_STICKERS) {
-            cell.bind(RawgramConfig.RECENT_STICKERS_MIN, RawgramConfig.RECENT_STICKERS_MAX, RawgramConfig.RECENT_STICKERS_STEP,
+            cell.bind(title, RawgramConfig.RECENT_STICKERS_MIN, RawgramConfig.RECENT_STICKERS_MAX, RawgramConfig.RECENT_STICKERS_STEP,
                     RawgramConfig.getRecentStickersShown(), "", RawgramConfig::setRecentStickersShown);
         } else {
-            cell.bind(RawgramConfig.STICKER_SCALE_MIN, RawgramConfig.STICKER_SCALE_MAX, RawgramConfig.STICKER_SCALE_STEP,
+            cell.bind(title, RawgramConfig.STICKER_SCALE_MIN, RawgramConfig.STICKER_SCALE_MAX, RawgramConfig.STICKER_SCALE_STEP,
                     RawgramConfig.getStickerScalePercent(), "%", value -> {
                         RawgramConfig.setStickerScalePercent(value);
                         updatePreview(); // also re-lays out the sticker preview
@@ -656,11 +638,13 @@ public class RawChatUiSettingsActivity extends BaseFragment {
             } else if (viewType == TYPE_VALUE) {
                 view = new TextSettingsCell(context);
             } else if (viewType == TYPE_PREVIEW) {
-                view = previewCell = new ChatPreviewCell(context);
+                view = new RawPreviewCard(context, previewCell = new ChatPreviewCell(context));
             } else if (viewType == TYPE_SLIDER) {
-                view = new RawUiSettingsActivity.SliderCell(context);
+                view = new RawSeekBarCell(context);
             } else if (viewType == TYPE_STICKER) {
-                view = stickerPreviewCell = new StickerPreviewCell(context);
+                // right under the sticker size slider, as exteraGram's slider + messages preview
+                view = new RawPreviewCard(context, stickerPreviewCell = new StickerPreviewCell(context), 0, RawPreviewCard.INSET_DP)
+                        .setDivider(true);
             } else {
                 view = new TextInfoPrivacyCell(context);
             }
@@ -676,7 +660,7 @@ public class RawChatUiSettingsActivity extends BaseFragment {
                     ((HeaderCell) holder.itemView).setText(row.text);
                     break;
                 case TYPE_PREVIEW:
-                    ((ChatPreviewCell) holder.itemView).bind();
+                    ((ChatPreviewCell) ((RawPreviewCard) holder.itemView).getContent()).bind();
                     break;
                 case TYPE_CHECK:
                     ((TextCheckCell) holder.itemView).setTextAndCheck(row.text, row.flag != null ? row.flag.get() : customCheck(row.id), needDivider(position));
@@ -685,7 +669,7 @@ public class RawChatUiSettingsActivity extends BaseFragment {
                     ((TextSettingsCell) holder.itemView).setTextAndValue(row.text, valueText(row.id), needDivider(position));
                     break;
                 case TYPE_SLIDER:
-                    bindSlider((RawUiSettingsActivity.SliderCell) holder.itemView, row.id);
+                    bindSlider((RawSeekBarCell) holder.itemView, row.text, row.id);
                     break;
                 case TYPE_STICKER:
                     break;

@@ -1519,6 +1519,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                                 emojiStatus.setParticles(false, false);
                             }
                         }
+                        if (org.telegram.rawgram.RawBadges.applyDialogStatus(currentAccount, user, emojiStatus, false)) { drawPremium = true; nameLayoutEllipsizeByGradient = true; } // rawGram: exteraGram badge
                     }
                     if (dialogBotVerificationIcon != 0 && drawBotVerified) {
                         botVerification.set(dialogBotVerificationIcon, false);
@@ -3348,6 +3349,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                             emojiStatus.set(PremiumGradient.getInstance().premiumStarDrawableMini, animated);
                             emojiStatus.setParticles(false, animated);
                         }
+                        org.telegram.rawgram.RawBadges.applyDialogStatus(currentAccount, user, emojiStatus, animated); // rawGram: exteraGram badge
                         dialogBotVerificationIcon = DialogObject.getBotVerificationIcon(user);
                         invalidate = true;
                     }

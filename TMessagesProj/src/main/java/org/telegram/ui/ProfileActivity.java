@@ -11218,6 +11218,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (botVerificationDrawable[a] != null) {
                 botVerificationDrawable[a].setColor(ColorUtils.blendARGB(ColorUtils.blendARGB(fromColor, 0x99ffffff, progress), getThemedColor(Theme.key_player_actionBarTitle), mediaHeaderAnimationProgress));
             }
+            org.telegram.rawgram.RawBadges.setProfileBadgeColor(nameTextView[a], ColorUtils.blendARGB(ColorUtils.blendARGB(fromColor, 0x99ffffff, progress), getThemedColor(Theme.key_player_actionBarTitle), mediaHeaderAnimationProgress)); // rawGram
             if (a == 1) {
                 animatedStatusView.setColor(color);
             }
@@ -11609,6 +11610,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         showDialog(premiumPreviewBottomSheet);
                     });
                 }
+                org.telegram.rawgram.RawBadges.onProfileName(this, nameTextView[a], user, a, a == 0 && copyFromChatActivity); // rawGram: exteraGram badge
             }
 
             if (userId == UserConfig.getInstance(currentAccount).clientUserId) {
@@ -11854,6 +11856,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         nameTextView[a].setRightDrawable(null);
                     }
                 }
+                org.telegram.rawgram.RawBadges.onProfileName(this, nameTextView[a], chat, a, a == 0 && copyFromChatActivity); // rawGram: exteraGram badge
                 if (chat.bot_verification_icon != 0) {
                     nameTextView[a].setLeftDrawableOutside(true);
                     nameTextView[a].setLeftDrawable(getBotVerificationDrawable(chat.bot_verification_icon, false, a));

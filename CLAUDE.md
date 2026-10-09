@@ -83,6 +83,12 @@ credited in `CREDITS.md`). Before inventing a UI feature, grep it there
 and look (strings, icons such as the `*_solar` drawables, popup style), adapted to rawGram's hook style: the logic in a
 `rawgram` class, one-line calls in the Telegram file, the switch in the matching `Raw*Config`.
 
+For the **look and implementation of UI** (settings screens, side menu, components, animations) the reference is
+exteraGram, not Nagram: a jadx decompile from the exteraGram developer is at `../etg-src/sources`
+(`com/exteragram/messenger/…`, Telegram classes under `org/telegram/p039ui`). Port from it into `rawgram` as clean Java
+(`p039ui` → `ui`, `m1199dp` → `dp`, synthetic lambdas → lambdas, magic ints → constants) and credit exteraGram in the
+javadoc. Nagram stays the reference for feature switches and their hook sites; its UI code has bugs that get inherited.
+
 ## User-facing texts (settings labels, info lines, hints, bulletins)
 
 - Russian, short and plain, like Nagram's own strings (`../NagramXF/TMessagesProj/src/main/res/values-ru-rRU/strings_*.xml`

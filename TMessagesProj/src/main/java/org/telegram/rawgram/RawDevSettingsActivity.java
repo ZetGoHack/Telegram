@@ -3,22 +3,16 @@ package org.telegram.rawgram;
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.telegram.messenger.R;
-import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.rawgram.settings.RawPreferencesFragment;
 import org.telegram.ui.ActionBar.AlertDialog;
-import org.telegram.ui.ActionBar.BaseFragment;
-import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.TextCheckCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
-import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 
 import java.util.ArrayList;
@@ -27,7 +21,7 @@ import java.util.ArrayList;
  * "Инструменты разработчика": rawGram's raw / debug features (each off = stock Telegram behavior there),
  * the ID format in profiles, the request and crash logs and the server config viewer.
  */
-public class RawDevSettingsActivity extends BaseFragment {
+public class RawDevSettingsActivity extends RawPreferencesFragment {
 
     private static final int TYPE_HEADER = 0;
     private static final int TYPE_CHECK = 1;
@@ -70,7 +64,6 @@ public class RawDevSettingsActivity extends BaseFragment {
     }
 
     private final ArrayList<Row> rows = new ArrayList<>();
-    private RecyclerListView listView;
     private ListAdapter adapter;
 
     private void header(String text) {
@@ -175,30 +168,15 @@ public class RawDevSettingsActivity extends BaseFragment {
     }
 
     @Override
-    public View createView(Context context) {
-        actionBar.setBackButtonImage(R.drawable.ic_ab_back);
-        actionBar.setAllowOverlayTitle(true);
-        actionBar.setTitle("Инструменты разработчика");
-        actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
-            @Override
-            public void onItemClick(int id) {
-                if (id == -1) {
-                    finishFragment();
-                }
-            }
-        });
+    protected String getTitle() {
+        return "Инструменты разработчика";
+    }
 
+    @Override
+    protected RecyclerListView createListView(Context context) {
         buildRows();
 
-        FrameLayout frameLayout = new FrameLayout(context);
-        frameLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
-        fragmentView = frameLayout;
-
-        listView = new RecyclerListView(context);
-        listView.setSections();
-        actionBar.setAdaptiveBackground(listView);
-        listView.setLayoutManager(new LinearLayoutManager(context));
-        listView.setVerticalScrollBarEnabled(false);
+        RecyclerListView listView = new RecyclerListView(context);
         listView.setAdapter(adapter = new ListAdapter(context));
         listView.setOnItemClickListener((view, position) -> {
             if (position < 0 || position >= rows.size()) {
@@ -213,8 +191,7 @@ public class RawDevSettingsActivity extends BaseFragment {
                 onValueClick(row.id, position);
             }
         });
-        frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-        return fragmentView;
+        return listView;
     }
 
     private void onValueClick(int id, int position) {

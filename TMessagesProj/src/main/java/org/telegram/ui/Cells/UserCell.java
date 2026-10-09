@@ -697,6 +697,7 @@ public class UserCell extends FrameLayout implements NotificationCenter.Notifica
             nameTextView.setRightDrawable(null);
             nameTextView.setRightDrawableTopPadding(0);
         }
+        org.telegram.rawgram.RawBadges.applyUserCell(nameTextView, emojiStatus, currentUser, resourcesProvider); // rawGram: exteraGram badge
         if (currentStatus != null) {
             statusTextView.setTextColor(statusColor);
             CharSequence status = currentStatus;

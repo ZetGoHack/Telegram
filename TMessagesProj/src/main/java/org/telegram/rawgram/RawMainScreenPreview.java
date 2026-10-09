@@ -67,11 +67,11 @@ public class RawMainScreenPreview extends LinearLayout {
         this.account = account;
         setOrientation(VERTICAL);
 
-        // rounded like the section card it sits in
+        // rounded like the preview card it sits in (RawPreviewCard)
         setOutlineProvider(new ViewOutlineProvider() {
             @Override
             public void getOutline(View view, Outline outline) {
-                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dp(16));
+                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dp(org.telegram.rawgram.settings.RawPreviewBackground.DEFAULT_RADIUS_DP));
             }
         });
         setClipToOutline(true);

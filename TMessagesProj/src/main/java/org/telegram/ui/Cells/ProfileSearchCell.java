@@ -796,6 +796,7 @@ public class ProfileSearchCell extends BaseCell implements NotificationCenter.No
         } else if (allowEmojiStatus && chat != null && !savedMessages && DialogObject.getEmojiStatusDocumentId(chat.emoji_status) != 0) {
             statusDrawable.set(DialogObject.getEmojiStatusDocumentId(chat.emoji_status), animated);
             statusDrawable.setColor(Theme.getColor(Theme.key_chats_verifiedBackground, resourcesProvider));
+        } else if (allowEmojiStatus && !savedMessages && org.telegram.rawgram.RawBadges.setStatus(statusDrawable, user, chat, animated)) { statusDrawable.setColor(Theme.getColor(Theme.key_chats_verifiedBackground, resourcesProvider)); // rawGram: exteraGram badge
         } else if (allowEmojiStatus && user != null && !savedMessages && MessagesController.getInstance(currentAccount).isPremiumUser(user)) {
             statusDrawable.set(PremiumGradient.getInstance().premiumStarDrawableMini, animated);
             statusDrawable.setColor(Theme.getColor(Theme.key_chats_verifiedBackground, resourcesProvider));

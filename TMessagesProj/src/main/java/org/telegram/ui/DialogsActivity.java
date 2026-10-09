@@ -5338,7 +5338,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
         };
         dialogStoriesCell.setActionBar(actionBar);
-        dialogStoriesCell.setMenuItemsOffset(isArchive() ? dp(68) : dpf2(16.66f));
+        dialogStoriesCell.setMenuItemsOffset(isArchive() || org.telegram.rawgram.RawSideMenu.hasMenuButton(actionBar) ? dp(68) : dpf2(16.66f)); // rawGram: stories make room for ☰
         dialogStoriesCell.allowGlobalUpdates = false;
         dialogStoriesCell.setVisibility(View.GONE);
         animateToHasStories = false;
@@ -14184,8 +14184,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         }
     }
 
+    public boolean rawCanSwipeOpenSideMenu() { return org.telegram.rawgram.RawSideMenu.canSwipeOpen(this, onlySelect || searching || searchIsShowed || startedTracking || maybeStartTracking || tabsAnimationInProgress || rightFragmentTransitionInProgress || rightSlidingDialogContainer != null && rightSlidingDialogContainer.hasFragment(), filterTabsView); } // rawGram: exteraGram's swipe-to-open check
+
     private boolean isSupportSearch() {
-        return initialDialogsType != DIALOGS_TYPE_ADD_USERS_TO;
+        return initialDialogsType != DIALOGS_TYPE_ADD_USERS_TO && !org.telegram.rawgram.RawSideMenu.isAccountPreview(this); // rawGram
     }
 
     public long getCommunityId() {

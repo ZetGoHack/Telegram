@@ -1,67 +1,56 @@
 package org.telegram.rawgram;
 
 import android.content.Context;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffColorFilter;
-import android.text.TextUtils;
-import android.util.TypedValue;
-import android.view.Gravity;
+import android.content.pm.PackageInfo;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
-import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.rawgram.settings.RawPreferencesFragment;
+import org.telegram.rawgram.settings.RawSettingsHeaderCell;
 import org.telegram.ui.ActionBar.AlertDialog;
-import org.telegram.ui.ActionBar.BaseFragment;
-import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.ShadowSectionCell;
+import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
-import org.telegram.ui.Cells.TextSettingsCell;
-import org.telegram.ui.Components.IconBackgroundColors;
-import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
-import org.telegram.ui.SettingsActivity;
 
 import java.util.ArrayList;
 
 /**
- * "Настройки rawGram": a hub of category rows (icon + short subtitle, like Telegram's main settings) that open
- * the actual settings screens, plus credits and the version line.
+ * "Настройки rawGram": a hub laid out like exteraGram's preferences: the app icon, name and version on top,
+ * then the categories (outline icon, title and a short subtitle) that open the actual settings screens,
+ * the backup section, credits and the version line.
  */
-public class RawgramSettingsActivity extends BaseFragment {
+public class RawgramSettingsActivity extends RawPreferencesFragment {
 
     private static final int TYPE_CATEGORY = 0;
     private static final int TYPE_SHADOW = 1;
-    private static final int TYPE_VALUE = 2;
+    private static final int TYPE_BUTTON = 2;
     private static final int TYPE_INFO = 3;
     private static final int TYPE_HEADER = 4;
+    private static final int TYPE_APP_HEADER = 5;
 
-    /** One list row. For TYPE_CATEGORY: icon, icon background, title, subtitle and what a tap opens. */
+    private static final int CATEGORY_HEIGHT_DP = 60;
+
+    /** One list row. For TYPE_CATEGORY / TYPE_BUTTON: icon, title, subtitle and what a tap opens. */
     private static class Row {
         final int type;
         final int icon;
-        final IconBackgroundColors colors;
         final String title;
         final String subtitle;
         final Runnable action;
         Runnable longAction;
 
-        Row(int type, int icon, IconBackgroundColors colors, String title, String subtitle, Runnable action) {
+        Row(int type, int icon, String title, String subtitle, Runnable action) {
             this.type = type;
             this.icon = icon;
-            this.colors = colors;
             this.title = title;
             this.subtitle = subtitle;
             this.action = action;
@@ -69,60 +58,61 @@ public class RawgramSettingsActivity extends BaseFragment {
     }
 
     private final ArrayList<Row> rows = new ArrayList<>();
-    private RecyclerListView listView;
 
-    private void category(int icon, IconBackgroundColors colors, String title, String subtitle, Runnable action) {
-        rows.add(new Row(TYPE_CATEGORY, icon, colors, title, subtitle, action));
+    private void category(int icon, String title, String subtitle, Runnable action) {
+        rows.add(new Row(TYPE_CATEGORY, icon, title, subtitle, action));
+    }
+
+    private Row button(int icon, String title, Runnable action) {
+        Row row = new Row(TYPE_BUTTON, icon, title, null, action);
+        rows.add(row);
+        return row;
     }
 
     private void buildRows() {
         rows.clear();
-        category(R.drawable.msg_discussion, IconBackgroundColors.BLUE, "Чаты",
+        rows.add(new Row(TYPE_APP_HEADER, 0, null, null, null));
+        rows.add(new Row(TYPE_HEADER, 0, "Категории", null, null));
+        category(R.drawable.msg_discussion, "Чаты",
                 "Вид чата, сообщения, меню, стикеры", () -> presentFragment(new RawChatUiSettingsActivity()));
-        category(R.drawable.msg_palette, IconBackgroundColors.PURPLE, "Внешний вид",
+        category(R.drawable.msg_palette, "Внешний вид",
                 "Главный экран, папки, аватарки, иконки", () -> presentFragment(new RawUiSettingsActivity()));
         // Плагины (branch rawgram-plugins): add one line here, e.g.
-        // category(R.drawable.msg_bots, IconBackgroundColors.GREEN, "Плагины", "Установленные плагины", () -> presentFragment(new RawPluginsActivity()));
-        category(R.drawable.settings_rawgram, IconBackgroundColors.GRAY, "Инструменты разработчика",
+        // category(R.drawable.msg_bots, "Плагины", "Установленные плагины", () -> presentFragment(new RawPluginsActivity()));
+        category(R.drawable.settings_rawgram, "Инструменты разработчика",
                 "Raw-данные, ID, журналы, сервер", () -> presentFragment(new RawDevSettingsActivity()));
-        rows.add(new Row(TYPE_SHADOW, 0, null, null, null, null));
-        rows.add(new Row(TYPE_HEADER, 0, null, "Резервная копия", null, null));
-        rows.add(new Row(TYPE_VALUE, 0, null, "Бекап настроек", null, () -> RawBackup.backupSettings(this)));
-        Row full = new Row(TYPE_VALUE, 0, null, "Полный бекап", null, () -> RawBackup.backupData(this));
-        full.longAction = () -> RawBackup.backupStorage(this);
-        rows.add(full);
-        rows.add(new Row(TYPE_VALUE, 0, null, "Восстановить из файла", null, () -> RawBackup.pickRestore(this)));
-        rows.add(new Row(TYPE_INFO, 0, null, "Полный бекап — настройки и данные rawGram: отчёты о сбоях и диагностика. "
+        rows.add(new Row(TYPE_SHADOW, 0, null, null, null));
+        rows.add(new Row(TYPE_HEADER, 0, "Резервная копия", null, null));
+        button(R.drawable.msg_settings_old, "Бекап настроек", () -> RawBackup.backupSettings(this));
+        button(R.drawable.msg_archive, "Полный бекап", () -> RawBackup.backupData(this)).longAction = () -> RawBackup.backupStorage(this);
+        button(R.drawable.msg_retry, "Восстановить из файла", () -> RawBackup.pickRestore(this));
+        rows.add(new Row(TYPE_INFO, 0, "Полный бекап — настройки и данные rawGram: отчёты о сбоях и диагностика. "
                 + "Удерживай его, чтобы сохранить всё приложение вместе с сессиями в зашифрованный файл.", null, null));
-        rows.add(new Row(TYPE_VALUE, 0, null, "Авторы и лицензии", null, this::showCredits));
-        rows.add(new Row(TYPE_INFO, 0, null, "rawGram на основе Telegram " + BuildVars.BUILD_VERSION_STRING + " · GPLv3", null, null));
+        button(R.drawable.msg_info, "Авторы и лицензии", this::showCredits);
+        rows.add(new Row(TYPE_INFO, 0, "rawGram на основе Telegram " + BuildVars.BUILD_VERSION_STRING + " · GPLv3", null, null));
     }
 
     @Override
-    public View createView(Context context) {
-        actionBar.setBackButtonImage(R.drawable.ic_ab_back);
-        actionBar.setAllowOverlayTitle(true);
-        actionBar.setTitle("Настройки rawGram");
-        actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
-            @Override
-            public void onItemClick(int id) {
-                if (id == -1) {
-                    finishFragment();
-                }
-            }
-        });
+    protected String getTitle() {
+        return "Настройки rawGram";
+    }
 
+    @Override
+    protected boolean hideTitleAtTop() {
+        return true;
+    }
+
+    @Override
+    protected int listTopPadding(int topInset) {
+        // the app header gives the room under the bar itself, as in exteraGram
+        return topInset + org.telegram.messenger.AndroidUtilities.dp(12);
+    }
+
+    @Override
+    protected RecyclerListView createListView(Context context) {
         buildRows();
 
-        FrameLayout frameLayout = new FrameLayout(context);
-        frameLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
-        fragmentView = frameLayout;
-
-        listView = new RecyclerListView(context);
-        listView.setSections();
-        actionBar.setAdaptiveBackground(listView);
-        listView.setLayoutManager(new LinearLayoutManager(context));
-        listView.setVerticalScrollBarEnabled(false);
+        RecyclerListView listView = new RecyclerListView(context);
         listView.setAdapter(new ListAdapter(context));
         listView.setOnItemClickListener((view, position) -> {
             if (position < 0 || position >= rows.size()) {
@@ -140,13 +130,24 @@ public class RawgramSettingsActivity extends BaseFragment {
             rows.get(position).longAction.run();
             return true;
         });
-        frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-        return fragmentView;
+        return listView;
     }
 
     @Override
     public void onActivityResultFragment(int requestCode, int resultCode, android.content.Intent data) {
         RawBackup.onActivityResult(this, requestCode, resultCode, data);
+    }
+
+    /** "12.10.6 (7112)": the version and build number, as exteraGram shows them under the app name. */
+    private static String versionLine() {
+        StringBuilder text = new StringBuilder(BuildVars.BUILD_VERSION_STRING);
+        try {
+            Context context = ApplicationLoader.applicationContext;
+            PackageInfo info = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+            text.append(" (").append(info.versionCode).append(")");
+        } catch (Exception ignore) {
+        }
+        return text.toString();
     }
 
     private void showCredits() {
@@ -169,6 +170,14 @@ public class RawgramSettingsActivity extends BaseFragment {
                 .show();
     }
 
+    private boolean needDivider(int position) {
+        if (position + 1 >= rows.size()) {
+            return false;
+        }
+        int next = rows.get(position + 1).type;
+        return next == TYPE_CATEGORY || next == TYPE_BUTTON;
+    }
+
     private class ListAdapter extends RecyclerListView.SelectionAdapter {
         private final Context context;
 
@@ -184,7 +193,7 @@ public class RawgramSettingsActivity extends BaseFragment {
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
             int type = holder.getItemViewType();
-            return type == TYPE_CATEGORY || type == TYPE_VALUE;
+            return type == TYPE_CATEGORY || type == TYPE_BUTTON;
         }
 
         @Override
@@ -196,12 +205,18 @@ public class RawgramSettingsActivity extends BaseFragment {
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             View view;
-            if (viewType == TYPE_CATEGORY) {
-                view = new CategoryCell(context);
+            if (viewType == TYPE_CATEGORY || viewType == TYPE_BUTTON) {
+                TextCell cell = new TextCell(context);
+                if (viewType == TYPE_CATEGORY) {
+                    cell.heightDp = CATEGORY_HEIGHT_DP;
+                }
+                view = cell;
+            } else if (viewType == TYPE_APP_HEADER) {
+                RawSettingsHeaderCell header = new RawSettingsHeaderCell(context);
+                header.setTexts("rawGram", versionLine());
+                view = header;
             } else if (viewType == TYPE_SHADOW) {
                 view = new ShadowSectionCell(context);
-            } else if (viewType == TYPE_VALUE) {
-                view = new TextSettingsCell(context);
             } else if (viewType == TYPE_HEADER) {
                 view = new HeaderCell(context);
             } else {
@@ -216,76 +231,22 @@ public class RawgramSettingsActivity extends BaseFragment {
             Row row = rows.get(position);
             switch (row.type) {
                 case TYPE_CATEGORY:
-                    ((CategoryCell) holder.itemView).set(row);
+                case TYPE_BUTTON: {
+                    TextCell cell = (TextCell) holder.itemView;
+                    cell.setTextAndIcon(row.title, row.icon, needDivider(position));
+                    cell.setSubtitle(row.subtitle);
                     break;
-                case TYPE_VALUE:
-                    ((TextSettingsCell) holder.itemView).setText(row.title, false);
-                    break;
+                }
                 case TYPE_INFO:
                     ((TextInfoPrivacyCell) holder.itemView).setText(row.title);
                     break;
                 case TYPE_HEADER:
                     ((HeaderCell) holder.itemView).setText(row.title);
                     break;
+                case TYPE_APP_HEADER:
+                    ((RawSettingsHeaderCell) holder.itemView).updateColors();
+                    break;
             }
-        }
-    }
-
-    /** Title + subtitle with a white icon on a rounded gradient square, as in Telegram's main settings list. */
-    private static class CategoryCell extends LinearLayout {
-        private final SettingsActivity.SettingCell.Background iconBackground;
-        private final ImageView iconView;
-        private final TextView titleView;
-        private final TextView subtitleView;
-
-        CategoryCell(Context context) {
-            super(context);
-            setOrientation(HORIZONTAL);
-
-            FrameLayout iconLayout = new FrameLayout(context);
-            iconLayout.setBackground(iconBackground = new SettingsActivity.SettingCell.Background());
-            iconView = new ImageView(context);
-            iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            iconView.setColorFilter(new PorterDuffColorFilter(0xFFFFFFFF, PorterDuff.Mode.SRC_IN));
-            iconLayout.addView(iconView, LayoutHelper.createFrame(24, 24, Gravity.CENTER));
-
-            LinearLayout textLayout = new LinearLayout(context);
-            textLayout.setOrientation(VERTICAL);
-            titleView = new TextView(context);
-            titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
-            titleView.setSingleLine(true);
-            titleView.setEllipsize(TextUtils.TruncateAt.END);
-            titleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
-            textLayout.addView(titleView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
-            subtitleView = new TextView(context);
-            subtitleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
-            subtitleView.setSingleLine(true);
-            subtitleView.setEllipsize(TextUtils.TruncateAt.END);
-            subtitleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
-            textLayout.addView(subtitleView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 4, 0, 0));
-
-            if (LocaleController.isRTL) {
-                addView(textLayout, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1, Gravity.CENTER_VERTICAL, 20, 0, 18, 0));
-                addView(iconLayout, LayoutHelper.createLinear(28, 28, Gravity.CENTER_VERTICAL, 0, 0, 18, 0));
-            } else {
-                addView(iconLayout, LayoutHelper.createLinear(28, 28, Gravity.CENTER_VERTICAL, 18, 0, 0, 0));
-                addView(textLayout, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1, Gravity.CENTER_VERTICAL, 18, 0, 20, 0));
-            }
-            iconBackground.setDrawBorder(Theme.isCurrentThemeDark());
-        }
-
-        void set(Row row) {
-            iconBackground.setColor(row.colors.top, row.colors.bottom);
-            iconView.setImageResource(row.icon);
-            titleView.setText(row.title);
-            subtitleView.setText(row.subtitle);
-            subtitleView.setVisibility(TextUtils.isEmpty(row.subtitle) ? GONE : VISIBLE);
-        }
-
-        @Override
-        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            super.onMeasure(MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY),
-                    MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(60), MeasureSpec.EXACTLY));
         }
     }
 }

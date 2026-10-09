@@ -4,8 +4,6 @@ import static org.telegram.messenger.AndroidUtilities.dp;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.RectF;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -15,9 +13,10 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.core.graphics.ColorUtils;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.rawgram.settings.RawPreviewBackground;
+import org.telegram.rawgram.settings.RawPreviewCard;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AnimatedFloat;
 import org.telegram.ui.Components.CubicBezierInterpolator;
@@ -26,10 +25,14 @@ import org.telegram.ui.Components.LayoutHelper;
 import java.util.ArrayList;
 
 /**
- * A row of selectable tiles (Nagram / exteraGram appearance style): every tile is a rounded card with a
- * live sample inside and a label under it; the selected one gets an accent outline and an accent label.
+ * A row of selectable tiles (exteraGram appearance style, after its FabShapeCell): every tile is a rounded
+ * preview card with a live sample inside and a label under it; the selected one gets the thick accent outline
+ * and an accent label.
  */
 public class RawTilesCell extends LinearLayout {
+
+    /** Half of the gap between two tiles. */
+    private static final int TILE_MARGIN_DP = 8;
 
     public interface OnTileClick {
         void onClick(int index, Tile tile);
@@ -41,7 +44,8 @@ public class RawTilesCell extends LinearLayout {
     public RawTilesCell(Context context) {
         super(context);
         setOrientation(HORIZONTAL);
-        setPadding(dp(12), dp(14), dp(12), dp(12));
+        // the outer tiles line up with the preview cards: RawPreviewCard.INSET_DP from the section edges
+        setPadding(dp(RawPreviewCard.INSET_DP - TILE_MARGIN_DP), dp(15), dp(RawPreviewCard.INSET_DP - TILE_MARGIN_DP), dp(16));
     }
 
     /** Adds a tile showing {@code content} in a card {@code cardHeightDp} high. */
@@ -54,13 +58,7 @@ public class RawTilesCell extends LinearLayout {
             }
         });
         tiles.add(tile);
-        addView(tile, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f, Gravity.TOP, index == 0 ? 0 : 5, 0, 5, 0));
-        // keep the outer gaps even: the first tile has no left margin, the last no right margin
-        for (int i = 0; i < tiles.size(); i++) {
-            LayoutParams lp = (LayoutParams) tiles.get(i).getLayoutParams();
-            lp.leftMargin = i == 0 ? 0 : dp(5);
-            lp.rightMargin = i == tiles.size() - 1 ? 0 : dp(5);
-        }
+        addView(tile, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f, Gravity.TOP, TILE_MARGIN_DP, 0, TILE_MARGIN_DP, 0));
         return tile;
     }
 
@@ -96,7 +94,7 @@ public class RawTilesCell extends LinearLayout {
             card = new Card(context);
             // the tile is the clickable view; the card shows its pressed state as a rounded ripple
             card.setDuplicateParentStateEnabled(true);
-            card.setForeground(Theme.createRadSelectorDrawable(Theme.getColor(Theme.key_listSelector), 12, 12));
+            card.setForeground(Theme.createRadSelectorDrawable(Theme.getColor(Theme.key_listSelector), (int) RawPreviewBackground.DEFAULT_RADIUS_DP, (int) RawPreviewBackground.DEFAULT_RADIUS_DP));
             card.addView(content, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
             addView(card, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, cardHeightDp));
 
@@ -134,37 +132,22 @@ public class RawTilesCell extends LinearLayout {
         }
     }
 
+    /** Tile card: exteraGram's preview background, its hairline outline growing into the accent one when selected. */
     private static class Card extends FrameLayout {
         float target;
         final AnimatedFloat selection = new AnimatedFloat(this, 0, 320, CubicBezierInterpolator.EASE_OUT_QUINT);
-        private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint strokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final RectF rect = new RectF();
+        private final RawPreviewBackground background = new RawPreviewBackground();
 
         Card(Context context) {
             super(context);
-            strokePaint.setStyle(Paint.Style.STROKE);
             setPadding(dp(4), dp(4), dp(4), dp(4));
         }
 
         @Override
         protected void dispatchDraw(@NonNull Canvas canvas) {
-            float s = selection.set(target);
-            float stroke = dp(2);
-            rect.set(stroke / 2f, stroke / 2f, getWidth() - stroke / 2f, getHeight() - stroke / 2f);
-
-            int white = Theme.getColor(Theme.key_windowBackgroundWhite);
-            int gray = Theme.getColor(Theme.key_windowBackgroundGray);
-            // the gray of the settings background, a bit lighter so the tile reads as a card on the white section
-            fillPaint.setColor(ColorUtils.blendARGB(gray, white, Theme.isCurrentThemeDark() ? 0.25f : 0.1f));
-            canvas.drawRoundRect(rect, dp(12), dp(12), fillPaint);
-
-            int idle = Theme.multAlpha(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText), 0.08f);
-            int accent = Theme.getColor(Theme.key_windowBackgroundWhiteBlueHeader);
-            strokePaint.setStrokeWidth(AndroidUtilities.lerp(dp(1), stroke, s));
-            strokePaint.setColor(ColorUtils.blendARGB(idle, accent, s));
-            canvas.drawRoundRect(rect, dp(12), dp(12), strokePaint);
-
+            background.setSelectionProgress(selection.set(target));
+            background.setBounds(0, 0, getWidth(), getHeight());
+            background.draw(canvas);
             super.dispatchDraw(canvas);
         }
     }

@@ -39732,6 +39732,7 @@ public class ChatActivity extends BaseFragment implements
             if (cell == null) {
                 return;
             }
+            if (org.telegram.rawgram.RawBadges.onChatStatusPressed(ChatActivity.this, user)) return; // rawGram: exteraGram badge info
             if (!TextUtils.isEmpty(giftSlug)) {
                 Browser.openUrl(getContext(), "https://" + getMessagesController().linkPrefix + "/nft/" + giftSlug);
                 return;

@@ -366,6 +366,19 @@ public class RawgramConfig {
         numberIds.set(value);
     }
 
+    // exteraGram profile badges (RawBadges): bulk list from api.exteragram.app, drawn next to names
+    private static final Flag exteraBadges = new Flag("featExteraBadges", true);
+
+    /** exteraGram badges next to names; off means no requests to the exteraGram API and nothing drawn. */
+    public static boolean isExteraBadges() {
+        return exteraBadges.get();
+    }
+
+    public static void setExteraBadges(boolean value) {
+        exteraBadges.set(value);
+        RawBadges.onSwitchChanged();
+    }
+
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }

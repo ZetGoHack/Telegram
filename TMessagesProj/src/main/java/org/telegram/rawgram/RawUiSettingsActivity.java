@@ -16,11 +16,9 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -28,7 +26,9 @@ import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.Utilities;
-import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.rawgram.settings.RawPreferencesFragment;
+import org.telegram.rawgram.settings.RawPreviewCard;
+import org.telegram.rawgram.settings.RawSeekBarCell;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
@@ -41,16 +41,15 @@ import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
-import org.telegram.ui.Components.SeekBarView;
 import org.telegram.ui.Components.Switch;
 
 /**
  * "Интерфейс": rawGram look-and-feel options. Every option off / default = stock Telegram.
- * Laid out like Nagram / exteraGram appearance settings: a copy of the main screen on top, and sections
- * with their own live preview right above the related options (avatars, folder tabs, icon pack tiles,
- * switch style tiles).
+ * Laid out like exteraGram appearance settings (RawPreferencesFragment, preview cards, titled sliders): a copy
+ * of the main screen on top, and sections with their own live preview right above the related options
+ * (avatars, folder tabs, icon pack tiles, switch style tiles).
  */
-public class RawUiSettingsActivity extends BaseFragment {
+public class RawUiSettingsActivity extends RawPreferencesFragment {
 
     private static final int TYPE_HEADER = 0;
     private static final int TYPE_CHECK = 1;
@@ -71,7 +70,6 @@ public class RawUiSettingsActivity extends BaseFragment {
     private int previewRow;
     private int previewInfoRow;
 
-    private int avatarHeaderRow;
     private int avatarPreviewRow;
     private int avatarSliderRow;
     private int avatarInfoRow;
@@ -121,6 +119,7 @@ public class RawUiSettingsActivity extends BaseFragment {
     private int hideDividersRow;
     private int systemFontRow;
     private int motionRow;
+    private int badgesRow;
     private int lookInfoRow;
 
     private int settingsHeaderRow;
@@ -134,7 +133,6 @@ public class RawUiSettingsActivity extends BaseFragment {
     private int tabsHideContactsRow;
     private int bottomTabsInfoRow;
 
-    private RecyclerListView listView;
     private ListAdapter adapter;
     private boolean needRebuild;
 
@@ -181,9 +179,9 @@ public class RawUiSettingsActivity extends BaseFragment {
         sideMenuRow = rowCount++;
         bottomTabsInfoRow = rowCount++;
 
-        avatarHeaderRow = rowCount++;
-        avatarPreviewRow = rowCount++;
+        // exteraGram's avatar corners card: the titled slider first, the live preview under it
         avatarSliderRow = rowCount++;
+        avatarPreviewRow = rowCount++;
         avatarInfoRow = rowCount++;
 
         iconHeaderRow = rowCount++;
@@ -198,6 +196,7 @@ public class RawUiSettingsActivity extends BaseFragment {
         systemFontRow = rowCount++;
         hideDividersRow = rowCount++;
         motionRow = rowCount++;
+        badgesRow = rowCount++;
         lookInfoRow = rowCount++;
 
         settingsHeaderRow = rowCount++;
@@ -224,33 +223,17 @@ public class RawUiSettingsActivity extends BaseFragment {
     }
 
     @Override
-    public View createView(Context context) {
-        actionBar.setBackButtonImage(R.drawable.ic_ab_back);
-        actionBar.setAllowOverlayTitle(true);
-        actionBar.setTitle("Внешний вид");
-        actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
-            @Override
-            public void onItemClick(int id) {
-                if (id == -1) {
-                    finishFragment();
-                }
-            }
-        });
+    protected String getTitle() {
+        return "Внешний вид";
+    }
 
-        FrameLayout frameLayout = new FrameLayout(context);
-        frameLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
-        fragmentView = frameLayout;
-
-        listView = new RecyclerListView(context);
-        listView.setSections();
-        actionBar.setAdaptiveBackground(listView);
-        listView.setLayoutManager(new LinearLayoutManager(context));
-        listView.setVerticalScrollBarEnabled(false);
+    @Override
+    protected RecyclerListView createListView(Context context) {
+        RecyclerListView listView = new RecyclerListView(context);
         listView.setItemAnimator(null);
         listView.setAdapter(adapter = new ListAdapter(context));
         listView.setOnItemClickListener(this::onRowClick);
-        frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-        return fragmentView;
+        return listView;
     }
 
     private void onRowClick(View view, int position) {
@@ -264,6 +247,10 @@ public class RawUiSettingsActivity extends BaseFragment {
             RawUiConfig.setSystemFont(v);
             toggled(view, v);
             showRestartNotice(this);
+        } else if (position == badgesRow) {
+            boolean v = !RawgramConfig.isExteraBadges();
+            RawgramConfig.setExteraBadges(v);
+            ((TextCheckCell) view).setChecked(v);
         } else if (position == motionRow) {
             // affects only rawGram's own sheets and menus: no rebuild of other screens needed
             boolean v = !RawMotion.isEnabled();
@@ -394,6 +381,11 @@ public class RawUiSettingsActivity extends BaseFragment {
         }
         for (int i = 0; i < listView.getChildCount(); i++) {
             View child = listView.getChildAt(i);
+            if (child instanceof RawPreviewCard) {
+                child = ((RawPreviewCard) child).getContent();
+            } else if (child instanceof FolderTabsHolder) {
+                child = ((FolderTabsHolder) child).tabs;
+            }
             if (child instanceof RawMainScreenPreview) {
                 ((RawMainScreenPreview) child).bind();
             } else if (child instanceof RawFolderTabsPreview) {
@@ -644,7 +636,7 @@ public class RawUiSettingsActivity extends BaseFragment {
             if (position == switchTilesRow) {
                 return TYPE_SWITCH_TILES;
             }
-            if (position == lookHeaderRow || position == avatarHeaderRow || position == settingsHeaderRow || position == bottomTabsHeaderRow
+            if (position == lookHeaderRow || position == settingsHeaderRow || position == bottomTabsHeaderRow
                     || position == foldersHeaderRow || position == chatsHeaderRow || position == titleHeaderRow
                     || position == iconHeaderRow || position == switchHeaderRow) {
                 return TYPE_HEADER;
@@ -675,15 +667,16 @@ public class RawUiSettingsActivity extends BaseFragment {
             } else if (viewType == TYPE_VALUE) {
                 view = new TextSettingsCell(context);
             } else if (viewType == TYPE_SLIDER) {
-                view = new SliderCell(context);
+                view = new RawSeekBarCell(context);
             } else if (viewType == TYPE_PREVIEW) {
-                view = new RawMainScreenPreview(context, currentAccount);
+                view = new RawPreviewCard(context, new RawMainScreenPreview(context, currentAccount));
             } else if (viewType == TYPE_AVATARS) {
-                view = new RawAvatarsPreviewCell(context, currentAccount);
+                RawAvatarsPreviewCell avatars = new RawAvatarsPreviewCell(context, currentAccount);
+                avatars.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(14), AndroidUtilities.dp(12), AndroidUtilities.dp(12));
+                // the slider sits right above the card, as in exteraGram's avatar corners cell
+                view = new RawPreviewCard(context, avatars, 0, RawPreviewCard.INSET_DP);
             } else if (viewType == TYPE_FOLDERS) {
-                RawFolderTabsPreview tabs = new RawFolderTabsPreview(context, currentAccount);
-                tabs.setPadding(AndroidUtilities.dp(4), AndroidUtilities.dp(2), AndroidUtilities.dp(4), AndroidUtilities.dp(6));
-                view = tabs;
+                view = new FolderTabsHolder(context, new RawFolderTabsPreview(context, currentAccount));
             } else if (viewType == TYPE_ICON_TILES) {
                 view = createIconTiles(context);
             } else if (viewType == TYPE_SWITCH_TILES) {
@@ -699,13 +692,13 @@ public class RawUiSettingsActivity extends BaseFragment {
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             switch (holder.getItemViewType()) {
                 case TYPE_PREVIEW:
-                    ((RawMainScreenPreview) holder.itemView).bind();
+                    ((RawMainScreenPreview) ((RawPreviewCard) holder.itemView).getContent()).bind();
                     break;
                 case TYPE_AVATARS:
-                    ((RawAvatarsPreviewCell) holder.itemView).bind();
+                    ((RawAvatarsPreviewCell) ((RawPreviewCard) holder.itemView).getContent()).bind();
                     break;
                 case TYPE_FOLDERS:
-                    ((RawFolderTabsPreview) holder.itemView).bind();
+                    ((FolderTabsHolder) holder.itemView).tabs.bind();
                     break;
                 case TYPE_ICON_TILES:
                     bindIconTiles((RawTilesCell) holder.itemView);
@@ -718,7 +711,6 @@ public class RawUiSettingsActivity extends BaseFragment {
                 case TYPE_HEADER: {
                     String text;
                     if (position == lookHeaderRow) text = "Оформление";
-                    else if (position == avatarHeaderRow) text = "Аватарки";
                     else if (position == settingsHeaderRow) text = "Экран настроек";
                     else if (position == bottomTabsHeaderRow) text = "Нижние вкладки";
                     else if (position == foldersHeaderRow) text = "Папки";
@@ -736,7 +728,9 @@ public class RawUiSettingsActivity extends BaseFragment {
                     } else if (position == systemFontRow) {
                         cell.setTextAndCheck("Системный шрифт", RawUiConfig.systemFont(), true);
                     } else if (position == motionRow) {
-                        cell.setTextAndCheck("Анимации rawGram", RawMotion.isEnabled(), false);
+                        cell.setTextAndCheck("Анимации rawGram", RawMotion.isEnabled(), true);
+                    } else if (position == badgesRow) {
+                        cell.setTextAndCheck("Бейджи exteraGram", RawgramConfig.isExteraBadges(), false);
                     } else if (position == hidePremiumRow) {
                         cell.setTextAndCheck("Скрыть раздел Premium", RawUiConfig.hidePremiumSection(), true);
                     } else if (position == hideHelpRow) {
@@ -806,7 +800,7 @@ public class RawUiSettingsActivity extends BaseFragment {
                     break;
                 }
                 case TYPE_SLIDER: {
-                    ((SliderCell) holder.itemView).bind(0, 100, 5, RawUiConfig.avatarCorners(), "%", value -> {
+                    ((RawSeekBarCell) holder.itemView).bind("Аватарки", 0, 100, 5, RawUiConfig.avatarCorners(), "%", value -> {
                         RawUiConfig.setAvatarCorners(value);
                         needRebuild = true;
                         updatePreview();
@@ -841,7 +835,9 @@ public class RawUiSettingsActivity extends BaseFragment {
                         cell.setText("Нажми на образец, чтобы увидеть оба положения.");
                     } else if (position == lookInfoRow) {
                         cell.setText("Системный шрифт — после перезапуска. Разделители — линии между пунктами и тени под разделами. "
-                                + "Анимации — плавные переходы в окнах и меню rawGram; в режиме энергосбережения они выключены.");
+                                + "Анимации — плавные переходы в окнах и меню rawGram; в режиме энергосбережения они выключены. "
+                                + "Бейджи exteraGram — значки поддержавших exteraGram и его разработчиков рядом с именами в чатах, списках и профилях; "
+                                + "список загружается с сервера exteraGram раз в несколько часов.");
                     } else if (position == settingsInfoRow) {
                         cell.setText("Premium — Звёзды, TON, Business, подарки. Вместо номера будет «Номер скрыт» — удобно для скриншотов.");
                     }
@@ -851,61 +847,32 @@ public class RawUiSettingsActivity extends BaseFragment {
         }
     }
 
-    /** Seek bar with the current value drawn on the right (also used by RawChatUiSettingsActivity). */
-    static class SliderCell extends FrameLayout {
-        private final SeekBarView seekBar;
-        private final TextView valueView;
-        private int min, max, step;
-        private String suffix;
-        private Utilities.Callback<Integer> onChange;
+    /**
+     * The folder tabs preview as exteraGram's FilterTabsPreviewCell shows it: the tab strip centred in a
+     * 74dp row, 12dp from the section edges, with a divider under it before the folder options.
+     */
+    private static class FolderTabsHolder extends FrameLayout {
+        private static final int HEIGHT_DP = 74;
 
-        SliderCell(Context context) {
+        final RawFolderTabsPreview tabs;
+
+        FolderTabsHolder(Context context, RawFolderTabsPreview tabs) {
             super(context);
-            seekBar = new SeekBarView(context);
-            seekBar.setReportChanges(true);
-            seekBar.setDelegate(new SeekBarView.SeekBarViewDelegate() {
-                @Override
-                public void onSeekBarDrag(boolean stop, float progress) {
-                    int value = valueFor(progress);
-                    valueView.setText(value + suffix);
-                    if (onChange != null) {
-                        onChange.run(value);
-                    }
-                }
-
-                @Override
-                public int getStepsCount() {
-                    return (max - min) / step;
-                }
-            });
-            addView(seekBar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 38, Gravity.LEFT | Gravity.CENTER_VERTICAL, 5, 5, 72, 5));
-
-            valueView = new TextView(context);
-            valueView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
-            valueView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteValueText));
-            valueView.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-            addView(valueView, LayoutHelper.createFrame(72, LayoutHelper.MATCH_PARENT, Gravity.RIGHT, 0, 0, 16, 0));
-        }
-
-        private int valueFor(float progress) {
-            int steps = (max - min) / step;
-            return min + Math.round(progress * steps) * step;
-        }
-
-        void bind(int min, int max, int step, int value, String suffix, Utilities.Callback<Integer> onChange) {
-            this.min = min;
-            this.max = max;
-            this.step = step;
-            this.suffix = suffix;
-            this.onChange = onChange;
-            seekBar.setSeparatorsCount((max - min) / step + 1);
-            seekBar.setProgress((value - min) / (float) (max - min));
-            valueView.setText(value + suffix);
+            this.tabs = tabs;
+            setWillNotDraw(false);
+            addView(tabs, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, RawFolderTabsPreview.HEIGHT_DP, Gravity.CENTER, 12, 0, 12, 0));
         }
 
         @Override
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(48), MeasureSpec.EXACTLY));
+            super.onMeasure(MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY),
+                    MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(HEIGHT_DP), MeasureSpec.EXACTLY));
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            canvas.drawLine(0, getMeasuredHeight() - 1, getMeasuredWidth(), getMeasuredHeight() - 1, Theme.dividerPaint);
         }
     }
 }
