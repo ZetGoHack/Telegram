@@ -48,7 +48,7 @@ public class DrawerLayoutContainer extends FrameLayout {
     }
 
     public boolean isDrawCurrentPreviewFragmentAbove() {
-        return false;
+        return org.telegram.rawgram.RawSideMenu.drawsPreviewAbove(); // rawGram: the side menu draws its account preview above itself
     }
 
     public boolean onTouchEvent(MotionEvent ev) {

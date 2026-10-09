@@ -4,11 +4,13 @@ import static org.telegram.messenger.AndroidUtilities.dp;
 
 import android.annotation.SuppressLint;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.graphics.drawable.BitmapDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -29,9 +31,11 @@ import androidx.dynamicanimation.animation.SpringForce;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.DialogObject;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.Utilities;
 import org.telegram.rawgram.RawMotion;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_stars;
@@ -468,7 +472,7 @@ public final class RawDrawerContainer extends FrameLayout implements Notificatio
             return;
         }
         drawerPanel.setTranslationX(-drawerWidth * (1f - progress));
-        shiftApp(progress <= OPEN_EPSILON || previewShown ? 0 : drawerWidth * progress * APP_SHIFT);
+        shiftApp(progress <= OPEN_EPSILON ? 0 : drawerWidth * progress * APP_SHIFT);
         if (getVisibility() != VISIBLE) {
             super.setVisibility(VISIBLE);
         }
@@ -565,11 +569,6 @@ public final class RawDrawerContainer extends FrameLayout implements Notificatio
         tapClosePending = false;
         dismissStatusPopup();
         menuView.clearMenu();
-        if (previewShown && !previewTouch) {
-            previewShown = false;
-            animate().cancel();
-            setAlpha(1f);
-        }
     }
 
     // ---- drawing ----
@@ -581,6 +580,7 @@ public final class RawDrawerContainer extends FrameLayout implements Notificatio
             canvas.drawRect(0, 0, getWidth(), getHeight(), scrimPaint);
         }
         super.dispatchDraw(canvas);
+        drawPreviewAbove(canvas);
     }
 
     /** Rounds the outer corners of the panel like the screen's own corners (at least 24dp). */
@@ -733,10 +733,13 @@ public final class RawDrawerContainer extends FrameLayout implements Notificatio
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
-        if (previewTouch) {
+        if (previewTouch || previewAbove) {
+            // every touch belongs to the preview while it is drawn above the menu (exteraGram's DrawerLayoutContainer)
             INavigationLayout layout = activity.getActionBarLayout();
             int action = ev.getActionMasked();
-            if (action == MotionEvent.ACTION_MOVE) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                previewMoved = false;
+            } else if (action == MotionEvent.ACTION_MOVE) {
                 if (!previewMoved) {
                     previewMoved = true;
                     previewStartY = ev.getY();
@@ -748,7 +751,6 @@ public final class RawDrawerContainer extends FrameLayout implements Notificatio
                 }
             } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP || action == MotionEvent.ACTION_CANCEL) {
                 previewTouch = false;
-                previewMoved = false;
                 if (layout != null) {
                     layout.finishPreviewFragment();
                 }
@@ -966,13 +968,14 @@ public final class RawDrawerContainer extends FrameLayout implements Notificatio
 
     /**
      * exteraGram's account preview (long press on another account): that account's main screen as Telegram's peek
-     * preview. The finger keeps driving it (see {@link #dispatchTouchEvent}): pulling up opens it, which switches to
-     * the account; lifting dismisses it. The menu fades out and the app stops being pushed aside while it is shown,
-     * since the preview is drawn by the fragment stack under the menu.
+     * preview, drawn above the open menu over a blurred snapshot of the screen with the menu (exteraGram's
+     * DrawerLayoutContainer.setDrawCurrentPreviewFragmentAbove). The finger keeps driving it (see
+     * {@link #dispatchTouchEvent}): pulling up opens it, which switches to the account and closes the menu; lifting
+     * dismisses it and leaves the menu as it was.
      */
     private void showAccountPreview(int account) {
         INavigationLayout layout = activity.getActionBarLayout();
-        if (layout == null || previewShown || !UserConfig.isValidAccount(account) || !UserConfig.getInstance(account).isClientActivated()) {
+        if (layout == null || previewAbove || !UserConfig.isValidAccount(account) || !UserConfig.getInstance(account).isClientActivated()) {
             return;
         }
         MainTabsActivity preview = new MainTabsActivity() {
@@ -990,14 +993,14 @@ public final class RawDrawerContainer extends FrameLayout implements Notificatio
             public void onTransitionAnimationEnd(boolean isOpen, boolean backward) {
                 super.onTransitionAnimationEnd(isOpen, backward);
                 if (!isOpen && backward) {
-                    setPreviewHidden(false);
+                    setPreviewAbove(false);
                 }
             }
 
             @Override
             public void onPreviewOpenAnimationEnd() {
                 super.onPreviewOpenAnimationEnd();
-                setPreviewHidden(false);
+                setPreviewAbove(false);
                 closeDrawer(false);
                 if (account != UserConfig.selectedAccount) {
                     activity.switchToAccount(account, true);
@@ -1012,31 +1015,83 @@ public final class RawDrawerContainer extends FrameLayout implements Notificatio
         dialogs.setCurrentAccount(account);
         dialogs.setInPreviewMode(true);
         if (layout.presentFragment(new INavigationLayout.NavigationParams(preview).setPreview(true).setCheckPresentFromDelegate(false))) {
-            setPreviewHidden(true);
+            setPreviewAbove(true);
             previewTouch = true;
             previewMoved = false;
         }
     }
 
-    private boolean previewShown;
+    private boolean previewAbove;
+    private BitmapDrawable previewBlurDrawable;
+    private final int[] tmpLocation = new int[2], tmpLocation2 = new int[2];
 
-    public boolean isAccountPreviewShown() {
-        return previewShown;
+    /** True while the account preview is drawn above the menu (the fragment stack skips it meanwhile). */
+    public boolean isPreviewAbove() {
+        return previewAbove;
     }
 
-    /** The menu is above the whole app: fade it out while an account preview is shown. */
-    private void setPreviewHidden(boolean hidden) {
-        if (previewShown == hidden) {
+    /** exteraGram's setDrawCurrentPreviewFragmentAbove: a blurred snapshot of the screen with the menu, then the preview on top. */
+    private void setPreviewAbove(boolean above) {
+        if (previewAbove == above) {
             return;
         }
-        previewShown = hidden;
-        animate().cancel();
-        if (RawMotion.active()) {
-            animate().alpha(hidden ? 0f : 1f).setDuration(150).start();
-        } else {
-            setAlpha(hidden ? 0f : 1f);
+        if (above) {
+            // the snapshot is taken before the preview is drawn above the menu
+            createPreviewBlur();
         }
-        setProgress(progress);
+        previewAbove = above;
+        if (!above) {
+            previewBlurDrawable = null;
+            previewTouch = false;
+            previewMoved = false;
+        }
+        invalidate();
+    }
+
+    /** A sixth-size snapshot of everything under and including the menu, stack-blurred (as exteraGram). */
+    private void createPreviewBlur() {
+        View root = getParent() instanceof View ? (View) getParent() : this;
+        int width = root.getMeasuredWidth(), height = root.getMeasuredHeight();
+        if (width <= 0 || height <= 0) {
+            previewBlurDrawable = null;
+            return;
+        }
+        int w = Math.max(1, (int) (width / 6f)), h = Math.max(1, (int) (height / 6f));
+        Bitmap bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        canvas.scale(1f / 6f, 1f / 6f);
+        try {
+            root.draw(canvas);
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+        Utilities.stackBlurBitmap(bitmap, Math.max(7, Math.max(w, h) / 180));
+        previewBlurDrawable = new BitmapDrawable(getResources(), bitmap);
+        root.getLocationInWindow(tmpLocation);
+        getLocationInWindow(tmpLocation2);
+        int left = tmpLocation[0] - tmpLocation2[0], top = tmpLocation[1] - tmpLocation2[1];
+        previewBlurDrawable.setBounds(left, top, left + width, top + height);
+    }
+
+    /** Over the menu: the blur and the preview, where the fragment stack draws it when not pushed aside by the menu. */
+    private void drawPreviewAbove(Canvas canvas) {
+        INavigationLayout layout = activity.getActionBarLayout();
+        if (!previewAbove || layout == null) {
+            return;
+        }
+        if (previewBlurDrawable != null) {
+            previewBlurDrawable.setAlpha((int) (layout.getCurrentPreviewFragmentAlpha() * 255));
+            previewBlurDrawable.draw(canvas);
+        }
+        View layoutView = layout.getView();
+        layoutView.getLocationInWindow(tmpLocation);
+        getLocationInWindow(tmpLocation2);
+        canvas.save();
+        canvas.translate(tmpLocation[0] - layoutView.getTranslationX() - tmpLocation2[0], tmpLocation[1] - tmpLocation2[1]);
+        layout.drawCurrentPreviewFragment(canvas, null);
+        canvas.restore();
+        // the preview's own views only redraw themselves: keep drawing frames while it is shown
+        postInvalidateOnAnimation();
     }
 
     private BaseFragment getLastFragment() {

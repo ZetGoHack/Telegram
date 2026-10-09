@@ -64,7 +64,7 @@ public final class RawSideMenu {
      * {@code true} is the back itself. Returns true when the menu took it.
      */
     public static boolean onBack(boolean invoked) {
-        if (instance == null || !instance.isDrawerOpen() || instance.isAccountPreviewShown()) {
+        if (instance == null || !instance.isDrawerOpen() || instance.isPreviewAbove()) {
             // an account preview over the menu is closed by the app itself
             return false;
         }
@@ -183,6 +183,19 @@ public final class RawSideMenu {
             }
         }
         return null;
+    }
+
+    /**
+     * DrawerLayoutContainer.isDrawCurrentPreviewFragmentAbove: while the menu shows an account preview, the fragment
+     * stack skips drawing it and the menu draws it above itself.
+     */
+    public static boolean drawsPreviewAbove() {
+        RawDrawerContainer drawer = instance;
+        if (drawer == null || !drawer.isPreviewAbove()) {
+            return false;
+        }
+        drawer.invalidate();
+        return true;
     }
 
     /** DialogsActivity: the header shows ☰, so the collapsed stories keep clear of it. */
