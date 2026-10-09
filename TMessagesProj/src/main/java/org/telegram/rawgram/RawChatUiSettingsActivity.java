@@ -719,7 +719,7 @@ public class RawChatUiSettingsActivity extends BaseFragment {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint shadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF rect = new RectF();
-        private final Drawable backIcon, smileIcon, attachIcon, micIcon;
+        private final Drawable backIcon, smileIcon, attachIcon, micIcon, callIcon, menuIcon;
 
         ChatPreviewCell(Context context) {
             super(context);
@@ -734,6 +734,8 @@ public class RawChatUiSettingsActivity extends BaseFragment {
             smileIcon = icon(context, R.drawable.input_smile);
             attachIcon = icon(context, R.drawable.input_attach);
             micIcon = icon(context, R.drawable.input_mic);
+            callIcon = icon(context, R.drawable.call);
+            menuIcon = icon(context, R.drawable.ic_ab_other);
 
             messagesLayout = new LinearLayout(context);
             messagesLayout.setOrientation(LinearLayout.VERTICAL);
@@ -840,8 +842,13 @@ public class RawChatUiSettingsActivity extends BaseFragment {
                 subtitleColor = Theme.getColor(Theme.key_actionBarDefaultSubtitle);
                 iconColor = Theme.getColor(Theme.key_actionBarDefaultIcon);
                 drawIcon(canvas, backIcon, AndroidUtilities.dp(28), (top + bottom) / 2f, iconColor);
+                // ⋮ and the call icon, as in the chat header
+                drawIcon(canvas, menuIcon, w - AndroidUtilities.dp(24), (top + bottom) / 2f, iconColor);
+                if (!RawChatUiConfig.hideCallButton.get()) {
+                    drawIcon(canvas, callIcon, w - AndroidUtilities.dp(72), (top + bottom) / 2f, iconColor);
+                }
                 contentLeft = AndroidUtilities.dp(56);
-                contentRight = w - AndroidUtilities.dp(16);
+                contentRight = w - AndroidUtilities.dp(RawChatUiConfig.hideCallButton.get() ? 56 : 104);
             } else {
                 // floating pills: a round back button and the title pill
                 top = AndroidUtilities.dp(6);
@@ -854,7 +861,17 @@ public class RawChatUiSettingsActivity extends BaseFragment {
                 float cy = (top + bottom) / 2f;
                 canvas.drawCircle(AndroidUtilities.dp(8 + 22), cy, AndroidUtilities.dp(22), paint);
                 drawIcon(canvas, backIcon, AndroidUtilities.dp(8 + 22), cy, iconColor);
-                rect.set(AndroidUtilities.dp(8 + 44 + 6), top, w - AndroidUtilities.dp(8), bottom);
+                // right island: call + ⋮ (only ⋮ when the call icon is hidden)
+                boolean call = !RawChatUiConfig.hideCallButton.get();
+                float islandW = AndroidUtilities.dp(call ? 88 : 44);
+                rect.set(w - AndroidUtilities.dp(8) - islandW, top, w - AndroidUtilities.dp(8), bottom);
+                canvas.drawRoundRect(rect, AndroidUtilities.dp(22), AndroidUtilities.dp(22), paint);
+                drawIcon(canvas, menuIcon, rect.right - AndroidUtilities.dp(22), cy, iconColor);
+                if (call) {
+                    drawIcon(canvas, callIcon, rect.left + AndroidUtilities.dp(22), cy, iconColor);
+                }
+                float titleRight = rect.left - AndroidUtilities.dp(6);
+                rect.set(AndroidUtilities.dp(8 + 44 + 6), top, titleRight, bottom);
                 canvas.drawRoundRect(rect, AndroidUtilities.dp(22), AndroidUtilities.dp(22), paint);
                 contentLeft = rect.left + AndroidUtilities.dp(4);
                 contentRight = rect.right - AndroidUtilities.dp(16);
@@ -900,23 +917,29 @@ public class RawChatUiSettingsActivity extends BaseFragment {
                 canvas.drawRect(0, top, w, bottom, paint);
                 float cy = (top + bottom) / 2f;
                 drawIcon(canvas, smileIcon, AndroidUtilities.dp(24), cy, iconColor);
-                drawIcon(canvas, attachIcon, w - AndroidUtilities.dp(72), cy, iconColor);
-                drawIcon(canvas, micIcon, w - AndroidUtilities.dp(24), cy, iconColor);
+                drawIcon(canvas, attachIcon, w - AndroidUtilities.dp(76), cy, iconColor);
+                drawMic(canvas, w - AndroidUtilities.dp(8 + 19), cy);
                 canvas.drawText("Сообщение", AndroidUtilities.dp(52), cy + AndroidUtilities.dp(6), hintPaint);
             } else {
-                // floating pill with a separate round mic button
+                // floating pill; the record button is a blue circle inside it on the right
                 bottom = h - AndroidUtilities.dp(6);
                 top = bottom - AndroidUtilities.dp(44);
                 paint.setColor(pillColor());
                 float cy = (top + bottom) / 2f;
-                rect.set(AndroidUtilities.dp(8), top, w - AndroidUtilities.dp(8 + 44 + 6), bottom);
+                rect.set(AndroidUtilities.dp(8), top, w - AndroidUtilities.dp(8), bottom);
                 canvas.drawRoundRect(rect, AndroidUtilities.dp(22), AndroidUtilities.dp(22), paint);
-                canvas.drawCircle(w - AndroidUtilities.dp(8 + 22), cy, AndroidUtilities.dp(22), paint);
                 drawIcon(canvas, smileIcon, AndroidUtilities.dp(8 + 22), cy, iconColor);
-                drawIcon(canvas, attachIcon, rect.right - AndroidUtilities.dp(24), cy, iconColor);
-                drawIcon(canvas, micIcon, w - AndroidUtilities.dp(8 + 22), cy, iconColor);
+                drawIcon(canvas, attachIcon, rect.right - AndroidUtilities.dp(40 + 28), cy, iconColor);
+                drawMic(canvas, rect.right - AndroidUtilities.dp(3 + 19), cy);
                 canvas.drawText("Сообщение", AndroidUtilities.dp(8 + 48), cy + AndroidUtilities.dp(6), hintPaint);
             }
+        }
+
+        /** The blue record button with a white mic. */
+        private void drawMic(Canvas canvas, float cx, float cy) {
+            paint.setColor(Theme.getColor(Theme.key_chat_messagePanelVoiceBackground));
+            canvas.drawCircle(cx, cy, AndroidUtilities.dp(19), paint);
+            drawIcon(canvas, micIcon, cx, cy, 0xffffffff);
         }
 
         private int pillColor() {

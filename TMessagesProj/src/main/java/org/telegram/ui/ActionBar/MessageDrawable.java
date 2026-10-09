@@ -98,6 +98,7 @@ public class MessageDrawable extends Drawable {
             }
             java.util.Arrays.fill(currentShadowDrawableRadius, -1);
             transitionDrawable = null;
+            transitionDrawableColor = 0; // the recreated one needs its colour filter again
         }
         return removeMessageTail;
     }
