@@ -85,6 +85,7 @@ public class RawObjectSheet extends BottomSheet {
     // «Медиа» tab: what the shown object's files belong to, and the panel shown instead of the code
     private Object mediaParent;
     private MessageObject mediaMessage;
+    private java.util.List<MessageObject> mediaGroup;
     private boolean mediaTabChecked;
     private boolean mediaShown;
     private ScrollView mediaScroll;
@@ -420,6 +421,11 @@ public class RawObjectSheet extends BottomSheet {
         mediaParent = parent != null ? parent : message;
     }
 
+    /** The messages of the album the shown message belongs to: the «Медиа» tab lists them all. */
+    public void setMediaGroup(java.util.List<MessageObject> group) {
+        mediaGroup = group;
+    }
+
     @Override
     public void show() {
         if (!mediaTabChecked) {
@@ -432,18 +438,18 @@ public class RawObjectSheet extends BottomSheet {
     /** A «Медиа» tab after the caller's tabs when the object carries a file (plus a tab for the object itself if there were none). */
     private void addMediaTab() {
         final Object root = object;
-        RawMediaActions.Ref ref = RawMediaActions.find(currentAccount, root, null, mediaParent, mediaMessage, false);
-        if (ref == null) {
+        ArrayList<RawMediaActions.Ref> refs = RawMediaActions.findAll(currentAccount, root, mediaParent, mediaMessage, mediaGroup);
+        if (refs.isEmpty()) {
             return;
         }
         if (tabs.isEmpty()) {
             final CharSequence subtitle = subtitleView.getText();
             addObjectTab(RawMediaActions.tabLabel(root), () -> setObject(subtitle, root));
         }
-        addObjectTab("Медиа", () -> showMedia(ref));
+        addObjectTab("Медиа", () -> showMedia(refs));
     }
 
-    private void showMedia(RawMediaActions.Ref ref) {
+    private void showMedia(ArrayList<RawMediaActions.Ref> refs) {
         if (mediaPanel == null) {
             mediaScroll = new ScrollView(getContext()) {
                 @Override
@@ -465,11 +471,11 @@ public class RawObjectSheet extends BottomSheet {
             mediaScroll.addView(mediaPanel, LayoutHelper.createScroll(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP));
             bodyFrame.addView(mediaScroll, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         }
-        setSubtitle(RawMediaActions.summary(ref));
+        setSubtitle(RawMediaActions.summary(refs));
         RawAnim.crossfade(bodyFrame, () -> {
             mediaShown = true;
-            mediaPanel.bind(ref);
-            typeLabel.setText(RawMediaActions.typeLine(ref));
+            mediaPanel.bind(refs);
+            typeLabel.setText(RawMediaActions.typeLine(refs));
             modeSwitch.setVisibility(View.GONE);
             treeView.setVisibility(View.GONE);
             scrollView.setVisibility(View.GONE);

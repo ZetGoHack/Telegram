@@ -267,6 +267,7 @@ public class RawChatHooks {
                     host.closeMenu();
                     RawObjectSheet sheet = new RawObjectSheet(activity, account, "Сообщение #" + message.getId(), message.messageOwner, host.resources());
                     sheet.setMediaSource(message, null);
+                    sheet.setMediaGroup(albumOf(message));
                     sheet.show();
                 },
                 host::closeMenu);
@@ -280,6 +281,23 @@ public class RawChatHooks {
             RawMotion.cascadeFromRight(details);
         });
         popupLayout.addView(new ActionBarPopupWindow.GapView(activity, host.resources()), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8));
+    }
+
+    /** The loaded messages of {@code message}'s album, oldest first; null when it isn't in one. */
+    private ArrayList<MessageObject> albumOf(MessageObject message) {
+        long groupId = message.getGroupId();
+        ArrayList<MessageObject> loaded = host.messages();
+        if (groupId == 0 || loaded == null) {
+            return null;
+        }
+        ArrayList<MessageObject> album = new ArrayList<>();
+        for (MessageObject m : loaded) {
+            if (m != null && m.getGroupId() == groupId) {
+                album.add(m);
+            }
+        }
+        java.util.Collections.sort(album, (a, b) -> Integer.compare(a.getId(), b.getId()));
+        return album.size() > 1 ? album : null;
     }
 
     // ---- inline keyboard buttons: long press shows what the button carries ----
