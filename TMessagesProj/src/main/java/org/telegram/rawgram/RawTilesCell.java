@@ -128,7 +128,7 @@ public class RawTilesCell extends LinearLayout {
 
         private void updateLabel() {
             labelView.setTextColor(Theme.getColor(checked ? Theme.key_windowBackgroundWhiteBlueHeader : Theme.key_windowBackgroundWhiteGrayText2));
-            labelView.setTypeface(checked ? AndroidUtilities.bold() : null);
+            labelView.setTypeface(checked ? AndroidUtilities.bold() : RawCustomFont.regularOrNull());
         }
     }
 

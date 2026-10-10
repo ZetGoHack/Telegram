@@ -170,6 +170,7 @@ public class AnimatedTextView extends View {
         }
 
         public AnimatedTextDrawable(boolean splitByWords, boolean preserveIndex, boolean startFromEnd, boolean enforceByLetter) {
+            textPaint.setTypeface(org.telegram.rawgram.RawCustomFont.regularOrNull()); // rawGram: custom font
             this.splitByWords = splitByWords;
             this.preserveIndex = preserveIndex;
             this.startFromEnd = startFromEnd;

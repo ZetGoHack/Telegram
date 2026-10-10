@@ -7718,6 +7718,7 @@ public class Theme {
     }
 
     public static void applyCommonTheme() {
+        org.telegram.rawgram.RawCustomFont.applyToThemePaints(); // rawGram: custom font on Theme's text paints
         if (dividerPaint == null) {
             return;
         }
@@ -7903,6 +7904,7 @@ public class Theme {
     }
 
     public static void applyDialogsTheme() {
+        org.telegram.rawgram.RawCustomFont.applyToThemePaints(); // rawGram: custom font on Theme's text paints
         if (dialogs_namePaint == null) {
             return;
         }
@@ -8044,6 +8046,7 @@ public class Theme {
             chat_msgTextCode2Paint.setTextSize(dp(Math.max(Math.min(10, SharedConfig.fontSize - 2), SharedConfig.fontSize - 3)));
             chat_msgTextCode3Paint.setTextSize(dp(Math.max(Math.min(10, SharedConfig.fontSize - 2), SharedConfig.fontSize - 5)));
         }
+        org.telegram.rawgram.RawCustomFont.onMessagePaints(chat_msgTextPaint); // rawGram: message paints are made before any chat theme is applied
     }
 
     public static void createCommonChatResources() {
@@ -8419,6 +8422,7 @@ public class Theme {
     }
 
     public static void applyChatTheme(boolean fontsOnly, boolean bg) {
+        org.telegram.rawgram.RawCustomFont.applyToThemePaints(); // rawGram: custom font on Theme's text paints
         if (chat_msgTextPaint == null) {
             return;
         }

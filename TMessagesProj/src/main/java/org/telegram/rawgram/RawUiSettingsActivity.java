@@ -828,9 +828,11 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                         int f = RawUiConfig.fontMode();
                         cell.setTextAndValue("Шрифт", f == RawUiConfig.FONT_CUSTOM ? "Свой файл" : f == RawUiConfig.FONT_SYSTEM ? "Системный" : "Telegram", true);
                     } else if (position == fontFileRow) {
-                        cell.setTextAndValue("Файл шрифта", RawCustomFont.regularFile().exists() ? "выбран" : "не выбран", true);
+                        String regularName = RawCustomFont.fontName(RawCustomFont.regularFile());
+                        cell.setTextAndValue("Файл шрифта", !RawCustomFont.regularFile().exists() ? "не выбран" : regularName != null ? regularName : "выбран", true);
                     } else if (position == fontBoldRow) {
-                        cell.setTextAndValue("Жирное начертание", RawCustomFont.boldFile().exists() ? "отдельный файл" : "из основного", true);
+                        String boldName = RawCustomFont.fontName(RawCustomFont.boldFile());
+                        cell.setTextAndValue("Жирное начертание", !RawCustomFont.boldFile().exists() ? "из основного" : boldName != null ? boldName : "отдельный файл", true);
                     } else if (position == tabsOrderRow) {
                         cell.setTextAndValue("Порядок вкладок", RawMainTabs.summary(), true);
                     } else if (position == snowRow) {

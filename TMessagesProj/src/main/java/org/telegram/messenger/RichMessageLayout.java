@@ -208,6 +208,8 @@ public class RichMessageLayout {
     public boolean hasNameOffset() { return cell != null && cell.namesOffset > 0; }
 
     public RichMessageLayout(MessageObject messageObject, int maxWidth, RichMessageLayout prev) {
+        textPaint.setTypeface(org.telegram.rawgram.RawCustomFont.regularOrNull()); // rawGram: custom font
+        numTextPaint.setTypeface(org.telegram.rawgram.RawCustomFont.regularOrNull()); // rawGram
         this.messageObject = messageObject;
         this.maxWidth = maxWidth;
         this.currentAccount = messageObject.currentAccount;

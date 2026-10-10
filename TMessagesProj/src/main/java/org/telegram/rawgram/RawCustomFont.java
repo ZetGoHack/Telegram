@@ -50,8 +50,14 @@ public final class RawCustomFont {
     private RawCustomFont() {
     }
 
+    private static int active = -1;
+
+    /** Read once per process: the font applies after a restart, and views ask this on every construction. */
     public static boolean active() {
-        return RawUiConfig.fontMode() == RawUiConfig.FONT_CUSTOM && regularFile().exists();
+        if (active < 0) {
+            active = RawUiConfig.fontMode() == RawUiConfig.FONT_CUSTOM && regularFile().exists() ? 1 : 0;
+        }
+        return active == 1;
     }
 
     private static File dir() {
@@ -154,6 +160,15 @@ public final class RawCustomFont {
         }
         StringBuilder ok = new StringBuilder();
         StringBuilder failed = new StringBuilder();
+        // Typeface.setDefault (the native default for paints without a typeface) is a hidden API, blocked for
+        // targetSdk > 28; open just android.graphics.Typeface (LSPosed's HiddenApiBypass, Apache 2.0)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            attempt("exemption", () -> {
+                if (!org.lsposed.hiddenapibypass.HiddenApiBypass.addHiddenApiExemptions("Landroid/graphics/Typeface;")) {
+                    throw new IllegalStateException("addHiddenApiExemptions returned false");
+                }
+            }, ok, failed);
+        }
         attempt("DEFAULT", () -> setStatic("DEFAULT", regular), ok, failed);
         attempt("SANS_SERIF", () -> setStatic("SANS_SERIF", regular), ok, failed);
         attempt("DEFAULT_BOLD", () -> setStatic("DEFAULT_BOLD", bold), ok, failed);
@@ -204,6 +219,152 @@ public final class RawCustomFont {
                 throw notReplaceable;
             }
             current.putAll(map);
+        }
+    }
+
+    private static java.util.ArrayList<Field> themePaints;
+
+    /**
+     * Theme.apply*Theme: Telegram's shared text paints (messages, chats list, names…) without a typeface of their own
+     * draw with the native default font, which only the blocked Typeface.setDefault changes. They get the custom font
+     * directly; Theme is our own class, so this reflection is not restricted.
+     */
+    public static void applyToThemePaints() {
+        if (!active()) {
+            return;
+        }
+        load();
+        if (regular == null) {
+            return;
+        }
+        try {
+            if (themePaints == null) {
+                themePaints = new java.util.ArrayList<>();
+                for (Field f : org.telegram.ui.ActionBar.Theme.class.getDeclaredFields()) {
+                    Class<?> type = f.getType();
+                    boolean paint = android.graphics.Paint.class.isAssignableFrom(type)
+                            || type.isArray() && android.graphics.Paint.class.isAssignableFrom(type.getComponentType());
+                    if (java.lang.reflect.Modifier.isStatic(f.getModifiers()) && paint) {
+                        f.setAccessible(true);
+                        themePaints.add(f);
+                    }
+                }
+            }
+            for (Field f : themePaints) {
+                Object value = f.get(null);
+                if (value instanceof android.graphics.Paint) {
+                    setIfMissing((android.graphics.Paint) value);
+                } else if (value instanceof android.graphics.Paint[]) {
+                    for (android.graphics.Paint paint : (android.graphics.Paint[]) value) {
+                        setIfMissing(paint);
+                    }
+                }
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
+    private static android.graphics.Paint lastMessagePaint;
+
+    /**
+     * Theme.createCommonMessageResources (called for every MessageObject): the message paints exist before any chat
+     * theme is applied, so they get the font here — once per set of paints.
+     */
+    public static void onMessagePaints(android.graphics.Paint messagePaint) {
+        if (messagePaint == null || messagePaint == lastMessagePaint || !active()) {
+            return;
+        }
+        lastMessagePaint = messagePaint;
+        applyToThemePaints();
+    }
+
+    /** Only text paints without their own typeface: bold ones already got Telegram's medium asset (our bold). */
+    private static void setIfMissing(android.graphics.Paint paint) {
+        if (paint instanceof android.text.TextPaint && paint.getTypeface() == null) {
+            paint.setTypeface(regular);
+        }
+    }
+
+    /**
+     * The custom regular font, or null when it's off — for paints and views that would otherwise draw with the native
+     * default font (SimpleTextView, AnimatedTextView, setTypeface(null)), which can't be replaced globally.
+     */
+    public static Typeface regularOrNull() {
+        if (!active()) {
+            return null;
+        }
+        load();
+        return regular;
+    }
+
+    /** The font's own name from its 'name' table (full name, else family), or null. */
+    public static String fontName(File file) {
+        if (file == null || !file.exists()) {
+            return null;
+        }
+        try (java.io.RandomAccessFile f = new java.io.RandomAccessFile(file, "r")) {
+            long base = 0;
+            int tag = f.readInt();
+            if (tag == 0x74746366) { // 'ttcf': collection, take the first font
+                f.readInt();
+                f.readInt();
+                base = f.readInt() & 0xFFFFFFFFL;
+                f.seek(base);
+                f.readInt();
+            }
+            int tables = f.readUnsignedShort();
+            f.skipBytes(6);
+            long nameOffset = -1;
+            for (int i = 0; i < tables; i++) {
+                int t = f.readInt();
+                f.readInt();
+                long offset = f.readInt() & 0xFFFFFFFFL;
+                f.readInt();
+                if (t == 0x6E616D65) { // 'name'
+                    nameOffset = offset;
+                }
+            }
+            if (nameOffset < 0) {
+                return null;
+            }
+            f.seek(nameOffset);
+            f.readUnsignedShort();
+            int count = f.readUnsignedShort();
+            int stringsOffset = f.readUnsignedShort();
+            String full = null, family = null;
+            for (int i = 0; i < count; i++) {
+                int platform = f.readUnsignedShort();
+                int encoding = f.readUnsignedShort();
+                f.readUnsignedShort();
+                int nameId = f.readUnsignedShort();
+                int length = f.readUnsignedShort();
+                int offset = f.readUnsignedShort();
+                if (nameId != 4 && nameId != 1 || length == 0) {
+                    continue;
+                }
+                boolean utf16 = platform == 3 || platform == 0;
+                if (!utf16 && platform != 1) {
+                    continue;
+                }
+                long back = f.getFilePointer();
+                f.seek(nameOffset + stringsOffset + offset);
+                byte[] bytes = new byte[length];
+                f.readFully(bytes);
+                f.seek(back);
+                String value = new String(bytes, utf16 ? "UTF-16BE" : "ISO-8859-1").trim();
+                if (value.isEmpty()) {
+                    continue;
+                }
+                if (nameId == 4 && (full == null || utf16)) {
+                    full = value;
+                } else if (nameId == 1 && (family == null || utf16)) {
+                    family = value;
+                }
+            }
+            return full != null ? full : family;
+        } catch (Throwable e) {
+            return null;
         }
     }
 
