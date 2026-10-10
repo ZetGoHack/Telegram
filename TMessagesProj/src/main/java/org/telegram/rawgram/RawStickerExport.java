@@ -48,8 +48,26 @@ public final class RawStickerExport {
         final TLRPC.Document document = message.getDocument();
         final File source = FileLoader.getInstance(account).getPathToMessage(message.messageOwner);
         final File file = source != null && source.exists() ? source : FileLoader.getInstance(account).getPathToAttach(document, true);
-        final boolean lottie = message.isAnimatedSticker();
-        final boolean video = message.isVideoSticker();
+        save(activity, account, document, file, message.isAnimatedSticker(), message.isVideoSticker(), onSaved);
+    }
+
+    /** Any kind of sticker document, found outside a message (raw viewer). */
+    public static boolean isSticker(TLRPC.Document document) {
+        return document != null && (MessageObject.isStickerDocument(document) || MessageObject.isAnimatedStickerDocument(document, true)
+                || MessageObject.isVideoStickerDocument(document));
+    }
+
+    /** 0 — picture, 1 — video, as {@link #saveType(MessageObject)} for a bare document. */
+    public static int saveType(TLRPC.Document document) {
+        return MessageObject.isAnimatedStickerDocument(document, true) || MessageObject.isVideoStickerDocument(document) ? 1 : 0;
+    }
+
+    /** Same conversion for a bare sticker document; {@code file} is its downloaded file. */
+    public static void save(Activity activity, int account, TLRPC.Document document, File file, Utilities.Callback<Uri> onSaved) {
+        save(activity, account, document, file, MessageObject.isAnimatedStickerDocument(document, true), MessageObject.isVideoStickerDocument(document), onSaved);
+    }
+
+    private static void save(Activity activity, int account, TLRPC.Document document, File file, boolean lottie, boolean video, Utilities.Callback<Uri> onSaved) {
         Utilities.globalQueue.postRunnable(() -> {
             try {
                 if (file == null || !file.exists()) {

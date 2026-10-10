@@ -81,6 +81,14 @@ public class RawObjectSheet extends BottomSheet {
 
     private ChatMessageCell previewCell;
     private Object object;
+
+    // «Медиа» tab: what the shown object's files belong to, and the panel shown instead of the code
+    private Object mediaParent;
+    private MessageObject mediaMessage;
+    private boolean mediaTabChecked;
+    private boolean mediaShown;
+    private ScrollView mediaScroll;
+    private RawMediaActions.Panel mediaPanel;
     private String json;
     private String fields;
     private int mode;
@@ -264,6 +272,8 @@ public class RawObjectSheet extends BottomSheet {
             AndroidUtilities.addToClipboard(value);
             RawNotify.show(notifyHost(), R.drawable.msg_copy, toast);
         });
+        treeView.setMediaHandler((row, source, ancestors, copy) -> RawMediaActions.showNodeMenu(this, row, currentAccount,
+                source, ancestors, mediaParent, mediaMessage, resourcesProvider, copy));
         bodyFrame.addView(treeView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
         // 3. actions: things that really talk to the server / chat
@@ -342,6 +352,9 @@ public class RawObjectSheet extends BottomSheet {
         treeView.setMaxHeight(maxBodyHeight);
         scrollView.requestLayout();
         treeView.requestLayout();
+        if (mediaScroll != null) {
+            mediaScroll.requestLayout();
+        }
         rootView.requestLayout();
     }
 
@@ -393,6 +406,76 @@ public class RawObjectSheet extends BottomSheet {
         settleAnimator.setDuration(RawMotion.active() ? 280 : 0);
         settleAnimator.setInterpolator(org.telegram.ui.Components.CubicBezierInterpolator.EASE_OUT_QUINT);
         settleAnimator.start();
+    }
+
+    // ---- «Медиа» tab ----
+
+    /**
+     * What the shown objects' files belong to: {@code message} is the message whose raw is shown (photo viewer,
+     * saving like in the chat), {@code parent} the object that refreshes file references for downloads when the
+     * raw tree has none above the file. Either may be null.
+     */
+    public void setMediaSource(MessageObject message, Object parent) {
+        mediaMessage = message;
+        mediaParent = parent != null ? parent : message;
+    }
+
+    @Override
+    public void show() {
+        if (!mediaTabChecked) {
+            mediaTabChecked = true;
+            addMediaTab();
+        }
+        super.show();
+    }
+
+    /** A «Медиа» tab after the caller's tabs when the object carries a file (plus a tab for the object itself if there were none). */
+    private void addMediaTab() {
+        final Object root = object;
+        RawMediaActions.Ref ref = RawMediaActions.find(currentAccount, root, null, mediaParent, mediaMessage, false);
+        if (ref == null) {
+            return;
+        }
+        if (tabs.isEmpty()) {
+            final CharSequence subtitle = subtitleView.getText();
+            addObjectTab(RawMediaActions.tabLabel(root), () -> setObject(subtitle, root));
+        }
+        addObjectTab("Медиа", () -> showMedia(ref));
+    }
+
+    private void showMedia(RawMediaActions.Ref ref) {
+        if (mediaPanel == null) {
+            mediaScroll = new ScrollView(getContext()) {
+                @Override
+                protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+                    super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(maxBodyHeight, MeasureSpec.AT_MOST));
+                }
+
+                @Override
+                protected void onScrollChanged(int l, int t, int oldl, int oldt) {
+                    super.onScrollChanged(l, t, oldl, oldt);
+                    if (t != oldt) {
+                        scrollViewLastScroll = SystemClock.uptimeMillis();
+                    }
+                }
+            };
+            mediaScroll.setNestedScrollingEnabled(false);
+            mediaScroll.setVisibility(View.GONE);
+            mediaPanel = new RawMediaActions.Panel(getContext(), this, resourcesProvider, this::createActionChip);
+            mediaScroll.addView(mediaPanel, LayoutHelper.createScroll(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP));
+            bodyFrame.addView(mediaScroll, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+        }
+        setSubtitle(RawMediaActions.summary(ref));
+        RawAnim.crossfade(bodyFrame, () -> {
+            mediaShown = true;
+            mediaPanel.bind(ref);
+            typeLabel.setText(RawMediaActions.typeLine(ref));
+            modeSwitch.setVisibility(View.GONE);
+            treeView.setVisibility(View.GONE);
+            scrollView.setVisibility(View.GONE);
+            mediaScroll.setVisibility(View.VISIBLE);
+            mediaScroll.scrollTo(0, 0);
+        });
     }
 
     // ---- minimize into the bottom tabs, like web apps (RawgramConfig.isRawMinimize) ----
@@ -521,6 +604,14 @@ public class RawObjectSheet extends BottomSheet {
 
     /** A button that performs a real action (network request, sending, reroll). */
     public TextView addAction(String text, View.OnClickListener listener) {
+        TextView chip = createActionChip(text, listener);
+        actionsLayout.addView(chip, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 38, 0, 0, 8, 0));
+        actionsSection.setVisibility(View.VISIBLE);
+        return chip;
+    }
+
+    /** An action-styled chip that is not added anywhere yet (the «Медиа» tab places its own). */
+    TextView createActionChip(String text, View.OnClickListener listener) {
         TextView chip = createChip(text, 38);
         int accent = getThemedColor(Theme.key_featuredStickers_addButton);
         chip.setTextColor(accent);
@@ -530,8 +621,6 @@ public class RawObjectSheet extends BottomSheet {
         bg.setColor(Theme.multAlpha(accent, 0.06f));
         chip.setBackground(bg);
         chip.setOnClickListener(listener);
-        actionsLayout.addView(chip, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 38, 0, 0, 8, 0));
-        actionsSection.setVisibility(View.VISIBLE);
         return chip;
     }
 
@@ -562,6 +651,11 @@ public class RawObjectSheet extends BottomSheet {
         this.fields = fields;
         setSubtitle(subtitle != null ? subtitle : TLDumper.typeName(object));
         RawAnim.crossfade(bodyFrame, () -> {
+            mediaShown = false;
+            modeSwitch.setVisibility(View.VISIBLE);
+            if (mediaScroll != null) {
+                mediaScroll.setVisibility(View.GONE);
+            }
             typeLabel.setText(TLDumper.typeName(object));
             try {
                 treeView.setObject(object);
@@ -605,6 +699,11 @@ public class RawObjectSheet extends BottomSheet {
     }
 
     private void copy() {
+        if (mediaShown && mediaPanel != null) {
+            AndroidUtilities.addToClipboard(mediaPanel.infoText());
+            RawNotify.show(notifyHost(), R.drawable.msg_copy, "Сведения о файле скопированы");
+            return;
+        }
         boolean asFields = mode == MODE_FIELDS;
         String text = asFields ? fields : json;
         if (text == null) {
@@ -644,11 +743,14 @@ public class RawObjectSheet extends BottomSheet {
     // ---- swipe to dismiss vs. scrolling the code body ----
 
     private View activeBody() {
+        if (mediaShown && mediaScroll != null) {
+            return mediaScroll;
+        }
         return mode == MODE_TREE ? treeView : scrollView;
     }
 
     private int bodyOffset(View body) {
-        return body == treeView ? treeView.computeVerticalScrollOffset() : scrollView.getScrollY();
+        return body == treeView ? treeView.computeVerticalScrollOffset() : body.getScrollY();
     }
 
     private static boolean hit(View view, float rawX, float rawY) {
@@ -737,6 +839,9 @@ public class RawObjectSheet extends BottomSheet {
     private void setBodyPull(View body, boolean enabled) {
         scrollView.setNestedScrollingEnabled(enabled && body == scrollView);
         treeView.setNestedScrollingEnabled(enabled && body == treeView);
+        if (mediaScroll != null) {
+            mediaScroll.setNestedScrollingEnabled(enabled && body == mediaScroll);
+        }
     }
 
     /**

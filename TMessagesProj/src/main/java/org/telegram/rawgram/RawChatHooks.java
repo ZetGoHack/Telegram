@@ -265,7 +265,9 @@ public class RawChatHooks {
                 () -> popupLayout.getSwipeBack().closeForeground(),
                 () -> {
                     host.closeMenu();
-                    new RawObjectSheet(activity, account, "Сообщение #" + message.getId(), message.messageOwner, host.resources()).show();
+                    RawObjectSheet sheet = new RawObjectSheet(activity, account, "Сообщение #" + message.getId(), message.messageOwner, host.resources());
+                    sheet.setMediaSource(message, null);
+                    sheet.show();
                 },
                 host::closeMenu);
         final int detailsIndex = popupLayout.addViewToSwipeBack(details);

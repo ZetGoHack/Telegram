@@ -1301,6 +1301,7 @@ public class StarsIntroActivity extends GradientHeaderActivity implements Notifi
 
             addView(tabsView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
             addView(separatorView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 1f / AndroidUtilities.density));
+            org.telegram.rawgram.RawStarsFilter.attach(this, currentAccount, ton, bot_id, resourcesProvider); // rawGram: transaction kind chips
             addView(viewPager, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
             setBackgroundColor(Theme.getColor(Theme.key_dialogBackground, resourcesProvider));
@@ -1345,6 +1346,7 @@ public class StarsIntroActivity extends GradientHeaderActivity implements Notifi
                 this.resourcesProvider = resourcesProvider;
 
                 loadTransactionsRunnable = () -> {
+                    if (!org.telegram.rawgram.RawStarsFilter.mayLoad(this, type)) return; // rawGram: bounded auto-load under a filter
                     if (bot_id != 0) {
                         BotStarsController.getInstance(currentAccount).loadTransactions(bot_id, type);
                     } else {
@@ -1410,6 +1412,7 @@ public class StarsIntroActivity extends GradientHeaderActivity implements Notifi
             }
 
             private void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
+                if (org.telegram.rawgram.RawStarsFilter.fillPage(this, type, items)) return; // rawGram: transaction kind filter
                 if (bot_id != 0) {
                     final BotStarsController c = BotStarsController.getInstance(currentAccount);
                     for (TL_stars.StarsTransaction t : c.getTransactions(bot_id, type)) {

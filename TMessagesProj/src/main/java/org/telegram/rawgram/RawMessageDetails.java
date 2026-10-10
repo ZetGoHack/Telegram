@@ -136,7 +136,7 @@ public class RawMessageDetails {
         if (hasMediaFile(message) && !protectedContent) {
             int saveType = saveType(message);
             ActionBarMenuSubItem save = new ActionBarMenuSubItem(context, false, false, rp);
-            save.setTextAndIcon(saveType == 2 ? "Сохранить в загрузки" : saveType == 3 ? "Сохранить в музыку" : "Сохранить в галерею",
+            save.setTextAndIcon(saveLabel(saveType),
                     saveType >= 2 ? R.drawable.msg_download : R.drawable.msg_gallery);
             save.setOnClickListener(v -> saveToGallery(env, onClose));
             root.addView(save, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
@@ -530,7 +530,7 @@ public class RawMessageDetails {
     }
 
     /** MediaController.saveFile type: 0 pictures, 1 movies, 2 downloads, 3 music (Telegram's own folders). */
-    private static int saveType(MessageObject message) {
+    static int saveType(MessageObject message) {
         if (RawStickerExport.isSticker(message)) return RawStickerExport.saveType(message);
         String mime = mime(message);
         if (isImage(message)) return 0;
@@ -539,7 +539,7 @@ public class RawMessageDetails {
         return 2;
     }
 
-    private static String galleryPath(int account, MessageObject message) {
+    static String galleryPath(int account, MessageObject message) {
         File f = mediaFile(account, message);
         if (f != null) return f.getPath();
         // streamed videos: a cached quality or the quality picked for saving
@@ -558,45 +558,58 @@ public class RawMessageDetails {
         Activity activity = env.fragment.getParentActivity();
         if (activity == null) return;
         MessageObject message = env.message;
-        String path = galleryPath(env.account, message);
-        if (path == null) {
+        if (galleryPath(env.account, message) == null) {
             RawNotify.show(R.drawable.msg_download, "Файл ещё не загружен");
             return;
         }
         if (onClose != null) onClose.run();
-        // same check as ChatActivity: only scoped-storage builds save through MediaStore without a permission
-        if (Build.VERSION.SDK_INT >= 23 && (Build.VERSION.SDK_INT <= 28 || BuildVars.NO_SCOPED_STORAGE)
-                && activity.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            activity.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
-            return;
-        }
         final int saveType = saveType(message);
         final BulletinFactory.FileType type = message.isLivePhoto() ? BulletinFactory.FileType.LIVEPHOTO
                 : saveType == 0 ? BulletinFactory.FileType.PHOTO
                 : saveType == 1 ? (message.isGif() ? BulletinFactory.FileType.GIF : BulletinFactory.FileType.VIDEO)
                 : saveType == 3 ? BulletinFactory.FileType.AUDIO : BulletinFactory.FileType.UNKNOWN;
-        Utilities.Callback<Uri> onSaved = uri -> {
+        saveMessageFile(activity, env.account, message, uri -> {
             if (BulletinFactory.canShowBulletin(env.fragment)) {
                 BulletinFactory.of(env.fragment).createDownloadBulletin(type, env.rp).show();
             } else {
                 RawNotify.show(R.drawable.msg_gallery, saveType >= 2 ? "Сохранено" : "Сохранено в галерею");
             }
-        };
+        });
+    }
+
+    /** «Сохранить в …» label for the message's file, by {@link #saveType}. */
+    static String saveLabel(int saveType) {
+        return saveType == 2 ? "Сохранить в загрузки" : saveType == 3 ? "Сохранить в музыку" : "Сохранить в галерею";
+    }
+
+    /**
+     * Saves the message's file into the gallery / Downloads / Music, as ChatActivity does (stickers converted,
+     * live photos with their video, streamed videos from the cached quality). False when the file isn't downloaded.
+     */
+    static boolean saveMessageFile(Activity activity, int account, MessageObject message, Utilities.Callback<Uri> onSaved) {
+        String path = galleryPath(account, message);
+        if (path == null) {
+            return false;
+        }
+        if (requestStoragePermission(activity)) {
+            return true;
+        }
+        final int saveType = saveType(message);
         if (RawStickerExport.isSticker(message)) {
-            RawStickerExport.save(activity, env.account, message, onSaved);
-            return;
+            RawStickerExport.save(activity, account, message, onSaved);
+            return true;
         }
         if (message.isLivePhoto()) {
             TLRPC.MessageMedia media = MessageObject.getMedia(message.messageOwner);
             TLRPC.Document videoDoc = media != null ? media.document : null;
             if (videoDoc != null) {
-                File video = FileLoader.getInstance(env.account).getPathToAttach(videoDoc, false);
+                File video = FileLoader.getInstance(account).getPathToAttach(videoDoc, false);
                 if (video == null || !video.exists()) {
-                    video = FileLoader.getInstance(env.account).getPathToAttach(videoDoc, true);
+                    video = FileLoader.getInstance(account).getPathToAttach(videoDoc, true);
                 }
                 if (video != null && video.exists()) {
                     MediaController.saveFile(path, video.getPath(), activity, onSaved);
-                    return;
+                    return true;
                 }
             }
         }
@@ -611,6 +624,17 @@ public class RawMessageDetails {
             mime = doc != null ? doc.mime_type : null;
         }
         MediaController.saveFile(path, activity, saveType, name, mime, onSaved);
+        return true;
+    }
+
+    /** Same check as ChatActivity: only scoped-storage builds save through MediaStore without a permission. True = asked, stop. */
+    static boolean requestStoragePermission(Activity activity) {
+        if (Build.VERSION.SDK_INT >= 23 && (Build.VERSION.SDK_INT <= 28 || BuildVars.NO_SCOPED_STORAGE)
+                && activity.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            activity.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
+            return true;
+        }
+        return false;
     }
 
     // ---- formatting ----
@@ -619,11 +643,11 @@ public class RawMessageDetails {
         return new SimpleDateFormat("dd.MM.yyyy 'в' HH:mm:ss", Locale.getDefault()).format(new Date(unix * 1000L));
     }
 
-    private static String size(long bytes) {
+    static String size(long bytes) {
         return AndroidUtilities.formatFileSize(bytes) + "  (" + bytes + " Б)";
     }
 
-    private static String duration(double seconds) {
+    static String duration(double seconds) {
         long ms = Math.round(seconds * 1000);
         long total = ms / 1000;
         String base = total >= 3600
@@ -632,7 +656,7 @@ public class RawMessageDetails {
         return ms % 1000 != 0 ? base + String.format(Locale.US, ".%03d", ms % 1000) : base;
     }
 
-    private static String dc(int id) {
+    static String dc(int id) {
         String where;
         switch (id) {
             case 1:

@@ -47,6 +47,11 @@ public class RawTreeView extends RecyclerListView {
         void onCopy(String text, String toast);
     }
 
+    /** Long press on an object node: true when it showed its own menu (media files); {@code copy} is the usual copy. */
+    public interface MediaHandler {
+        boolean onLongPress(View row, Object source, List<Object> ancestors, Runnable copy);
+    }
+
     private static final int MAX_DEPTH = 32;
     private static final int PAGE = 50;
     private static final int MORE_STEP = 200;
@@ -203,6 +208,7 @@ public class RawTreeView extends RecyclerListView {
     private Node root;
     private RawSyntax.Palette palette;
     private CopyHandler copyHandler;
+    private MediaHandler mediaHandler;
     private int maxHeight;
     private long lastScrollTime;
 
@@ -230,6 +236,10 @@ public class RawTreeView extends RecyclerListView {
 
     public void setCopyHandler(CopyHandler handler) {
         copyHandler = handler;
+    }
+
+    public void setMediaHandler(MediaHandler handler) {
+        mediaHandler = handler;
     }
 
     public void setMaxHeight(int maxHeight) {
@@ -394,6 +404,27 @@ public class RawTreeView extends RecyclerListView {
             return false;
         }
         Node node = row.node;
+        if (mediaHandler != null && node.kind == KIND_OBJECT && node.marker == null) {
+            ArrayList<Object> ancestors = new ArrayList<>();
+            for (Node a = node.parent; a != null; a = a.parent) {
+                ancestors.add(a.source);
+            }
+            boolean handled;
+            try {
+                handled = mediaHandler.onLongPress(view, node.source, ancestors, () -> copyNode(view, node));
+            } catch (Throwable e) {
+                handled = false;
+            }
+            if (handled) {
+                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                return true;
+            }
+        }
+        return copyNode(view, node);
+    }
+
+    /** The usual long press: copies the subtree's JSON, the bytes or the value. */
+    private boolean copyNode(View view, Node node) {
         String text;
         String toast;
         try {
