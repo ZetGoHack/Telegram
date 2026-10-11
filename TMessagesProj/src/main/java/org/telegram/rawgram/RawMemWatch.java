@@ -7,7 +7,10 @@ import android.os.SystemClock;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ImageLoader;
 import org.telegram.messenger.LruCache;
+import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Components.Bulletin;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.LaunchActivity;
 
@@ -247,11 +250,50 @@ public final class RawMemWatch {
             RawCrashLog.appendJavaThreads(sb, null, 24 * 1024);
 
             File report = RawCrashLog.writeReport(TYPE_MEMORY, now, sb);
+            showWarning(heapUsed, max, report);
             if (report != null && RawgramConfig.isMemHprof()) {
+                try {
+                    Thread.sleep(2500); // let the bulletin render: the dump freezes the app for 10-20 s
+                } catch (InterruptedException ignore) {
+                }
                 dumpHeap(report, now);
             }
         } catch (Throwable ignore) {
         }
+    }
+
+    /** Red bulletin at the bottom of the screen: the heap is almost full, a leak is likely. Tap opens the report. */
+    private static void showWarning(long heapUsed, long max, File report) {
+        AndroidUtilities.runOnUIThread(() -> {
+            try {
+                BaseFragment fragment = LaunchActivity.getSafeLastFragment();
+                if (fragment == null || fragment.getParentActivity() == null) {
+                    return;
+                }
+                Context ctx = fragment.getParentActivity();
+                Theme.ResourcesProvider rp = fragment.getResourceProvider();
+                int red = Theme.getColor(Theme.key_text_RedBold, rp);
+                Bulletin.TwoLineLayout layout = new Bulletin.TwoLineLayout(ctx, rp);
+                layout.imageView.setImageResource(R.drawable.msg_warning, red);
+                layout.titleTextView.setText("Возможна утечка памяти");
+                layout.titleTextView.setTextColor(red);
+                layout.subtitleTextView.setText("Куча Java: " + (heapUsed >> 20) + " из " + (max >> 20) + " МБ. Нажми, чтобы открыть отчёт");
+                layout.subtitleTextView.setSingleLine(true);
+                layout.subtitleTextView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                Bulletin bulletin = Bulletin.make(fragment, layout, 10000);
+                if (report != null) {
+                    layout.setOnClickListener(v -> {
+                        bulletin.hide();
+                        BaseFragment last = LaunchActivity.getSafeLastFragment();
+                        if (last != null) {
+                            last.presentFragment(new RawCrashLogActivity(report));
+                        }
+                    });
+                }
+                bulletin.show();
+            } catch (Throwable ignore) {
+            }
+        });
     }
 
     /** One heap dump is kept; at most one per few hours and only with enough free space. */
