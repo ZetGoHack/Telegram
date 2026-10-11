@@ -100,13 +100,54 @@ public final class RawMediaActions {
             return preview != null;
         }
 
+        /** A user's or chat's current photo (UserProfilePhoto / ChatPhoto): only its file locations, no Photo. */
+        TLObject avatar;
+        /** The User / Chat the avatar belongs to (download peer); null = only a cached file can be used. */
+        TLObject avatarOwner;
+
+        boolean isAvatar() {
+            return avatar != null;
+        }
+
+        TLRPC.FileLocation avatarLocation(boolean big) {
+            if (avatar instanceof TLRPC.UserProfilePhoto) {
+                return big ? ((TLRPC.UserProfilePhoto) avatar).photo_big : ((TLRPC.UserProfilePhoto) avatar).photo_small;
+            } else if (avatar instanceof TLRPC.ChatPhoto) {
+                return big ? ((TLRPC.ChatPhoto) avatar).photo_big : ((TLRPC.ChatPhoto) avatar).photo_small;
+            }
+            return null;
+        }
+
+        long avatarPhotoId() {
+            return avatar instanceof TLRPC.UserProfilePhoto ? ((TLRPC.UserProfilePhoto) avatar).photo_id
+                    : avatar instanceof TLRPC.ChatPhoto ? ((TLRPC.ChatPhoto) avatar).photo_id : 0;
+        }
+
+        int avatarDc() {
+            return avatar instanceof TLRPC.UserProfilePhoto ? ((TLRPC.UserProfilePhoto) avatar).dc_id
+                    : avatar instanceof TLRPC.ChatPhoto ? ((TLRPC.ChatPhoto) avatar).dc_id : 0;
+        }
+
+        byte[] avatarStripped() {
+            return avatar instanceof TLRPC.UserProfilePhoto ? ((TLRPC.UserProfilePhoto) avatar).stripped_thumb
+                    : avatar instanceof TLRPC.ChatPhoto ? ((TLRPC.ChatPhoto) avatar).stripped_thumb : null;
+        }
+
+        boolean avatarHasVideo() {
+            return avatar instanceof TLRPC.UserProfilePhoto ? ((TLRPC.UserProfilePhoto) avatar).has_video
+                    : avatar instanceof TLRPC.ChatPhoto && ((TLRPC.ChatPhoto) avatar).has_video;
+        }
+
         TLObject attach() {
+            if (isAvatar()) {
+                return avatarLocation(true);
+            }
             return size != null ? size : document;
         }
 
         /** The photo or document as a whole, for the type label. */
         TLObject owner() {
-            return photo != null ? photo : document;
+            return isAvatar() ? avatar : photo != null ? photo : document;
         }
 
         String fileName() {
@@ -180,6 +221,10 @@ public final class RawMediaActions {
         }
 
         int dcId() {
+            if (isAvatar()) {
+                TLRPC.FileLocation big = avatarLocation(true);
+                return avatarDc() != 0 ? avatarDc() : big != null ? big.dc_id : 0;
+            }
             return photo != null ? photo.dc_id : document != null ? document.dc_id : 0;
         }
 
@@ -213,6 +258,10 @@ public final class RawMediaActions {
         }
 
         String kind() {
+            if (isAvatar()) {
+                String kind = avatarHasVideo() ? "Видео-аватарка" : "Аватарка";
+                return avatar instanceof TLRPC.UserProfilePhoto && ((TLRPC.UserProfilePhoto) avatar).personal ? kind + " (личная)" : kind;
+            }
             if (isPreview()) {
                 return preview.video_duration > 0 ? "Платное видео" : "Платное фото";
             }
@@ -275,6 +324,12 @@ public final class RawMediaActions {
         ArrayList<String[]> info(boolean withPath) {
             ArrayList<String[]> out = new ArrayList<>();
             out.add(new String[]{"Тип", kind()});
+            if (isAvatar()) {
+                out.add(new String[]{"photo_id", Long.toString(avatarPhotoId())});
+                String owner = avatarOwner instanceof TLRPC.User ? org.telegram.messenger.UserObject.getUserName((TLRPC.User) avatarOwner)
+                        : avatarOwner instanceof TLRPC.Chat ? ((TLRPC.Chat) avatarOwner).title : null;
+                out.add(new String[]{"Чья", owner != null ? owner : "неизвестно"});
+            }
             if (isPreview()) {
                 int[] wh = dimensions();
                 if (wh[0] > 0 && wh[1] > 0) out.add(new String[]{"Разрешение", wh[0] + "x" + wh[1]});
@@ -377,6 +432,9 @@ public final class RawMediaActions {
             ref = resolve(account, source, ancestors, node);
             if (ref == null) {
                 return null;
+            }
+            if (ref.isAvatar()) {
+                return ref; // its owner is its parent, found in resolve
             }
             ArrayList<Object> chain = new ArrayList<>();
             chain.add(source);
@@ -521,6 +579,14 @@ public final class RawMediaActions {
                 add(fromPhoto(account, (TLRPC.Photo) o), o);
                 return; // its sizes are not separate files
             }
+            if (o instanceof TLRPC.UserProfilePhoto || o instanceof TLRPC.ChatPhoto) {
+                ArrayList<Object> ancestors = new ArrayList<>();
+                for (int i = stack.size() - 1; i >= 0; i--) {
+                    ancestors.add(stack.get(i));
+                }
+                add(fromAvatar(account, (TLObject) o, ancestors), o);
+                return;
+            }
             if (o instanceof TLRPC.Document) {
                 add(fromDocument(account, (TLRPC.Document) o), o);
                 return;
@@ -564,13 +630,28 @@ public final class RawMediaActions {
                 return;
             }
             String key = ref.isPreview() ? "v" + System.identityHashCode(ref.preview)
+                    : ref.isAvatar() ? "p" + ref.avatarPhotoId()
                     : ref.photo != null ? "p" + ref.photo.id : "d" + ref.document.id;
             Ref old = found.get(key);
             if (old == null && found.size() >= MAX_LISTED) {
                 overflow.add(key);
                 return;
             }
-            if (!ref.isPreview()) {
+            if (old != null && old.isAvatar() != ref.isAvatar()) {
+                // the same photo as an avatar and as a full Photo (photos.getUserPhotos, UserFull): the Photo wins
+                if (old.isAvatar()) {
+                    attachContextFor(ref, source);
+                    found.put(key, ref);
+                }
+                return;
+            }
+            if (old != null && ref.isAvatar()) {
+                if (old.avatarOwner == null && ref.avatarOwner != null) {
+                    found.put(key, ref);
+                }
+                return;
+            }
+            if (!ref.isPreview() && !ref.isAvatar()) {
                 ArrayList<Object> chain = new ArrayList<>();
                 chain.add(source);
                 for (int i = stack.size() - 1; i >= 0; i--) {
@@ -586,6 +667,15 @@ public final class RawMediaActions {
                 }
                 found.put(key, ref); // same position, better parent
             }
+        }
+
+        private void attachContextFor(Ref ref, Object source) {
+            ArrayList<Object> chain = new ArrayList<>();
+            chain.add(source);
+            for (int i = stack.size() - 1; i >= 0; i--) {
+                chain.add(stack.get(i));
+            }
+            attachContext(ref, chain, sheetParent, sheetMessage, messages);
         }
 
         private int parentRank(Ref ref) {
@@ -622,7 +712,101 @@ public final class RawMediaActions {
         return out;
     }
 
+    /** A UserProfilePhoto / ChatPhoto with its owner (nearest User / Chat above it, or one named by an id there); null if empty. */
+    static Ref fromAvatar(int account, TLObject avatar, List<Object> ancestors) {
+        Ref ref = new Ref(account, null, null, null);
+        ref.avatar = avatar;
+        if (ref.avatarPhotoId() == 0 || ref.avatarLocation(true) == null || TextUtils.isEmpty(FileLoader.getAttachFileName(ref.avatarLocation(true)))) {
+            return null;
+        }
+        ref.avatarOwner = avatarOwner(account, avatar instanceof TLRPC.UserProfilePhoto, ancestors);
+        if (avatarImageLocation(ref, true) != null) {
+            ref.parent = ref.avatarOwner; // FileRefController refreshes avatars through their User / Chat
+        }
+        return ref;
+    }
+
+    private static TLObject avatarOwner(int account, boolean user, List<Object> ancestors) {
+        if (ancestors == null) {
+            return null;
+        }
+        MessagesController controller = MessagesController.getInstance(account);
+        for (Object a : ancestors) {
+            if (user && a instanceof TLRPC.User) return (TLRPC.User) a;
+            if (!user && a instanceof TLRPC.Chat) return (TLRPC.Chat) a;
+            if (user && a instanceof TLRPC.UserFull) return controller.getUser(((TLRPC.UserFull) a).id);
+            if (!user && a instanceof TLRPC.ChatFull) return controller.getChat(((TLRPC.ChatFull) a).id);
+            if (!(a instanceof TLObject)) {
+                continue;
+            }
+            // an update or a peer next to the photo: user_id / chat_id / channel_id / peer, when the peer is cached
+            for (java.lang.reflect.Field field : TLDumper.fieldsOf(a.getClass())) {
+                try {
+                    String name = field.getName();
+                    Object value = field.get(a);
+                    if (user && "user_id".equals(name) && value instanceof Long && (Long) value != 0) {
+                        TLRPC.User found = controller.getUser((Long) value);
+                        if (found != null) return found;
+                    } else if (!user && ("chat_id".equals(name) || "channel_id".equals(name)) && value instanceof Long && (Long) value != 0) {
+                        TLRPC.Chat found = controller.getChat((Long) value);
+                        if (found != null) return found;
+                    } else if ("peer".equals(name) && value instanceof TLRPC.Peer) {
+                        TLRPC.Peer peer = (TLRPC.Peer) value;
+                        if (user && peer.user_id != 0) {
+                            TLRPC.User found = controller.getUser(peer.user_id);
+                            if (found != null) return found;
+                        } else if (!user && (peer.chat_id != 0 || peer.channel_id != 0)) {
+                            TLRPC.Chat found = controller.getChat(peer.channel_id != 0 ? peer.channel_id : peer.chat_id);
+                            if (found != null) return found;
+                        }
+                    }
+                } catch (Throwable ignore) {
+                }
+            }
+        }
+        return null;
+    }
+
+    /** What Telegram loads an avatar with: the photo's own file location, requested through its owner's peer. */
+    static ImageLocation avatarImageLocation(Ref ref, boolean big) {
+        TLRPC.FileLocation fileLocation = ref.avatarLocation(big);
+        if (fileLocation == null || ref.avatarOwner == null) {
+            return null;
+        }
+        TLRPC.InputPeer peer;
+        try {
+            peer = MessagesController.getInputPeer(ref.avatarOwner);
+        } catch (Throwable e) {
+            return null;
+        }
+        if (peer == null || peer instanceof TLRPC.TL_inputPeerEmpty
+                || peer instanceof TLRPC.TL_inputPeerUser && peer.access_hash == 0
+                || peer instanceof TLRPC.TL_inputPeerChannel && peer.access_hash == 0) {
+            return null;
+        }
+        ImageLocation location = new ImageLocation();
+        location.dc_id = ref.avatarDc() != 0 ? ref.avatarDc() : fileLocation.dc_id;
+        location.photoPeer = peer;
+        location.photoPeerType = big ? ImageLocation.TYPE_BIG : ImageLocation.TYPE_SMALL;
+        location.photoId = ref.avatarPhotoId();
+        if (fileLocation instanceof TLRPC.TL_fileLocationToBeDeprecated) {
+            location.location = (TLRPC.TL_fileLocationToBeDeprecated) fileLocation;
+        } else {
+            location.location = new TLRPC.TL_fileLocationToBeDeprecated();
+            location.location.local_id = fileLocation.local_id;
+            location.location.volume_id = fileLocation.volume_id;
+            location.location.secret = fileLocation.secret;
+            location.dc_id = fileLocation.dc_id;
+            location.file_reference = fileLocation.file_reference;
+            location.access_hash = fileLocation.secret;
+        }
+        return location;
+    }
+
     private static Ref resolve(int account, Object source, List<Object> ancestors, boolean node) {
+        if (source instanceof TLRPC.UserProfilePhoto || source instanceof TLRPC.ChatPhoto) {
+            return fromAvatar(account, (TLObject) source, ancestors);
+        }
         if (source instanceof TLRPC.MessageMedia) return fromMedia(account, (TLRPC.MessageMedia) source);
         if (source instanceof TLRPC.TL_messageExtendedMedia) return fromMedia(account, ((TLRPC.TL_messageExtendedMedia) source).media);
         if (source instanceof TLRPC.WebPage) return fromWebPage(account, (TLRPC.WebPage) source);
@@ -850,7 +1034,12 @@ public final class RawMediaActions {
             return;
         }
         FileLoader loader = FileLoader.getInstance(ref.account);
-        if (ref.size != null) {
+        if (ref.isAvatar()) {
+            ImageLocation location = avatarImageLocation(ref, true);
+            if (location != null) {
+                loader.loadFile(location, ref.avatarOwner, "jpg", FileLoader.PRIORITY_HIGH, 0);
+            }
+        } else if (ref.size != null) {
             ImageLocation location = ref.photo != null ? ImageLocation.getForPhoto(ref.size, ref.photo) : ImageLocation.getForDocument(ref.size, ref.document);
             if (location != null) {
                 loader.loadFile(location, ref.parent, "jpg", FileLoader.PRIORITY_HIGH, 0);
@@ -862,7 +1051,9 @@ public final class RawMediaActions {
 
     public static void cancelDownload(Ref ref) {
         FileLoader loader = FileLoader.getInstance(ref.account);
-        if (ref.size != null) {
+        if (ref.isAvatar()) {
+            loader.cancelLoadFile(ref.avatarLocation(true), "jpg");
+        } else if (ref.size != null) {
             loader.cancelLoadFile(ref.size);
         } else if (ref.document != null) {
             loader.cancelLoadFile(ref.document);
@@ -898,6 +1089,27 @@ public final class RawMediaActions {
             return;
         }
         try {
+            if (ref.isAvatar()) {
+                ImageLocation location = avatarImageLocation(ref, true);
+                BaseFragment fragment = LaunchActivity.getSafeLastFragment();
+                if (location != null && fragment != null) {
+                    // as the profile / chat settings avatar opens: the big file location, through the owner's peer
+                    TLRPC.FileLocation big = ref.avatarLocation(true);
+                    if (ref.avatarDc() != 0) {
+                        big.dc_id = ref.avatarDc();
+                    }
+                    PhotoViewer.getInstance().setParentActivity(fragment, rp);
+                    PhotoViewer.getInstance().openPhoto(big, location, new PhotoViewer.EmptyPhotoViewerProvider());
+                    return;
+                }
+                File file = ref.file();
+                if (file != null) {
+                    AndroidUtilities.openForView(file, ref.displayName(), ref.mime(), activity, rp, false);
+                } else {
+                    notify(host, R.drawable.msg_download, "Файла нет в кеше");
+                }
+                return;
+            }
             if (ref.isSticker()) {
                 TLRPC.InputStickerSet set = stickerSetOf(ref.document);
                 if (set != null) {
@@ -1318,7 +1530,20 @@ public final class RawMediaActions {
                 imageView.clearImage();
                 iconView.setImageDrawable(null);
                 iconView.setVisibility(GONE);
-                if (r.isPreview()) {
+                if (r.isAvatar()) {
+                    byte[] strippedBytes = r.avatarStripped();
+                    android.graphics.Bitmap blurred = strippedBytes != null ? ImageLoader.getStrippedPhotoBitmap(strippedBytes, "b") : null;
+                    ImageLocation small = avatarImageLocation(r, false);
+                    if (small != null) {
+                        imageView.setImage(small, "200_200", null, null,
+                                blurred != null ? new android.graphics.drawable.BitmapDrawable(getResources(), blurred) : null, null, null, 0, r.avatarOwner);
+                    } else if (blurred != null) {
+                        imageView.setImageBitmap(blurred);
+                    } else {
+                        iconView.setImageResource(R.drawable.msg_openprofile);
+                        iconView.setVisibility(VISIBLE);
+                    }
+                } else if (r.isPreview()) {
                     // what the chat bubble shows for paid media not bought yet: the stripped thumbnail, blurred
                     android.graphics.Bitmap blurred = r.preview.thumb instanceof TLRPC.TL_photoStrippedSize && r.preview.thumb.bytes != null
                             ? ImageLoader.getStrippedPhotoBitmap(r.preview.thumb.bytes, "b") : null;
