@@ -257,6 +257,7 @@ public class RawRequestLogActivity extends BaseFragment {
         sheet.addObjectTab("Ответ", () -> sheet.setObject(subtitle, response));
         sheet.addObjectTab("Сводка", () -> sheet.setObject(subtitle, summary));
         sheet.setSubtitle(subtitle);
+        sheet.addMediaRoots(response);
         showDialog(sheet);
     }
 

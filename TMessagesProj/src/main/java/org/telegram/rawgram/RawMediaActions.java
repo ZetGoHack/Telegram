@@ -425,11 +425,12 @@ public final class RawMediaActions {
                 }
             }
             if (items.isEmpty()) {
-                Ref single = find(account, root, null, sheetParent, sheetMessage, false);
+                Ref single = isTypedRoot(root) ? find(account, root, null, sheetParent, sheetMessage, false) : null;
                 if (single != null) {
                     out.add(single);
+                    return out;
                 }
-                return out;
+                return walk(account, root, sheetParent, sheetMessage, QUICK_WALK_NODES);
             }
             ArrayList<Object> chain = new ArrayList<>();
             chain.add(root);
@@ -443,6 +444,156 @@ public final class RawMediaActions {
             FileLog.e(e);
         }
         return out;
+    }
+
+    // ---- generic search: every file anywhere in the object ----
+
+    /** Walk bounds: how deep, how many objects visited, how many files listed (the rest only counted). */
+    static final int MAX_WALK_DEPTH = 12, MAX_WALK_NODES = 5000, MAX_LISTED = 100;
+    /** Visited-object budget for the walk done right when the sheet opens; a bigger object is searched in the background. */
+    static final int QUICK_WALK_NODES = 1500;
+
+    /** Found files; {@code more} = files found beyond {@link #MAX_LISTED}, {@code cut} = the visit budget ran out. */
+    static final class RefList extends ArrayList<Ref> {
+        int more;
+        boolean cut;
+    }
+
+    /** Roots whose files are known from their type (messages, paid media, transactions): the walk isn't needed first. */
+    static boolean isTypedRoot(Object root) {
+        return root instanceof MessageObject || root instanceof TLRPC.Message || root instanceof TLRPC.TL_messageMediaPaidMedia
+                || root instanceof org.telegram.tgnet.tl.TL_stars.StarsTransaction;
+    }
+
+    /**
+     * Every photo and document anywhere in {@code root}, found with the tree's reflection (TLDumper.fieldsOf),
+     * each with the download parent of its nearest suitable ancestor (a message in a list gives its own message).
+     * MessageMedia expands like in a message (paid media items and previews). Deduplicated by photo / document id,
+     * keeping the copy with the best parent.
+     */
+    static RefList walk(int account, Object root, Object sheetParent, MessageObject sheetMessage, int maxNodes) {
+        Walker walker = new Walker(account, sheetParent, sheetMessage, maxNodes);
+        try {
+            walker.visit(root, 0);
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+        RefList out = new RefList();
+        out.addAll(walker.found.values());
+        out.more = walker.overflow.size();
+        out.cut = walker.cut;
+        return out;
+    }
+
+    private static final class Walker {
+        final int account;
+        final Object sheetParent;
+        final MessageObject sheetMessage;
+        final int maxNodes;
+        final java.util.IdentityHashMap<Object, Boolean> visited = new java.util.IdentityHashMap<>();
+        /** Ancestors of the object being visited, root first. */
+        final ArrayList<Object> stack = new ArrayList<>();
+        final java.util.LinkedHashMap<String, Ref> found = new java.util.LinkedHashMap<>();
+        final java.util.HashSet<String> overflow = new java.util.HashSet<>();
+        final java.util.IdentityHashMap<Object, MessageObject> messages = new java.util.IdentityHashMap<>();
+        boolean cut;
+
+        Walker(int account, Object sheetParent, MessageObject sheetMessage, int maxNodes) {
+            this.account = account;
+            this.sheetParent = sheetParent;
+            this.sheetMessage = sheetMessage;
+            this.maxNodes = maxNodes;
+        }
+
+        void visit(Object o, int depth) {
+            if (o == null || o instanceof CharSequence || o instanceof Number || o instanceof Boolean || o instanceof Character
+                    || o instanceof Enum || o.getClass().isArray() || depth > MAX_WALK_DEPTH) {
+                return;
+            }
+            if (visited.size() >= maxNodes) {
+                cut = true;
+                return;
+            }
+            if (visited.put(o, Boolean.TRUE) != null) {
+                return;
+            }
+            if (o instanceof TLRPC.Photo) {
+                add(fromPhoto(account, (TLRPC.Photo) o), o);
+                return; // its sizes are not separate files
+            }
+            if (o instanceof TLRPC.Document) {
+                add(fromDocument(account, (TLRPC.Document) o), o);
+                return;
+            }
+            if (o instanceof TLRPC.MessageMedia) {
+                for (Ref ref : itemsOf(account, (TLRPC.MessageMedia) o)) {
+                    add(ref, o);
+                }
+                // and on: a web page's instant view or a story can carry more files (duplicates are dropped)
+            }
+            stack.add(o);
+            try {
+                if (o instanceof List) {
+                    for (Object item : new ArrayList<>((List<?>) o)) {
+                        visit(item, depth + 1);
+                    }
+                } else if (o instanceof java.util.Map) {
+                    for (Object item : new ArrayList<>(((java.util.Map<?, ?>) o).values())) {
+                        visit(item, depth + 1);
+                    }
+                } else if (o instanceof MessageObject) {
+                    visit(((MessageObject) o).messageOwner, depth + 1);
+                } else if (o instanceof TLObject || o.getClass().getName().startsWith("org.telegram.tgnet")) {
+                    for (java.lang.reflect.Field field : TLDumper.fieldsOf(o.getClass())) {
+                        Object value;
+                        try {
+                            value = field.get(o);
+                        } catch (Throwable e) {
+                            continue;
+                        }
+                        visit(value, depth + 1);
+                    }
+                }
+            } finally {
+                stack.remove(stack.size() - 1);
+            }
+        }
+
+        private void add(Ref ref, Object source) {
+            if (ref == null) {
+                return;
+            }
+            String key = ref.isPreview() ? "v" + System.identityHashCode(ref.preview)
+                    : ref.photo != null ? "p" + ref.photo.id : "d" + ref.document.id;
+            Ref old = found.get(key);
+            if (old == null && found.size() >= MAX_LISTED) {
+                overflow.add(key);
+                return;
+            }
+            if (!ref.isPreview()) {
+                ArrayList<Object> chain = new ArrayList<>();
+                chain.add(source);
+                for (int i = stack.size() - 1; i >= 0; i--) {
+                    chain.add(stack.get(i));
+                }
+                attachContext(ref, chain, sheetParent, sheetMessage, messages);
+            }
+            if (old == null) {
+                found.put(key, ref);
+            } else if (parentRank(ref) > parentRank(old)) {
+                if (old.stars > 0 && ref.stars == 0) {
+                    ref.stars = old.stars;
+                }
+                found.put(key, ref); // same position, better parent
+            }
+        }
+
+        private int parentRank(Ref ref) {
+            if (ref.message != null) return 4;
+            if (ref.parent instanceof MessageObject) return 3;
+            if (ref.parent == null) return 0;
+            return ref.parent == sheetParent ? 1 : 2;
+        }
     }
 
     /** The files of one media: each item of paid media (previews included), otherwise the single file. */
@@ -579,6 +730,12 @@ public final class RawMediaActions {
 
     /** Finds the download parent and the real message (if the media is a message's own) along the node's path. */
     private static void attachContext(Ref ref, List<Object> chain, Object sheetParent, MessageObject sheetMessage) {
+        attachContext(ref, chain, sheetParent, sheetMessage, null);
+    }
+
+    /** {@code messages}: MessageObjects already made for bare messages during one walk (one per message). */
+    private static void attachContext(Ref ref, List<Object> chain, Object sheetParent, MessageObject sheetMessage,
+                                      java.util.IdentityHashMap<Object, MessageObject> messages) {
         for (Object o : chain) {
             MessageObject message = null;
             if (sheetMessage != null && (o == sheetMessage || o == sheetMessage.messageOwner)) {
@@ -588,7 +745,13 @@ public final class RawMediaActions {
             } else if (o instanceof TLRPC.Message && !(o instanceof TLRPC.TL_messageEmpty)) {
                 // a message inside a log or a response: a MessageObject refreshes file references, a bare Message can't
                 try {
-                    message = new MessageObject(ref.account, (TLRPC.Message) o, false, false);
+                    message = messages != null ? messages.get(o) : null;
+                    if (message == null) {
+                        message = new MessageObject(ref.account, (TLRPC.Message) o, false, false);
+                        if (messages != null) {
+                            messages.put(o, message);
+                        }
+                    }
                 } catch (Throwable e) {
                     FileLog.e(e);
                     ref.parent = o;
@@ -964,8 +1127,9 @@ public final class RawMediaActions {
         void bind(List<Ref> refs) {
             cardsLayout.removeAllViews();
             cards.clear();
-            boolean list = refs.size() > 1;
-            headerView.setText(refs.size() + " медиа");
+            int more = refs instanceof RefList ? ((RefList) refs).more : 0;
+            boolean list = refs.size() > 1 || more > 0;
+            headerView.setText((refs.size() + more) + " медиа");
             headerView.setVisibility(list ? VISIBLE : GONE);
             int divider = Theme.multAlpha(Theme.getColor(Theme.key_dialogTextBlack, rp), 0.08f);
             for (int i = 0; i < refs.size(); i++) {
@@ -977,6 +1141,14 @@ public final class RawMediaActions {
                 Card card = new Card(getContext(), refs.get(i), list ? i + 1 : 0);
                 cards.add(card);
                 cardsLayout.addView(card, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+            }
+            if (more > 0) {
+                TextView moreView = new TextView(getContext());
+                moreView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+                moreView.setTextColor(Theme.getColor(Theme.key_dialogTextGray2, rp));
+                moreView.setText("и ещё " + more);
+                moreView.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(4), AndroidUtilities.dp(12), AndroidUtilities.dp(12));
+                cardsLayout.addView(moreView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
             }
             account = refs.isEmpty() ? -1 : refs.get(0).account;
             observe();
@@ -1242,8 +1414,9 @@ public final class RawMediaActions {
 
     /** The header line of the «Медиа» tab: "media · TL_photo", or "media · 3 items" for a list. */
     static String typeLine(List<Ref> refs) {
-        if (refs.size() > 1) {
-            return "media · " + refs.size() + " items";
+        int more = refs instanceof RefList ? ((RefList) refs).more : 0;
+        if (refs.size() > 1 || more > 0) {
+            return "media · " + (refs.size() + more) + " items";
         }
         Ref ref = refs.get(0);
         Object shown = ref.isPreview() ? ref.preview : ref.size != null ? ref.size : ref.owner();
@@ -1252,7 +1425,8 @@ public final class RawMediaActions {
 
     /** Subtitle of the «Медиа» tab: kind, size and whether the file is here; for a list, how many are in the cache. */
     static String summary(List<Ref> refs) {
-        if (refs.size() > 1) {
+        int more = refs instanceof RefList ? ((RefList) refs).more : 0;
+        if (refs.size() > 1 || more > 0) {
             int cached = 0, previews = 0;
             for (Ref ref : refs) {
                 if (ref.isPreview()) {
@@ -1261,7 +1435,7 @@ public final class RawMediaActions {
                     cached++;
                 }
             }
-            String s = refs.size() + " медиа · в кеше " + cached;
+            String s = (refs.size() + more) + " медиа · в кеше " + cached;
             return previews > 0 ? s + " · не куплено " + previews : s;
         }
         Ref ref = refs.get(0);

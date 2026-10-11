@@ -33,6 +33,7 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.R;
+import org.telegram.messenger.Utilities;
 import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ChatMessageCell;
@@ -86,6 +87,7 @@ public class RawObjectSheet extends BottomSheet {
     private Object mediaParent;
     private MessageObject mediaMessage;
     private java.util.List<MessageObject> mediaGroup;
+    private final ArrayList<Object> mediaRoots = new ArrayList<>();
     private boolean mediaTabChecked;
     private boolean mediaShown;
     private ScrollView mediaScroll;
@@ -421,6 +423,15 @@ public class RawObjectSheet extends BottomSheet {
         mediaParent = parent != null ? parent : message;
     }
 
+    /** Objects the caller shows in other tabs (a response, the whole update): the «Медиа» tab searches them too. */
+    public void addMediaRoots(Object... roots) {
+        for (Object root : roots) {
+            if (root != null && root != object && !mediaRoots.contains(root)) {
+                mediaRoots.add(root);
+            }
+        }
+    }
+
     /** The messages of the album the shown message belongs to: the «Медиа» tab lists them all. */
     public void setMediaGroup(java.util.List<MessageObject> group) {
         mediaGroup = group;
@@ -438,10 +449,37 @@ public class RawObjectSheet extends BottomSheet {
     /** A «Медиа» tab after the caller's tabs when the object carries a file (plus a tab for the object itself if there were none). */
     private void addMediaTab() {
         final Object root = object;
-        ArrayList<RawMediaActions.Ref> refs = RawMediaActions.findAll(currentAccount, root, mediaParent, mediaMessage, mediaGroup);
+        final Object searchRoot;
+        if (mediaRoots.isEmpty() || mediaGroup != null || RawMediaActions.isTypedRoot(root)) {
+            searchRoot = root;
+        } else {
+            ArrayList<Object> all = new ArrayList<>();
+            all.add(root);
+            all.addAll(mediaRoots);
+            searchRoot = all;
+        }
+        ArrayList<RawMediaActions.Ref> refs = RawMediaActions.findAll(currentAccount, searchRoot, mediaParent, mediaMessage, mediaGroup);
+        if (refs instanceof RawMediaActions.RefList && ((RawMediaActions.RefList) refs).cut) {
+            // a big response: search all of it off the UI thread, the tab comes when done
+            final Object parent = mediaParent;
+            final MessageObject message = mediaMessage;
+            Utilities.globalQueue.postRunnable(() -> {
+                ArrayList<RawMediaActions.Ref> full = RawMediaActions.walk(currentAccount, searchRoot, parent, message, RawMediaActions.MAX_WALK_NODES);
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (!full.isEmpty()) {
+                        addMediaTab(root, full);
+                    }
+                });
+            });
+            return;
+        }
         if (refs.isEmpty()) {
             return;
         }
+        addMediaTab(root, refs);
+    }
+
+    private void addMediaTab(Object root, ArrayList<RawMediaActions.Ref> refs) {
         if (tabs.isEmpty()) {
             final CharSequence subtitle = subtitleView.getText();
             addObjectTab(RawMediaActions.tabLabel(root), () -> setObject(subtitle, root));

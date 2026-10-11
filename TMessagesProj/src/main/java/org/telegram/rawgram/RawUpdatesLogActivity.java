@@ -243,6 +243,7 @@ public class RawUpdatesLogActivity extends BaseFragment {
         sheet.addObjectTab("Целиком", () -> sheet.setObject(subtitle, whole));
         sheet.addObjectTab("Сводка", () -> sheet.setObject(subtitle, summary(e)));
         sheet.setSubtitle(subtitle);
+        sheet.addMediaRoots(whole);
         showDialog(sheet);
     }
 

@@ -288,6 +288,7 @@ public class RawShortcuts {
             }
             final RawObjectSheet target = sheet;
             sheet.addObjectTab(name, () -> target.setObject(subtitle, object));
+            sheet.addMediaRoots(object);
         }
         return sheet;
     }
