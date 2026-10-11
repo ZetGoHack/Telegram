@@ -74,6 +74,10 @@ in Telegram classes.
   change stock Telegram animations.
 - **Inline tooling**: `RawInlineResultViewer`, `RawReroll*` (reroll until a pattern matches), `RawInlineStash` (per-account
   parked results), `RawAbsorb` (gooey park animation), `RawSend` (send chooser).
+- **Notifications**: every rawGram message to the user goes through `RawNotify` (a Telegram bulletin with a bar at the bottom
+  that shrinks until it hides): `RawNotify.show(R.drawable.msg_*, "текст"[, onClick])`, and `RawNotify.warn("текст", onClick)`
+  for problems the user must notice (red accent, longer on screen). Don't build separate `Bulletin`/`BulletinFactory`
+  layouts for rawGram's own messages, so they all look alike. Texts follow the rules in «User-facing texts».
 
 ## Porting from Nagram
 

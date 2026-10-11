@@ -3,6 +3,8 @@ package org.telegram.rawgram;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.View;
@@ -11,6 +13,7 @@ import android.widget.FrameLayout;
 import androidx.annotation.NonNull;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
@@ -23,6 +26,7 @@ import org.telegram.ui.LaunchActivity;
 public class RawNotify {
 
     public static final int DURATION = 2750;
+    public static final int WARN_DURATION = 8000;
 
     /** Shows inside a bottom sheet (e.g. the raw viewer). */
     public static void show(BottomSheet sheet, int icon, CharSequence text) {
@@ -30,7 +34,7 @@ public class RawNotify {
             show(icon, text);
             return;
         }
-        make(sheet.container, sheet.getContext(), null, icon, text, DURATION).show();
+        make(sheet.container, sheet.getContext(), null, icon, text, DURATION, false).show();
     }
 
     /** Shows over whatever screen is currently on top. */
@@ -40,6 +44,16 @@ public class RawNotify {
 
     /** Same, and a tap on the bulletin hides it and runs {@code onClick}. */
     public static void show(int icon, CharSequence text, Runnable onClick) {
+        show(icon, text, onClick, false);
+    }
+
+    /** A warning in the same style, red accent (icon, bar) and longer on screen: for problems the user should notice. */
+    public static void warn(CharSequence text, Runnable onClick) {
+        show(R.drawable.msg_warning, text, onClick, true);
+    }
+
+    private static void show(int icon, CharSequence text, Runnable onClick, boolean warning) {
+        int duration = warning ? WARN_DURATION : DURATION;
         BaseFragment fragment = LaunchActivity.getSafeLastFragment();
         if (fragment == null || fragment.getParentActivity() == null) {
             return;
@@ -47,11 +61,11 @@ public class RawNotify {
         Bulletin bulletin;
         if (fragment.visibleDialog instanceof BottomSheet) {
             BottomSheet visible = (BottomSheet) fragment.visibleDialog;
-            bulletin = make(visible.container, visible.getContext(), fragment.getResourceProvider(), icon, text, DURATION);
+            bulletin = make(visible.container, visible.getContext(), fragment.getResourceProvider(), icon, text, duration, warning);
         } else {
-            TimerLayout layout = new TimerLayout(fragment.getParentActivity(), fragment.getResourceProvider(), DURATION);
+            TimerLayout layout = new TimerLayout(fragment.getParentActivity(), fragment.getResourceProvider(), duration, warning);
             layout.bind(icon, text);
-            bulletin = Bulletin.make(fragment, layout, DURATION);
+            bulletin = Bulletin.make(fragment, layout, duration);
         }
         if (onClick != null) {
             bulletin.setOnClickListener(v -> {
@@ -62,8 +76,8 @@ public class RawNotify {
         bulletin.show();
     }
 
-    private static Bulletin make(FrameLayout container, Context context, Theme.ResourcesProvider resourcesProvider, int icon, CharSequence text, int duration) {
-        TimerLayout layout = new TimerLayout(context, resourcesProvider, duration);
+    private static Bulletin make(FrameLayout container, Context context, Theme.ResourcesProvider resourcesProvider, int icon, CharSequence text, int duration, boolean warning) {
+        TimerLayout layout = new TimerLayout(context, resourcesProvider, duration, warning);
         layout.bind(icon, text);
         return Bulletin.make(container, layout, duration);
     }
@@ -71,9 +85,13 @@ public class RawNotify {
     private static class TimerLayout extends Bulletin.SimpleLayout {
         private final TimerBar bar;
 
-        TimerLayout(@NonNull Context context, Theme.ResourcesProvider resourcesProvider, int duration) {
+        TimerLayout(@NonNull Context context, Theme.ResourcesProvider resourcesProvider, int duration, boolean warning) {
             super(context, resourcesProvider);
-            bar = new TimerBar(context, duration, getThemedColor(Theme.key_undo_infoColor));
+            int accent = warning ? getThemedColor(Theme.key_text_RedBold) : getThemedColor(Theme.key_undo_infoColor);
+            if (warning) {
+                imageView.setColorFilter(new PorterDuffColorFilter(accent, PorterDuff.Mode.MULTIPLY));
+            }
+            bar = new TimerBar(context, duration, accent);
             addView(bar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 3, Gravity.BOTTOM, 12, 0, 12, 3));
         }
 
