@@ -42,6 +42,8 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
     private static final int NUMBER_IDS = 11;
     private static final int UPDATES_LOG = 12;
     private static final int RAW_MINIMIZE = 13;
+    private static final int MEM_WATCH = 14;
+    private static final int MEM_HPROF = 15;
     // values / actions
     private static final int ID_FORMAT = 20;
     private static final int OPEN_REQUEST_LOG = 21;
@@ -126,8 +128,11 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
 
         header("Диагностика");
         value("Журнал крашей", CRASH_LOG);
+        check("Следить за памятью", MEM_WATCH);
+        check("Дамп кучи при нехватке памяти", MEM_HPROF);
         value("Конфиг сервера", SERVER_CONFIG);
         info("Конфиг сервера — настройки, которые сервер выдаёт текущему аккаунту: лимиты (обычные и Premium), дата-центры, флаги клиента.");
+        info("Слежение за памятью: если куча Java держится почти полной (так выглядит зависание перед вылетом по нехватке памяти), в журнал крашей попадает отчёт «память»: график кучи за последние минуты, открытые экраны, размеры кешей картинок, занятые потоки. Дамп кучи (сотни мегабайт, хранится один) показывает, какие объекты её занимают; снимается не чаще раза в несколько часов и только при свободных 2 ГБ.");
     }
 
     private static boolean isOn(int id) {
@@ -145,6 +150,8 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
             case RAW_MINIMIZE: return RawgramConfig.isRawMinimize();
             case ID_SEARCH: return RawgramConfig.isIdSearch();
             case NUMBER_IDS: return RawgramConfig.isNumberIds();
+            case MEM_WATCH: return RawgramConfig.isMemWatch();
+            case MEM_HPROF: return RawgramConfig.isMemHprof();
             default: return false;
         }
     }
@@ -164,6 +171,13 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
             case RAW_MINIMIZE: RawgramConfig.setRawMinimize(value); break;
             case ID_SEARCH: RawgramConfig.setIdSearch(value); break;
             case NUMBER_IDS: RawgramConfig.setNumberIds(value); break;
+            case MEM_WATCH:
+                RawgramConfig.setMemWatch(value);
+                if (value) {
+                    RawMemWatch.start(org.telegram.messenger.ApplicationLoader.applicationContext);
+                }
+                break;
+            case MEM_HPROF: RawgramConfig.setMemHprof(value); break;
         }
     }
 

@@ -236,6 +236,9 @@ public class RawCrashLog {
 
         appendSection(sb, SEC_DEVICE, "Устройство и диагностика");
         appendDeviceInfo(sb, true);
+        if (root instanceof OutOfMemoryError || e instanceof OutOfMemoryError) {
+            RawMemWatch.appendForCrash(sb); // the heap history before the crash
+        }
 
         // stack trace goes to disk first: logcat below may hang or the process may die meanwhile
         try (Writer w = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
@@ -266,7 +269,7 @@ public class RawCrashLog {
     }
 
     /** "main" + threads that have org.telegram frames, one item each. */
-    private static void appendJavaThreads(StringBuilder sb, Thread crashed, int maxBytes) {
+    static void appendJavaThreads(StringBuilder sb, Thread crashed, int maxBytes) {
         int start = sb.length();
         int skipped = 0, shown = 0;
         Map<Thread, StackTraceElement[]> all = Thread.getAllStackTraces();
@@ -772,6 +775,8 @@ public class RawCrashLog {
             return "убит системой";
         } else if (TYPE_LOGCAT.equals(type)) {
             return "logcat";
+        } else if (RawMemWatch.TYPE_MEMORY.equals(type)) {
+            return "память";
         }
         return "java";
     }

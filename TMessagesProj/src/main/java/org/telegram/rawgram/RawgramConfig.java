@@ -253,6 +253,26 @@ public class RawgramConfig {
     }
 
     private static final Flag messageDetails = new Flag("featMessageDetails", true);
+    private static final Flag memWatch = new Flag("memWatch", true);
+    private static final Flag memHprof = new Flag("memHprof", true);
+
+    /** Heap watch: a report in the crash log when the Java heap stays almost full. */
+    public static boolean isMemWatch() {
+        return memWatch.get();
+    }
+
+    public static void setMemWatch(boolean value) {
+        memWatch.set(value);
+    }
+
+    /** A heap dump is saved together with that report (one file is kept). */
+    public static boolean isMemHprof() {
+        return memHprof.get();
+    }
+
+    public static void setMemHprof(boolean value) {
+        memHprof.set(value);
+    }
     private static final Flag inlineRaw = new Flag("featInlineRaw", true);
     private static final Flag inlineTray = new Flag("featInlineTray", true);
     private static final Flag botButtonDebug = new Flag("featBotButtonDebug", true);

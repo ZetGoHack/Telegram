@@ -325,6 +325,7 @@ public class ApplicationLoader extends Application {
             applicationContext = getApplicationContext();
         }
         org.telegram.rawgram.RawCrashLog.install(this); // rawGram: after BuildVars' handler, so ours runs first
+        org.telegram.rawgram.RawMemWatch.start(this); // rawGram: heap watch
 
         NativeLoader.initNativeLibs(ApplicationLoader.applicationContext);
 
