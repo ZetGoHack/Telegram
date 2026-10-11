@@ -477,6 +477,10 @@ public final class RawBadges {
             fallback = isDeveloper(chat.id, TYPE_CHAT) ? chat.title + " — официальный канал exteraGram" : chat.title + " поддерживает exteraGram";
         }
         CharSequence text = badge.text != null ? linkUsernames(badge.text, fragment) : fallback;
+        if (text.toString().contains("**")) {
+            // **bold** in captions, as exteraGram's emoji bulletin does (links stay clickable)
+            text = org.telegram.messenger.AndroidUtilities.replaceTags(new android.text.SpannableStringBuilder(text));
+        }
         TLRPC.Document document = AnimatedEmojiDrawable.findDocument(fragment.getCurrentAccount(), badge.documentId);
         Bulletin bulletin;
         if (document != null) {
