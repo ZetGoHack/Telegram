@@ -6175,11 +6175,11 @@ public class EmojiView extends FrameLayout implements
             .createWeakObserversGroup(this)
             .addGlobal(NotificationCenter.emojiLoaded)
             .add(NotificationCenter.newEmojiSuggestionsAvailable)
-            .add(NotificationCenter.groupPackUpdated);
+            .add(NotificationCenter.groupPackUpdated)
+            .add(NotificationCenter.stickersDidLoad); // rawGram: emoji packs update even without the stickers grid; setVisibility() subscription is dropped on detach
 
         if (stickersGridAdapter != null) {
             observersGroup
-                .add(NotificationCenter.stickersDidLoad)
                 .add(NotificationCenter.recentDocumentsDidLoad)
                 .add(NotificationCenter.featuredStickersDidLoad)
                 .add(NotificationCenter.groupStickersDidLoad)
@@ -6230,11 +6230,19 @@ public class EmojiView extends FrameLayout implements
             observersGroup.removeAllObservers();
             observersGroup = null;
         }
+        removeVisibilityObservers(); // rawGram: 12.10.4 regression, setVisibility() subscriptions outlive the view and keep the ChatActivity
+    }
+
+    // rawGram: setVisibility() subscribes the view itself (strong), the weak group does not cover it
+    private void removeVisibilityObservers() {
+        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.stickersDidLoad);
+        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.recentDocumentsDidLoad);
     }
 
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
+        removeVisibilityObservers(); // rawGram: next setVisibility(VISIBLE) subscribes again
         if (colorPickerView != null && colorPickerView.isShowing()) {
             colorPickerView.dismiss();
         }
