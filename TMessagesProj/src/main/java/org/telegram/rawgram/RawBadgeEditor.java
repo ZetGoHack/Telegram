@@ -23,7 +23,6 @@ import org.telegram.tgnet.tl.TL_stars;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.SimpleTextView;
 import org.telegram.ui.ActionBar.Theme;
-import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.EditTextCaption;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.SelectAnimatedEmojiDialog;
@@ -175,10 +174,10 @@ public final class RawBadgeEditor {
             if (RESULT_OK.equals(result)) {
                 RawBadges.updateLocal(UserConfig.getInstance(account).getClientUserId(), badge);
                 if (fragment.getParentActivity() != null) {
-                    BulletinFactory.of(fragment).createSimpleBulletin(R.raw.contact_check, "Бейдж обновлён").show();
+                    RawNotify.show(R.drawable.msg_info, "Бейдж обновлён");
                 }
             } else if (fragment.getParentActivity() != null) {
-                BulletinFactory.of(fragment).createErrorBulletin("Не удалось обновить бейдж").show();
+                RawNotify.warn("Не удалось обновить бейдж");
             }
         });
     }

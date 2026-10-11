@@ -27,7 +27,6 @@ import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.ActionBar.ActionBarMenuSubItem;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
-import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 
@@ -149,7 +148,7 @@ public class RawUpdatesLogActivity extends BaseFragment {
             }
             RawUpdatesLog.Entry e = items.get(position);
             AndroidUtilities.addToClipboard(e.summary.isEmpty() ? e.type : e.summary);
-            BulletinFactory.of(this).createCopyBulletin("Типы скопированы").show();
+            RawNotify.show(R.drawable.msg_copy, "Типы скопированы");
             return true;
         });
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));

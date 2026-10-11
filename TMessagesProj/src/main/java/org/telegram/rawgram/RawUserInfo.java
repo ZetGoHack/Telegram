@@ -89,7 +89,7 @@ public final class RawUserInfo {
         }
         Utilities.Callback3<TLRPC.BotInlineResult, TLRPC.User, Runnable> sender = host.foreignInlineSender();
         if (sender == null || !(host.fragment() instanceof ChatActivity)) {
-            RawNotify.show(R.drawable.msg_warning, "Здесь нельзя отправить результат бота");
+            RawNotify.warn("Здесь нельзя отправить результат бота");
             return;
         }
         int account = host.account();
@@ -98,7 +98,7 @@ public final class RawUserInfo {
         resolveBot(account, bot -> {
             if (bot == null) {
                 busy = false;
-                RawNotify.show(R.drawable.msg_warning, "Не удалось найти @" + BOT);
+                RawNotify.warn("Не удалось найти @" + BOT);
                 return;
             }
             TLRPC.TL_messages_getInlineBotResults req = new TLRPC.TL_messages_getInlineBotResults();
@@ -109,7 +109,7 @@ public final class RawUserInfo {
             ConnectionsManager.getInstance(account).sendRequest(req, (res, error) -> AndroidUtilities.runOnUIThread(() -> {
                 busy = false;
                 if (!(res instanceof TLRPC.messages_BotResults)) {
-                    RawNotify.show(R.drawable.msg_warning, "@" + BOT + ": " + (error != null ? error.text : "нет ответа"));
+                    RawNotify.warn("@" + BOT + ": " + (error != null ? error.text : "нет ответа"));
                     return;
                 }
                 TLRPC.messages_BotResults results = (TLRPC.messages_BotResults) res;

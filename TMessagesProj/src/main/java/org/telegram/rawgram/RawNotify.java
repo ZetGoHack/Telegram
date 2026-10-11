@@ -30,11 +30,30 @@ public class RawNotify {
 
     /** Shows inside a bottom sheet (e.g. the raw viewer). */
     public static void show(BottomSheet sheet, int icon, CharSequence text) {
+        show(sheet, icon, text, false);
+    }
+
+    /** A warning inside a bottom sheet. */
+    public static void warn(BottomSheet sheet, CharSequence text) {
+        show(sheet, R.drawable.msg_warning, text, true);
+    }
+
+    private static void show(BottomSheet sheet, int icon, CharSequence text, boolean warning) {
         if (sheet == null || !sheet.isShowing()) {
-            show(icon, text);
+            show(icon, text, null, warning);
             return;
         }
-        make(sheet.container, sheet.getContext(), null, icon, text, DURATION, false).show();
+        make(sheet.container, sheet.getContext(), null, icon, text, warning ? WARN_DURATION : DURATION, warning).show();
+    }
+
+    /** Shows inside any container, e.g. the root of a custom dialog. */
+    public static void show(FrameLayout container, int icon, CharSequence text) {
+        make(container, container.getContext(), null, icon, text, DURATION, false).show();
+    }
+
+    /** A warning inside any container. */
+    public static void warn(FrameLayout container, CharSequence text) {
+        make(container, container.getContext(), null, R.drawable.msg_warning, text, WARN_DURATION, true).show();
     }
 
     /** Shows over whatever screen is currently on top. */
@@ -47,7 +66,21 @@ public class RawNotify {
         show(icon, text, onClick, false);
     }
 
-    /** A warning in the same style, red accent (icon, bar) and longer on screen: for problems the user should notice. */
+    /** An outcome: the normal notification on success, a warning on failure. */
+    public static void result(boolean ok, int icon, CharSequence done, CharSequence failed) {
+        if (ok) {
+            show(icon, done);
+        } else {
+            warn(failed);
+        }
+    }
+
+    /** A warning in the same style, red accent (icon, bar) and longer on screen: for failures and problems the user should notice. */
+    public static void warn(CharSequence text) {
+        warn(text, null);
+    }
+
+    /** Same, and a tap on the bulletin hides it and runs {@code onClick}. */
     public static void warn(CharSequence text, Runnable onClick) {
         show(R.drawable.msg_warning, text, onClick, true);
     }

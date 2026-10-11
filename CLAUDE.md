@@ -77,7 +77,10 @@ in Telegram classes.
 - **Notifications**: every rawGram message to the user goes through `RawNotify` (a Telegram bulletin with a bar at the bottom
   that shrinks until it hides): `RawNotify.show(R.drawable.msg_*, "текст"[, onClick])`, and `RawNotify.warn("текст", onClick)`
   for problems the user must notice (red accent, longer on screen). Don't build separate `Bulletin`/`BulletinFactory`
-  layouts for rawGram's own messages, so they all look alike. Texts follow the rules in «User-facing texts».
+  layouts for rawGram's own messages, so they all look alike. Any failure («Не удалось…», an error the user must notice) is
+  `warn`, never a plain `show`; `RawNotify.result(ok, icon, done, failed)` does both; inside a bottom sheet pass the sheet,
+  inside a custom dialog pass its `FrameLayout`. Exceptions: bulletins with buttons or an undo timer, and ported AyuGram
+  ones. Texts follow the rules in «User-facing texts».
 
 ## Porting from Nagram
 

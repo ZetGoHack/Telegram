@@ -40,7 +40,7 @@ public final class RawStickerRefresh {
         int oldCount = current.documents == null ? 0 : current.documents.size();
         ConnectionsManager.getInstance(account).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
             if (!(response instanceof TLRPC.TL_messages_stickerSet) || ((TLRPC.TL_messages_stickerSet) response).set == null) {
-                RawNotify.show(sheet, R.drawable.msg_info, "Не удалось обновить набор" + (error != null ? ": " + error.text : ""));
+                RawNotify.warn(sheet, "Не удалось обновить набор" + (error != null ? ": " + error.text : ""));
                 return;
             }
             TLRPC.TL_messages_stickerSet set = (TLRPC.TL_messages_stickerSet) response;

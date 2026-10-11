@@ -18,7 +18,6 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ChatActivity;
-import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.ItemOptions;
 import org.telegram.ui.DialogsActivity;
 import org.telegram.ui.ProfileActivity;
@@ -401,7 +400,7 @@ public class RawIdLookup {
                     return;
                 }
                 if (found.isEmpty()) {
-                    BulletinFactory.of(fragment).createSimpleBulletin(R.raw.error, "Нет в кеше: ID " + digits).show();
+                    RawNotify.show(R.drawable.msg_info, "Нет в кеше: ID " + digits);
                     return;
                 }
                 MessagesController mc = MessagesController.getInstance(account);

@@ -28,7 +28,6 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ChatMessageCell;
 import org.telegram.ui.Cells.ContextLinkCell;
-import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.ChatActivityEnterView;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
@@ -445,11 +444,11 @@ public class RawChatHooks {
             return;
         }
         if (!host.canSendInline()) {
-            BulletinFactory.of(host.fragment()).createSimpleBulletin(R.raw.error, "В этом чате запрещена отправка инлайн-результатов").show();
+            RawNotify.warn("В этом чате запрещена отправка инлайн-результатов");
             return;
         }
         if (entry.bot == null || TextUtils.isEmpty(UserObject.getPublicUsername(entry.bot))) {
-            BulletinFactory.of(host.fragment()).createSimpleBulletin(R.raw.error, "Не удалось восстановить: у бота нет юзернейма").show();
+            RawNotify.warn("Не удалось восстановить: у бота нет юзернейма");
             return;
         }
         if (hiding) {

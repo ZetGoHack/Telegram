@@ -95,7 +95,7 @@ final class RawMessageExtras {
                 }
             }
             if (frame == null) {
-                AndroidUtilities.runOnUIThread(() -> RawNotify.show(R.drawable.msg_info, "Не удалось получить кадр"));
+                AndroidUtilities.runOnUIThread(() -> RawNotify.warn("Не удалось получить кадр"));
                 return;
             }
             File out = new File(AndroidUtilities.getCacheDir(), "rawgram_frame.png");
@@ -108,7 +108,7 @@ final class RawMessageExtras {
                 frame.recycle();
             }
             AndroidUtilities.runOnUIThread(() -> RawClipboard.copyImage(context, out, "image/png", ok ->
-                    RawNotify.show(ok ? R.drawable.msg_copy : R.drawable.msg_info, ok ? "Кадр скопирован" : "Не удалось скопировать кадр")));
+                    RawNotify.result(ok, R.drawable.msg_copy, "Кадр скопирован", "Не удалось скопировать кадр")));
         });
     }
 
@@ -130,7 +130,7 @@ final class RawMessageExtras {
                     ((ChatMessageCell) chat.findMessageCell(message.getId(), false)).updateButtonState(false, true, false);
                 }
                 if (BulletinFactory.canShowBulletin(chat)) {
-                    BulletinFactory.of(chat).createSimpleBulletin(R.raw.ic_delete, "Файл удалён с устройства").show();
+                    RawNotify.show(R.drawable.msg_delete, "Файл удалён с устройства");
                 }
             });
         });
@@ -148,7 +148,7 @@ final class RawMessageExtras {
         AlertsCreator.createScheduleDatePickerDialog(chat.getParentActivity(), self, (notify, scheduleDate, scheduleRepeatPeriod) -> {
             SendMessagesHelper.getInstance(account).sendMessage(list, self, false, false, notify, scheduleDate, 0);
             if (BulletinFactory.canShowBulletin(chat)) {
-                BulletinFactory.of(chat).createSimpleBulletin(R.raw.saved_messages, "Напоминание в Избранном").show();
+                RawNotify.show(R.drawable.msg_calendar, "Напоминание в Избранном");
             }
         }, chat.getResourceProvider());
     }

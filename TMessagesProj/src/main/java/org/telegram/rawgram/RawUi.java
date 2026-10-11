@@ -67,7 +67,7 @@ public class RawUi {
         }
         AndroidUtilities.addToClipboard("+" + user.phone);
         if (fragment != null) {
-            org.telegram.ui.Components.BulletinFactory.of(fragment).createCopyBulletin(LocaleController.getString(R.string.PhoneCopied)).show();
+            RawNotify.show(R.drawable.msg_copy, LocaleController.getString(R.string.PhoneCopied));
         }
     }
 

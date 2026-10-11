@@ -42,7 +42,7 @@ public final class RawViewerExtras {
     public static void copyFrame(Context context, TextureView texture) {
         Bitmap frame = texture != null && texture.isAvailable() ? texture.getBitmap() : null;
         if (frame == null) {
-            RawNotify.show(R.drawable.msg_info, "Не удалось получить кадр");
+            RawNotify.warn("Не удалось получить кадр");
             return;
         }
         Utilities.globalQueue.postRunnable(() -> {
@@ -56,7 +56,7 @@ public final class RawViewerExtras {
                 frame.recycle();
             }
             AndroidUtilities.runOnUIThread(() -> RawClipboard.copyImage(context, out, "image/png", ok ->
-                    RawNotify.show(ok ? R.drawable.msg_copy : R.drawable.msg_info, ok ? "Кадр скопирован" : "Не удалось скопировать кадр")));
+                    RawNotify.result(ok, R.drawable.msg_copy, "Кадр скопирован", "Не удалось скопировать кадр")));
         });
     }
 

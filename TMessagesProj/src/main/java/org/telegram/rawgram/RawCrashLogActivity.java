@@ -30,7 +30,6 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
-import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 
@@ -232,7 +231,7 @@ public class RawCrashLogActivity extends BaseFragment {
                 capturing = false;
                 reload();
                 if (file == null) {
-                    BulletinFactory.of(this).createErrorBulletin("Не удалось снять logcat").show();
+                    RawNotify.warn("Не удалось снять logcat");
                 } else if (!isFinished) {
                     presentFragment(new RawCrashLogActivity(file));
                 }
@@ -827,7 +826,7 @@ public class RawCrashLogActivity extends BaseFragment {
             copyView.setOnClickListener(v -> {
                 if (state != null) {
                     AndroidUtilities.addToClipboard(RawCrashLog.forClipboard(sectionText(state)));
-                    BulletinFactory.of(RawCrashLogActivity.this).createCopyBulletin("Раздел «" + displayTitle(state.section) + "» скопирован").show();
+                    RawNotify.show(R.drawable.msg_copy, "Раздел «" + displayTitle(state.section) + "» скопирован");
                     RawMotion.copied(v);
                 }
             });
@@ -896,7 +895,7 @@ public class RawCrashLogActivity extends BaseFragment {
             setOnLongClickListener(v -> {
                 if (text != null) {
                     AndroidUtilities.addToClipboard(text);
-                    BulletinFactory.of(RawCrashLogActivity.this).createCopyBulletin("Строка скопирована").show();
+                    RawNotify.show(R.drawable.msg_copy, "Строка скопирована");
                     return true;
                 }
                 return false;

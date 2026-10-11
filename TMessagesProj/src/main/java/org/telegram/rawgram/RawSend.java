@@ -76,7 +76,7 @@ public class RawSend {
                 RawNotify.show(R.drawable.msg_info, "Отправлено: " + (result.title != null ? result.title : result.id));
             } else {
                 String text = error != null ? error.text : "unexpected " + TLDumper.typeName(res);
-                RawNotify.show(R.drawable.msg_warning, "Не отправлено: " + text
+                RawNotify.warn("Не отправлено: " + text
                         + (text.contains("QUERY_ID_INVALID") || text.contains("RESULT_ID_INVALID") ? " — выдача устарела" : ""));
             }
         }));

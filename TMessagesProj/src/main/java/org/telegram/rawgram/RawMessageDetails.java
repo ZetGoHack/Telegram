@@ -500,7 +500,7 @@ public class RawMessageDetails {
             if (ok) {
                 RawNotify.show(R.drawable.msg_copy, "Фото скопировано");
             } else {
-                RawNotify.show(R.drawable.msg_info, "Не удалось скопировать фото");
+                RawNotify.warn("Не удалось скопировать фото");
             }
         });
     }

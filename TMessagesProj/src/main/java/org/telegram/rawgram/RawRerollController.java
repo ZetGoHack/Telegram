@@ -103,7 +103,7 @@ public class RawRerollController {
                                            Theme.ResourcesProvider resourcesProvider, Host host, Runnable beforeStart) {
         TLRPC.TL_messages_getInlineBotResults probe = adapter != null ? adapter.rawgramBuildRequest("") : null;
         if (probe == null) {
-            RawNotify.show(R.drawable.msg_warning, "Инлайн-запрос уже не активен");
+            RawNotify.warn("Инлайн-запрос уже не активен");
             return;
         }
         final String key = RawReroll.queryKey(probe);
@@ -161,7 +161,7 @@ public class RawRerollController {
         if (onSend != null) {
             onSend.run(result);
         } else {
-            RawNotify.show(R.drawable.msg_warning, "Отправка отсюда недоступна в этом чате");
+            RawNotify.warn("Отправка отсюда недоступна в этом чате");
         }
     }
 
@@ -324,7 +324,7 @@ public class RawRerollController {
             if (error != null || !(res instanceof TLRPC.messages_BotResults)) {
                 a.error = error != null ? error.code + " " + error.text : "unexpected " + TLDumper.typeName(res);
                 finish(STATE_ERROR);
-                RawNotify.show(R.drawable.msg_warning, "reroll: " + a.error + " на попытке " + attempt);
+                RawNotify.warn("reroll: " + a.error + " на попытке " + attempt);
                 return;
             }
             TLRPC.messages_BotResults botResults = (TLRPC.messages_BotResults) res;

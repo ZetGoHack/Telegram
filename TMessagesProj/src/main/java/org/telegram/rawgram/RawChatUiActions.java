@@ -19,7 +19,6 @@ import org.telegram.ui.ChannelAdminLogActivity;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.ChatUsersActivity;
 import org.telegram.ui.Components.AlertsCreator;
-import org.telegram.ui.Components.BulletinFactory;
 
 import java.util.ArrayList;
 
@@ -376,7 +375,7 @@ public class RawChatUiActions {
         if (option == OPTION_SAVE_TO_SAVED) {
             long self = UserConfig.getInstance(account).getClientUserId();
             SendMessagesHelper.getInstance(account).sendMessage(list, self, false, false, true, 0, 0);
-            BulletinFactory.of(chat).createSimpleBulletin(R.raw.saved_messages, "Сохранено в Избранное").show();
+            RawNotify.show(R.drawable.msg_saved, "Сохранено в Избранное");
         } else {
             long dialogId = chat.getDialogId();
             MessageObject top = chat.isThreadChat() ? chat.getThreadMessage() : null;

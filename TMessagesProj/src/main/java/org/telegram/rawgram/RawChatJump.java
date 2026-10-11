@@ -128,7 +128,7 @@ final class RawChatJump {
         ConnectionsManager.getInstance(account).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
             if (!(response instanceof TLRPC.messages_Messages) || response instanceof TLRPC.TL_messages_messagesNotModified) {
                 if (error != null) {
-                    RawNotify.show(R.drawable.msg_info, "Не удалось найти сообщения: " + error.text);
+                    RawNotify.warn("Не удалось найти сообщения: " + error.text);
                     return;
                 }
                 finish(chat, ids);

@@ -256,7 +256,7 @@ public final class RawBackup {
                 } catch (Exception ignore) {
                 }
                 if (failure != null) {
-                    RawNotify.show(R.drawable.msg_warning, "Копия не создана: " + failure);
+                    RawNotify.warn("Копия не создана: " + failure);
                     return;
                 }
                 RawNotify.show(R.drawable.msg_download, "Копия готова: " + AndroidUtilities.formatFileSize(result.length())
@@ -446,7 +446,7 @@ public final class RawBackup {
         try {
             fragment.startActivityForResult(intent, REQUEST_PICK);
         } catch (Exception e) {
-            RawNotify.show(R.drawable.msg_warning, "Не удалось открыть выбор файла");
+            RawNotify.warn("Не удалось открыть выбор файла");
         }
     }
 
@@ -498,7 +498,7 @@ public final class RawBackup {
                 } catch (Exception ignore) {
                 }
                 if (failure != null) {
-                    RawNotify.show(R.drawable.msg_warning, "Не удалось прочитать файл: " + failure);
+                    RawNotify.warn("Не удалось прочитать файл: " + failure);
                 } else if (needsPassword) {
                     askPassword(fragment, incoming);
                 } else {
@@ -582,7 +582,7 @@ public final class RawBackup {
                 } catch (Exception ignore) {
                 }
                 if (failure != null) {
-                    RawNotify.show(R.drawable.msg_warning, "Восстановление невозможно: " + failure);
+                    RawNotify.warn("Восстановление невозможно: " + failure);
                 } else {
                     confirm(fragment, staged, info);
                 }
@@ -611,7 +611,7 @@ public final class RawBackup {
                     try {
                         new File(restoreDir(), PENDING).createNewFile();
                     } catch (Exception e) {
-                        RawNotify.show(R.drawable.msg_warning, "Не удалось подготовить восстановление");
+                        RawNotify.warn("Не удалось подготовить восстановление");
                         return;
                     }
                     RawUiSettingsActivity.restartApp(activity);

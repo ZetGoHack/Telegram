@@ -233,7 +233,7 @@ public class RawReportExport {
     private static void withExport(BaseFragment fragment, File report, FileAction action) {
         File f = prepare(report);
         if (f == null) {
-            RawNotify.show(R.drawable.msg_warning, "Не удалось подготовить файл (нет внешнего хранилища?)");
+            RawNotify.warn("Не удалось подготовить файл");
             return;
         }
         action.run(f);
@@ -255,7 +255,7 @@ public class RawReportExport {
     static void shareSection(BaseFragment fragment, File report, String sectionId, String text) {
         File f = writeText(baseName(RawCrashLog.readHeader(report)) + "-" + sectionId + ".txt", text);
         if (f == null) {
-            RawNotify.show(R.drawable.msg_warning, "Не удалось подготовить файл (нет внешнего хранилища?)");
+            RawNotify.warn("Не удалось подготовить файл");
             return;
         }
         share(fragment, f, MIME_TEXT);
@@ -277,7 +277,7 @@ public class RawReportExport {
             File zip = zip(files);
             AndroidUtilities.runOnUIThread(() -> {
                 if (zip == null) {
-                    RawNotify.show(R.drawable.msg_warning, "Не удалось собрать архив");
+                    RawNotify.warn("Не удалось собрать архив");
                 } else {
                     showFileActions(fragment, zip, MIME_ZIP, "rawGram: отчёты (" + files.size() + ")");
                 }
@@ -333,7 +333,7 @@ public class RawReportExport {
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             ctx.startActivity(Intent.createChooser(intent, "Поделиться отчётом"));
         } catch (Throwable e) {
-            RawNotify.show(R.drawable.msg_warning, "Не удалось поделиться: " + e.getMessage());
+            RawNotify.warn("Не удалось поделиться");
         }
     }
 
@@ -345,7 +345,7 @@ public class RawReportExport {
         if (Build.VERSION.SDK_INT >= 23 && Build.VERSION.SDK_INT < 29
                 && activity.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             activity.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
-            RawNotify.show(R.drawable.msg_warning, "Нужен доступ к памяти — разреши и повтори");
+            RawNotify.warn("Нужен доступ к памяти — разреши и повтори");
             return;
         }
         String name = file.getName();
@@ -361,7 +361,7 @@ public class RawReportExport {
             String failure = error;
             org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
                 if (failure != null) {
-                    RawNotify.show(R.drawable.msg_warning, "Не удалось сохранить: " + failure);
+                    RawNotify.warn("Не удалось сохранить: " + failure);
                 } else {
                     RawNotify.show(R.drawable.msg_download, "Сохранено в «Загрузки/rawGram»: " + name);
                 }

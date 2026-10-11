@@ -382,7 +382,7 @@ public final class RawCustomFont {
         try {
             fragment.startActivityForResult(intent, request);
         } catch (Exception e) {
-            RawNotify.show(R.drawable.msg_warning, "Не удалось открыть выбор файла");
+            RawNotify.warn("Не удалось открыть выбор файла");
         }
     }
 
@@ -428,7 +428,7 @@ public final class RawCustomFont {
                         onSaved.run();
                     }
                 } else {
-                    RawNotify.show(R.drawable.msg_warning, "Файл не похож на шрифт");
+                    RawNotify.warn("Файл не похож на шрифт");
                 }
             });
         });

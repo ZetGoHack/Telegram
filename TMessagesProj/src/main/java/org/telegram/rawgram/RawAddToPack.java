@@ -328,6 +328,6 @@ public final class RawAddToPack {
     }
 
     private static void fail(TLRPC.TL_error error) {
-        RawNotify.show(R.drawable.msg_info, "Не удалось добавить" + (error != null ? ": " + error.text : ""));
+        RawNotify.warn("Не удалось добавить" + (error != null ? ": " + error.text : ""));
     }
 }

@@ -2,13 +2,13 @@ package org.telegram.rawgram;
 
 import android.widget.FrameLayout;
 
+import org.telegram.messenger.R;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.MessageObject;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
-import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.PhotoViewer;
 
 import java.io.File;
@@ -92,15 +92,15 @@ public class RawPhotoCopy {
     public static void copy(Item item, FrameLayout container, Theme.ResourcesProvider resourcesProvider) {
         File f = file(item);
         if (f == null) {
-            BulletinFactory.of(container, resourcesProvider).createErrorBulletin("Фото ещё не загружено").show();
+            RawNotify.warn(container, "Фото ещё не загружено");
             return;
         }
         String mime = item.message != null && item.pages == null ? RawMessageDetails.imageMime(item.message, f) : RawClipboard.guessImageMime(f);
         RawClipboard.copyImage(container.getContext(), f, mime, ok -> {
             if (ok) {
-                BulletinFactory.of(container, resourcesProvider).createCopyBulletin("Фото скопировано").show();
+                RawNotify.show(container, R.drawable.msg_copy, "Фото скопировано");
             } else {
-                BulletinFactory.of(container, resourcesProvider).createErrorBulletin("Не удалось скопировать фото").show();
+                RawNotify.warn(container, "Не удалось скопировать фото");
             }
         });
     }
