@@ -23,8 +23,10 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.Utilities;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.WeakHashMap;
 
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
@@ -131,18 +133,36 @@ public class SpoilerEffect2 {
     private int width, height;
     public boolean destroyed;
 
-    private final ArrayList<View> holders = new ArrayList<>();
-    private final HashMap<View, Integer> holdersToIndex = new HashMap<>();
+    // rawGram: weak, the effect is a static singleton and a cell that never got detached kept its chat alive
+    private final ArrayList<WeakReference<View>> holders = new ArrayList<>();
+    private final WeakHashMap<View, Integer> holdersToIndex = new WeakHashMap<>();
     private int holdersIndex = 0;
 
     public void attach(View view) {
         if (destroyed) {
             return;
         }
-        if (!holders.contains(view)) {
-            holders.add(view);
+        if (indexOfHolder(view) < 0) {
+            holders.add(new WeakReference<>(view));
             holdersToIndex.put(view, holdersIndex++);
         }
+    }
+
+    // rawGram: index of the view among the holders (-1 if absent); also drops holders already collected
+    private int indexOfHolder(View view) {
+        int found = -1;
+        for (int i = holders.size() - 1; i >= 0; --i) {
+            View holder = holders.get(i).get();
+            if (holder == null) {
+                holders.remove(i);
+                if (found > i) {
+                    found--;
+                }
+            } else if (holder == view) {
+                found = i;
+            }
+        }
+        return found;
     }
 
     public void reassignAttach(View view, int index) {
@@ -158,7 +178,10 @@ public class SpoilerEffect2 {
     }
 
     public void detach(View view) {
-        holders.remove(view);
+        int i = indexOfHolder(view);
+        if (i >= 0) {
+            holders.remove(i);
+        }
         holdersToIndex.remove(view);
         if (!destroyed) {
             AndroidUtilities.cancelRunOnUIThread(checkDestroy);
@@ -168,11 +191,15 @@ public class SpoilerEffect2 {
 
     public void invalidate() {
         for (int i = 0; i < holders.size(); ++i) {
-            holders.get(i).invalidate();
+            View holder = holders.get(i).get();
+            if (holder != null) {
+                holder.invalidate();
+            }
         }
     }
 
     private final Runnable checkDestroy = () -> {
+        indexOfHolder(null);
         if (holders.isEmpty()) {
             destroy();
         }
