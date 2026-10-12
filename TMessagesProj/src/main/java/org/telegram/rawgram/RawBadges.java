@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -312,11 +313,18 @@ public final class RawBadges {
 
     // ---------------------------------------------------------------- profile header
 
-    private static final WeakHashMap<SimpleTextView, AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable> nameDrawables = new WeakHashMap<>();
+    // Values must not reference their key (the drawable's parent view, the click's view/fragment), otherwise the
+    // WeakHashMap entry never clears and the whole profile / chat stays in memory: values are weak, the view holds them.
+    private static final WeakHashMap<SimpleTextView, WeakReference<AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable>> nameDrawables = new WeakHashMap<>();
     private static final WeakHashMap<SimpleTextView, View.OnClickListener> drawable2Clicks = new WeakHashMap<>();
 
+    private static AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable cachedNameDrawable(SimpleTextView view) {
+        WeakReference<AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable> ref = nameDrawables.get(view);
+        return ref == null ? null : ref.get();
+    }
+
     private static AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable nameDrawable(SimpleTextView view, int index) {
-        AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable drawable = nameDrawables.get(view);
+        AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable drawable = cachedNameDrawable(view);
         if (drawable == null) {
             drawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(view, AndroidUtilities.dp(24),
                     index == 0 ? AnimatedEmojiDrawable.CACHE_TYPE_EMOJI_STATUS : AnimatedEmojiDrawable.CACHE_TYPE_KEYBOARD);
@@ -335,14 +343,14 @@ public final class RawBadges {
                     d.detach();
                 }
             });
-            nameDrawables.put(view, drawable);
+            nameDrawables.put(view, new WeakReference<>(drawable));
         }
         return drawable;
     }
 
     /** The badge drawable of a profile name view, if one was created (for the editor's fly-in animation). */
     static AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable profileDrawable(SimpleTextView view) {
-        return nameDrawables.get(view);
+        return cachedNameDrawable(view);
     }
 
     /**
@@ -376,7 +384,15 @@ public final class RawBadges {
         View.OnClickListener click = v -> onBadgeTap(fragment, view, peer);
         if (hasStatus) {
             view.setRightDrawable2(drawable);
-            drawable2Clicks.put(view, click);
+            final WeakReference<BaseFragment> fragmentRef = new WeakReference<>(fragment);
+            final WeakReference<SimpleTextView> viewRef = new WeakReference<>(view);
+            drawable2Clicks.put(view, v -> {
+                BaseFragment f = fragmentRef.get();
+                SimpleTextView tv = viewRef.get();
+                if (f != null && tv != null) {
+                    onBadgeTap(f, tv, peer);
+                }
+            });
         } else {
             if (view.getRightDrawable2() != null && view.getRightDrawable2() == fragment.getThemedDrawable(Theme.key_drawable_muteIconDrawable)) {
                 view.setRightDrawable2(null);
@@ -389,7 +405,7 @@ public final class RawBadges {
 
     /** Colour of the profile badge, following the name colour like the bot verification mark. */
     public static void setProfileBadgeColor(SimpleTextView view, int color) {
-        AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable drawable = view == null ? null : nameDrawables.get(view);
+        AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable drawable = view == null ? null : cachedNameDrawable(view);
         if (drawable != null) {
             drawable.setColor(color);
         }
