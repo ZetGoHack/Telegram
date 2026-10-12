@@ -31,6 +31,11 @@ import java.io.FileOutputStream;
  */
 public final class RawViewerExtras {
 
+    /** PhotoViewer: play this GIF with the video controls (exteraGram does the same). */
+    public static boolean gifAsVideo(org.telegram.messenger.MessageObject message) {
+        return message != null && message.isGif() && RawChatUiConfig.gifAsVideo.get();
+    }
+
     private RawViewerExtras() {
     }
 

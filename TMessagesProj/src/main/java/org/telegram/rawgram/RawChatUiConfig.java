@@ -154,6 +154,9 @@ public class RawChatUiConfig {
     public static final Flag fwdHideSender = new Flag("fwdHideSender", false);
     public static final Flag fwdHideCaptions = new Flag("fwdHideCaptions", false);
 
+    /** Media viewer: GIFs play in the video player (seek bar, pause) instead of a looping animation, as in exteraGram (RawViewerExtras). */
+    public static final Flag gifAsVideo = new Flag("gifAsVideo", true);
+
     /** «Информация о юзере» (@usinfobot) suggestion when the input is just an ID (RawUserInfo). */
     public static final Flag usinfobotHint = new Flag("usinfobotHint", false);
 
