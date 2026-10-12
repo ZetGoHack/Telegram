@@ -26,37 +26,43 @@ import java.util.List;
  * exactly what Telegram's own forward preview does. Captions only exist on media: text messages are never stripped,
  * and for a set without captioned media the caption toggle doesn't force the sender off.
  *
- * The choice lives for the session (statics), starting from the defaults in RawChatUiConfig; changing a default in
- * settings overrides the session choice.
+ * Every menu starts from the defaults in RawChatUiConfig; a choice made there applies only to the send from that menu
+ * and is not remembered for later forwards.
  */
 public final class RawForward {
 
     private RawForward() {
     }
 
+    // the choice in the currently open send menu, -1 = the default from settings
     private static int senderOverride = -1;
-    private static boolean senderBase;
     private static int captionsOverride = -1;
-    private static boolean captionsBase;
 
     public static boolean hideSender() {
-        boolean def = RawChatUiConfig.fwdHideSender.get();
-        return senderOverride >= 0 && senderBase == def ? senderOverride == 1 : def;
+        return senderOverride >= 0 ? senderOverride == 1 : RawChatUiConfig.fwdHideSender.get();
     }
 
     public static boolean hideCaptions() {
-        boolean def = RawChatUiConfig.fwdHideCaptions.get();
-        return captionsOverride >= 0 && captionsBase == def ? captionsOverride == 1 : def;
+        return captionsOverride >= 0 ? captionsOverride == 1 : RawChatUiConfig.fwdHideCaptions.get();
     }
 
     public static void setHideSender(boolean value) {
-        senderBase = RawChatUiConfig.fwdHideSender.get();
         senderOverride = value ? 1 : 0;
     }
 
     public static void setHideCaptions(boolean value) {
-        captionsBase = RawChatUiConfig.fwdHideCaptions.get();
         captionsOverride = value ? 1 : 0;
+    }
+
+    /** After a forward from a send menu: the next one starts from the defaults again. */
+    public static void onSent() {
+        resetChoice();
+    }
+
+    /** A new send menu starts from the defaults. */
+    private static void resetChoice() {
+        senderOverride = -1;
+        captionsOverride = -1;
     }
 
     /** A media message with a non-empty caption (what drop_media_captions removes). */
@@ -111,8 +117,9 @@ public final class RawForward {
         return (hideSender() || dropCaptions(messages)) && canDropAuthor(messages);
     }
 
-    /** Called when the in-chat forward panel is created: start from the session choice. */
+    /** Called when the in-chat forward panel is created: start from the defaults in settings. */
     public static void applyToPreview(MessagePreviewParams params) {
+        resetChoice();
         if (params == null || params.forwardMessages == null || params.noforwards) {
             return;
         }
@@ -120,11 +127,11 @@ public final class RawForward {
         if (!canDropAuthor(messages)) {
             return;
         }
-        if (hideCaptions() && params.hasCaption) {
+        if (RawChatUiConfig.fwdHideCaptions.get() && params.hasCaption) {
             params.hideCaption = true;
             params.hideForwardSendersName = true;
         }
-        if (hideSender()) {
+        if (RawChatUiConfig.fwdHideSender.get()) {
             params.hideForwardSendersName = true;
         }
     }
@@ -132,11 +139,12 @@ public final class RawForward {
     // ---- ShareAlert: send-button long-press ----
 
     /**
-     * Replaces Telegram's «Показать/Скрыть имя отправителя» pair in ShareAlert's send popup: the same pair, now
-     * remembered for the session, plus a «Показать/Скрыть подпись» pair when a forwarded message has a media caption.
+     * Replaces Telegram's «Показать/Скрыть имя отправителя» pair in ShareAlert's send popup: the same pair plus
+     * a «Показать/Скрыть подпись» pair when a forwarded message has a media caption.
      */
     public static void addShareToggles(ActionBarPopupWindow.ActionBarPopupWindowLayout layout, Context context,
                                        Theme.ResourcesProvider resourcesProvider, int textColor, List<MessageObject> messages) {
+        resetChoice();
         final boolean hasCaption = anyCaption(messages);
         ActionBarMenuSubItem show = new ActionBarMenuSubItem(context, true, true, false, resourcesProvider);
         ActionBarMenuSubItem hide = new ActionBarMenuSubItem(context, true, false, !hasCaption, resourcesProvider);
@@ -203,6 +211,7 @@ public final class RawForward {
         if (!forwarding) {
             return options;
         }
+        resetChoice();
         // sender first: hiding captions is only possible with the sender hidden too (server rule)
         ActionBarMenuSubItem sender = options.addChecked();
         sender.setText(LocaleController.getString(R.string.HideSendersName));

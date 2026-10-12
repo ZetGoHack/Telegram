@@ -2495,6 +2495,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                         }
                     }
                 }
+                org.telegram.rawgram.RawForward.onSent(); // rawGram: the hide choice is not remembered for the next forward
                 for (long key : removeKeys) {
                     TLRPC.Dialog dialog = selectedDialogs.get(key);
                     selectedDialogs.remove(key);

@@ -34576,6 +34576,7 @@ public class ChatActivity extends BaseFragment implements
                     }
                     getSendMessagesHelper().sendMessage(fmessages, did, org.telegram.rawgram.RawForward.dropAuthor(fmessages), org.telegram.rawgram.RawForward.dropCaptions(fmessages), notify, scheduleDate, scheduleRepeatPeriod, null, -1, price == null ? 0 : price, /* rawGram: hide sender/captions from the picker */ getSendMonoForumPeerId(), getSendMessageSuggestionParams());
                 }
+                org.telegram.rawgram.RawForward.onSent(); // rawGram: the hide choice is not remembered for the next forward
                 fragment.finishFragment();
                 createUndoView();
                 if (undoView != null) {

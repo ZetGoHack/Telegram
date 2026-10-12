@@ -150,7 +150,7 @@ public class RawChatUiConfig {
     public static final Flag noSwipeNextChannel = new Flag("noSwipeNextChannel", false);
     public static final Flag noSwipeNextTopic = new Flag("noSwipeNextTopic", false);
 
-    /** Forwarding: start without the sender / without media captions (RawForward; session choice overrides). */
+    /** Forwarding: start without the sender / without media captions (RawForward; a send menu can change it for that one forward). */
     public static final Flag fwdHideSender = new Flag("fwdHideSender", false);
     public static final Flag fwdHideCaptions = new Flag("fwdHideCaptions", false);
 
