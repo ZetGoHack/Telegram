@@ -488,6 +488,23 @@ public abstract class RightSlidingDialogContainer extends FrameLayout {
         }
     }
 
+    // rawGram: the host fragment is going away; without this the open preview fragment (a TopicsFragment) never gets
+    // onFragmentDestroy and stays in NotificationCenter together with its parent DialogsActivity
+    public void destroyCurrentFragment() {
+        ValueAnimator animator = openAnimator;
+        openAnimator = null;
+        if (animator != null) {
+            animator.cancel();
+            notificationsLocker.unlock();
+        }
+        BaseFragment fragment = currentFragment;
+        currentFragment = null;
+        if (fragment != null) {
+            fragment.onPause();
+            fragment.onFragmentDestroy();
+        }
+    }
+
     public BaseFragment getFragment() {
         return currentFragment;
     }

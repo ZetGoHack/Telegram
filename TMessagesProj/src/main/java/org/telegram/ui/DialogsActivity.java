@@ -3087,6 +3087,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             observersGroup.removeAllObservers();
             observersGroup = null;
         }
+        if (rightSlidingDialogContainer != null) {
+            rightSlidingDialogContainer.destroyCurrentFragment(); // rawGram: the open topics preview would stay subscribed
+        }
 
         if (commentView != null) {
             commentView.onDestroy();
