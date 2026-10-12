@@ -661,6 +661,7 @@ public class RichMessageLayout {
             spoilerEffect2 = null;
         }
         this.view = null;
+        if (showMoreBounce != null) showMoreBounce.setView(null);
         for (int i = 0; i < blocks.size(); ++i)
             blocks.get(i).detach(view);
         if (view == cell) {
@@ -3615,7 +3616,15 @@ public class RichMessageLayout {
         private void ensureBounce() {
             if (bounce == null && root.view != null) {
                 bounce = new ButtonBounce(root.view);
+            } else if (bounce != null && bounce.getView() == null) {
+                bounce.setView(root.view);
             }
+        }
+
+        @Override
+        protected void releaseBounceViews() {
+            super.releaseBounceViews();
+            if (bounce != null) bounce.setView(null);
         }
 
         @Override
@@ -4036,7 +4045,15 @@ public class RichMessageLayout {
         private void ensureBounce() {
             if (bounce == null && root.view != null) {
                 bounce = new ButtonBounce(root.view);
+            } else if (bounce != null && bounce.getView() == null) {
+                bounce.setView(root.view);
             }
+        }
+
+        @Override
+        protected void releaseBounceViews() {
+            super.releaseBounceViews();
+            if (bounce != null) bounce.setView(null);
         }
 
         @Override
@@ -9552,6 +9569,7 @@ public class RichMessageLayout {
                         if (inside && canToggleCheckbox()) {
                             checkboxPressed = true;
                             if (checkboxBounce == null && root.view != null) checkboxBounce = new ButtonBounce(root.view);
+                            else if (checkboxBounce != null && checkboxBounce.getView() == null) checkboxBounce.setView(root.view);
                             if (checkboxBounce != null) checkboxBounce.setPressed(true);
                             invalidateCell();
                             return true;
@@ -9749,6 +9767,7 @@ public class RichMessageLayout {
                 onDetachedFromWindow();
                 if (checkbox != null) checkbox.onDetachedFromWindow();
                 this.view = null;
+                releaseBounceViews();
             }
             this.view = view;
             if (checkbox != null) {
@@ -9763,6 +9782,11 @@ public class RichMessageLayout {
             onDetachedFromWindow();
             if (checkbox != null) checkbox.onDetachedFromWindow();
             this.view = null;
+            releaseBounceViews();
+        }
+        // rawGram: the layout is cached in MessageObject (dialogMessage), a bounce keeping the cell keeps the chat alive
+        protected void releaseBounceViews() {
+            if (checkboxBounce != null) checkboxBounce.setView(null);
         }
         public boolean isAttachedToWindow() {
             return this.view != null;
