@@ -8183,6 +8183,11 @@ public class ChatActivity extends BaseFragment implements
         actionsButtonsLayout = new ChatActivityActionsButtonsLayout(context, resourceProvider, blurredBackgroundColorProvider, glassBackgroundDrawableFactory);
         if (rawClassic) actionsButtonsLayout.setRawClassic();
         actionsButtonsLayout.setForwardButtonOnClickListener(v -> openForward(false));
+        actionsButtonsLayout.setSelectButtonOnClickListener(v -> { // rawGram: «Выбрать» — everything between the selected messages
+            for (MessageObject m : org.telegram.rawgram.RawSelectBetween.between(selectedMessagesIds, messages, mergeDialogId)) addToSelectedMessages(m, false);
+            updateActionModeTitle();
+            updateVisibleRows();
+        });
         actionsButtonsLayout.setReplyButtonOnClickListener(v -> {
             MessageObject messageObject = null;
             for (int a = 1; a >= 0; a--) {
@@ -19415,6 +19420,7 @@ public class ChatActivity extends BaseFragment implements
                         }
                     }
                     actionsButtonsLayout.showReplyButton(newVisibility == View.VISIBLE, true);
+                    actionsButtonsLayout.showSelectButton(newVisibility != View.VISIBLE && chatMode != MODE_SCHEDULED && org.telegram.rawgram.RawSelectBetween.hasBetween(selectedMessagesIds, messages, mergeDialogId), true); // rawGram
                 }
 
                 if (editItem != null) {
