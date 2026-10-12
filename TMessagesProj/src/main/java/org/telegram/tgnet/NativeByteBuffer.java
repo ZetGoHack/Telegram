@@ -654,7 +654,12 @@ public class NativeByteBuffer extends AbstractSerializedData {
     public void reuse() {
         if (address != 0 && !rawgramReleased) {
             rawgramReleased = true;
-            addressWrappers.get().add(this);
+            // rawGram: wrappers released on a thread that never calls wrap() (finalizer, network threads) piled up
+            // without bound (100k+ nodes); the native buffer is already back in the pool, a wrapper is cheap to drop
+            LinkedList<NativeByteBuffer> pool = addressWrappers.get();
+            if (pool.size() < 64) {
+                pool.add(this);
+            }
             reused = true;
             native_reuse(address);
         }
