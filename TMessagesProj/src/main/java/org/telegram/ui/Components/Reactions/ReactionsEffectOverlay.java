@@ -88,6 +88,9 @@ public class ReactionsEffectOverlay {
     private static long lastHapticTime;
     ArrayList<AvatarParticle> avatars = new ArrayList<>();
     public long startTime;
+    // rawGram: overlays that were replaced (or never started) stayed in the decor view with the chat they were created for
+    private BaseFragment ownerFragment;
+    private static final ArrayList<ReactionsEffectOverlay> shown = new ArrayList<>();
     public boolean isStories;
     boolean isFinished;
 
@@ -739,6 +742,7 @@ public class ReactionsEffectOverlay {
     }
 
     private void removeCurrentView() {
+        shown.remove(this);
         try {
             if (useWindow) {
                 windowManager.removeView(windowView);
@@ -792,6 +796,8 @@ public class ReactionsEffectOverlay {
             reactionsEffectOverlay.decorView = (FrameLayout) baseFragment.getParentActivity().getWindow().getDecorView();
             reactionsEffectOverlay.decorView.addView(reactionsEffectOverlay.windowView);
         }
+        reactionsEffectOverlay.ownerFragment = baseFragment;
+        shown.add(reactionsEffectOverlay);
         cell.invalidate();
         if (cell instanceof ChatMessageCell && ((ChatMessageCell) cell).getCurrentMessagesGroup() != null && cell.getParent() != null) {
             ((View) cell.getParent()).invalidate();
@@ -828,6 +834,22 @@ public class ReactionsEffectOverlay {
                 if (currentShortOverlay.cell != null) {
                     currentShortOverlay.cell.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 }
+            }
+        }
+    }
+
+    /** rawGram: removes every overlay created for a fragment that is being destroyed. */
+    public static void removeForFragment(BaseFragment fragment) {
+        for (int i = shown.size() - 1; i >= 0; i--) {
+            ReactionsEffectOverlay overlay = i < shown.size() ? shown.get(i) : null;
+            if (overlay != null && overlay.ownerFragment == fragment) {
+                if (currentOverlay == overlay) {
+                    currentOverlay = null;
+                }
+                if (currentShortOverlay == overlay) {
+                    currentShortOverlay = null;
+                }
+                overlay.removeCurrentView();
             }
         }
     }

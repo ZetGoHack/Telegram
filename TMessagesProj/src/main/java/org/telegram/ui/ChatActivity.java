@@ -3421,6 +3421,7 @@ public class ChatActivity extends BaseFragment implements
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
         rawgram.onDestroy();
+        ReactionsEffectOverlay.removeForFragment(this); // rawGram: an overlay in the decor view holds the chat
         if (messageMetricsView != null) {
             messageMetricsView.finish();
         }
