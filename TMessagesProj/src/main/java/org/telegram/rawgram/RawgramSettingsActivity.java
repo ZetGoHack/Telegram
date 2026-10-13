@@ -71,7 +71,9 @@ public class RawgramSettingsActivity extends RawPreferencesFragment {
 
     private void buildRows() {
         rows.clear();
-        rows.add(new Row(TYPE_APP_HEADER, 0, null, null, null));
+        Row appHeader = new Row(TYPE_APP_HEADER, 0, null, null, null);
+        appHeader.longAction = () -> presentFragment(new RawDebugActivity()); // hidden debug menu
+        rows.add(appHeader);
         rows.add(new Row(TYPE_HEADER, 0, "Категории", null, null));
         category(R.drawable.msg_discussion, "Чаты",
                 "Вид чата, сообщения, меню, стикеры", () -> presentFragment(new RawChatUiSettingsActivity()));
@@ -193,7 +195,7 @@ public class RawgramSettingsActivity extends RawPreferencesFragment {
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
             int type = holder.getItemViewType();
-            return type == TYPE_CATEGORY || type == TYPE_BUTTON;
+            return type == TYPE_CATEGORY || type == TYPE_BUTTON || type == TYPE_APP_HEADER; // the header only reacts to a long press
         }
 
         @Override
@@ -214,10 +216,6 @@ public class RawgramSettingsActivity extends RawPreferencesFragment {
             } else if (viewType == TYPE_APP_HEADER) {
                 RawSettingsHeaderCell header = new RawSettingsHeaderCell(context);
                 header.setTexts("rawGram", versionLine());
-                header.setOnLongClickListener(v -> {
-                    presentFragment(new RawDebugActivity());
-                    return true;
-                });
                 view = header;
             } else if (viewType == TYPE_SHADOW) {
                 view = new ShadowSectionCell(context);
