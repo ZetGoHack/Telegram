@@ -114,7 +114,12 @@ public class RawgramSettingsActivity extends RawPreferencesFragment {
     protected RecyclerListView createListView(Context context) {
         buildRows();
 
-        RecyclerListView listView = new RecyclerListView(context);
+        RecyclerListView listView = new RecyclerListView(context) {
+            @Override
+            protected boolean canHighlightChildAt(View child, float x, float y) {
+                return !(child instanceof RawSettingsHeaderCell); // the hidden debug entry gives no visual hint
+            }
+        };
         listView.setAdapter(new ListAdapter(context));
         listView.setOnItemClickListener((view, position) -> {
             if (position < 0 || position >= rows.size()) {
@@ -130,7 +135,7 @@ public class RawgramSettingsActivity extends RawPreferencesFragment {
                 return false;
             }
             rows.get(position).longAction.run();
-            return true;
+            return rows.get(position).type != TYPE_APP_HEADER; // false: no haptic tick for the hidden entry
         });
         return listView;
     }
