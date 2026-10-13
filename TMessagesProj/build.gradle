@@ -149,7 +149,7 @@ android {
 
         externalNativeBuild {
             cmake {
-                version '3.22.1'
+                version '3.31.6' // rawGram: the plugins branch needs 3.31 (LSPlant); the same version in both clones lets ccache share the native build
                 arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-21' //, '-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON'
                 // rawGram: a compiler cache shared by the clones when the build script passes -PrawCcache=<path to ccache>
                 if (project.hasProperty('rawCcache')) {
