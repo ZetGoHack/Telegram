@@ -214,6 +214,10 @@ public class RawgramSettingsActivity extends RawPreferencesFragment {
             } else if (viewType == TYPE_APP_HEADER) {
                 RawSettingsHeaderCell header = new RawSettingsHeaderCell(context);
                 header.setTexts("rawGram", versionLine());
+                header.setOnLongClickListener(v -> {
+                    presentFragment(new RawDebugActivity());
+                    return true;
+                });
                 view = header;
             } else if (viewType == TYPE_SHADOW) {
                 view = new ShadowSectionCell(context);

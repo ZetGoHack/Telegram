@@ -70,6 +70,8 @@ in Telegram classes.
 - **Diagnostics**: `RawRequestLog` hooks `ConnectionsManager.sendRequestInternal` (cheap flag check when off);
   `RawCrashLog` + `RawExitReports` + `RawTombstone` record Java crashes and import native crashes/ANRs from
   `ApplicationExitInfo` (tombstone protobuf decoded); `RawReportExport` shares/forwards/saves reports.
+  The hidden debug menu (long press on the «rawGram» header in the settings, `RawDebugActivity`) has notification samples, a
+  gallery of real cells, on-device self-checks (`RawDebugChecks.register(name, check)` adds one) and live heap figures.
 - **Motion**: `RawMotion` gates all rawGram-only animations (switch + system animator setting + power saver); it must not
   change stock Telegram animations.
 - **Inline tooling**: `RawInlineResultViewer`, `RawReroll*` (reroll until a pattern matches), `RawInlineStash` (per-account
