@@ -2056,6 +2056,7 @@ public class ImageLoader {
             maxSize = 15;
         }
         int cacheSize = DEBUG_MODE ? 1 : Math.min(maxSize, memoryClass / 7) * 1024 * 1024;
+        if (!DEBUG_MODE) cacheSize = org.telegram.rawgram.RawAvatarGallery.cacheSize(cacheSize); // rawGram: «Кеш картинок в памяти»
 
         int commonCacheSize =  DEBUG_MODE ? 1 : (int) (cacheSize * 0.8f);
         int smallImagesCacheSize =   DEBUG_MODE ? 1 : (int) (cacheSize * 0.2f);

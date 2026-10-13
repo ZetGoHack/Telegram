@@ -115,6 +115,12 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
     private int switchTilesRow;
     private int switchInfoRow;
 
+    private int galleryHeaderRow;
+    private int galleryHoldRow;
+    private int galleryPrefetchRow;
+    private int imageCacheRow;
+    private int galleryInfoRow;
+
     private int lookHeaderRow;
     private int hideDividersRow;
     private int systemFontRow;
@@ -194,6 +200,12 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
         switchTilesRow = rowCount++;
         switchInfoRow = rowCount++;
 
+        galleryHeaderRow = rowCount++;
+        galleryHoldRow = rowCount++;
+        galleryPrefetchRow = rowCount++;
+        imageCacheRow = rowCount++;
+        galleryInfoRow = rowCount++;
+
         lookHeaderRow = rowCount++;
         systemFontRow = rowCount++;
         fontFileRow = RawUiConfig.fontMode() == RawUiConfig.FONT_CUSTOM ? rowCount++ : -1;
@@ -240,8 +252,18 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
         return listView;
     }
 
+    private final Runnable cacheRestartNotice = () -> showRestartNotice(this);
+
     private void onRowClick(View view, int position) {
-        if (position == hideDividersRow) {
+        if (position == galleryHoldRow) {
+            boolean v = !RawUiConfig.galleryHoldFrame();
+            RawUiConfig.setGalleryHoldFrame(v);
+            ((TextCheckCell) view).setChecked(v);
+        } else if (position == galleryPrefetchRow) {
+            boolean v = !RawUiConfig.galleryPrefetch();
+            RawUiConfig.setGalleryPrefetch(v);
+            ((TextCheckCell) view).setChecked(v);
+        } else if (position == hideDividersRow) {
             boolean v = !RawUiConfig.hideDividers();
             RawUiConfig.setHideDividers(v);
             Theme.applyCommonTheme();
@@ -671,7 +693,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
             if (position == switchTilesRow) {
                 return TYPE_SWITCH_TILES;
             }
-            if (position == lookHeaderRow || position == settingsHeaderRow || position == bottomTabsHeaderRow
+            if (position == galleryHeaderRow || position == lookHeaderRow || position == settingsHeaderRow || position == bottomTabsHeaderRow
                     || position == foldersHeaderRow || position == chatsHeaderRow || position == titleHeaderRow
                     || position == iconHeaderRow || position == switchHeaderRow) {
                 return TYPE_HEADER;
@@ -679,10 +701,10 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
             if (position == systemFontRow || position == fontFileRow || position == fontBoldRow || position == tabsOrderRow || position == tabsTitleTypeRow || position == titleModeRow || position == customTitleRow || position == snowRow) {
                 return TYPE_VALUE;
             }
-            if (position == avatarSliderRow) {
+            if (position == avatarSliderRow || position == imageCacheRow) {
                 return TYPE_SLIDER;
             }
-            if (position == previewInfoRow || position == lookInfoRow || position == avatarInfoRow || position == settingsInfoRow || position == bottomTabsInfoRow
+            if (position == galleryInfoRow || position == previewInfoRow || position == lookInfoRow || position == avatarInfoRow || position == settingsInfoRow || position == bottomTabsInfoRow
                     || position == foldersInfoRow || position == chatsInfoRow || position == titleInfoRow || position == iconInfoRow
                     || position == switchInfoRow) {
                 return TYPE_INFO;
@@ -746,6 +768,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                 case TYPE_HEADER: {
                     String text;
                     if (position == lookHeaderRow) text = "Оформление";
+                    else if (position == galleryHeaderRow) text = "Фото профиля";
                     else if (position == settingsHeaderRow) text = "Экран настроек";
                     else if (position == bottomTabsHeaderRow) text = "Нижние вкладки";
                     else if (position == foldersHeaderRow) text = "Папки";
@@ -758,7 +781,11 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                 }
                 case TYPE_CHECK: {
                     TextCheckCell cell = (TextCheckCell) holder.itemView;
-                    if (position == hideDividersRow) {
+                    if (position == galleryHoldRow) {
+                        cell.setTextAndCheck("Держать кадр до загрузки", RawUiConfig.galleryHoldFrame(), true);
+                    } else if (position == galleryPrefetchRow) {
+                        cell.setTextAndCheck("Загружать фото заранее", RawUiConfig.galleryPrefetch(), true);
+                    } else if (position == hideDividersRow) {
                         cell.setTextAndCheck("Скрыть разделители", RawUiConfig.hideDividers(), true);
                     } else if (position == motionRow) {
                         cell.setTextAndCheck("Анимации rawGram", RawMotion.isEnabled(), true);
@@ -842,6 +869,19 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                     break;
                 }
                 case TYPE_SLIDER: {
+                    if (position == imageCacheRow) {
+                        // from Telegram's own size up to a quarter of the heap; the tick marks the comfortable maximum
+                        final int min = RawAvatarGallery.telegramCacheMb();
+                        final int step = 8;
+                        final int max = min + Math.max(1, (RawAvatarGallery.maxCacheMb() - min) / step) * step;
+                        final int stable = min + Math.round((RawAvatarGallery.stableCacheMb() - min) / (float) step) * step;
+                        ((RawSeekBarCell) holder.itemView).bind("Кеш картинок в памяти", min, max, step, RawAvatarGallery.cacheMb(), " МБ", stable, value -> {
+                            RawUiConfig.setImageCacheMb(value <= min ? 0 : value);
+                            AndroidUtilities.cancelRunOnUIThread(cacheRestartNotice);
+                            AndroidUtilities.runOnUIThread(cacheRestartNotice, 600);
+                        });
+                        break;
+                    }
                     ((RawSeekBarCell) holder.itemView).bind("Аватарки", 0, 100, 5, RawUiConfig.avatarCorners(), "%", value -> {
                         RawUiConfig.setAvatarCorners(value);
                         needRebuild = true;
@@ -875,6 +915,12 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                         cell.setText("Solar — альтернативные иконки меню, настроек и поля ввода. Нужен перезапуск.");
                     } else if (position == switchInfoRow) {
                         cell.setText("Нажми на образец, чтобы увидеть оба положения.");
+                    } else if (position == galleryInfoRow) {
+                        cell.setText("Пока следующее фото в профиле загружается, на экране остаётся предыдущее, а не размытое превью. "
+                                + "Фото впереди по ходу листания загружаются заранее — столько, сколько помещается в кеш. "
+                                + "Кеш — сколько памяти отдано под картинки: больше кеш — больше фото готово сразу. "
+                                + "Отметка на шкале — предел, до которого памяти хватает с запасом; выше приложение может падать при долгой работе. "
+                                + "Размер кеша применяется после перезапуска.");
                     } else if (position == lookInfoRow) {
                         String fontStatus = RawUiConfig.fontMode() == RawUiConfig.FONT_CUSTOM && !RawCustomFont.status().isEmpty()
                                 ? " Обычный текст (проверка): " + RawCustomFont.status() + "." : "";

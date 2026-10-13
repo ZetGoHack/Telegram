@@ -62,6 +62,9 @@ public class RawUiConfig {
     private static boolean foldersAtBottom;
     private static boolean sideMenu;
     private static boolean hideArchive;
+    private static boolean galleryHoldFrame;
+    private static boolean galleryPrefetch;
+    private static int imageCacheMb;
 
     private static SharedPreferences prefs() {
         return ApplicationLoader.applicationContext.getSharedPreferences("rawgram_ui", Context.MODE_PRIVATE);
@@ -101,6 +104,9 @@ public class RawUiConfig {
             foldersAtBottom = p.getBoolean("foldersAtBottom", false);
             sideMenu = p.getBoolean("sideMenu", false);
             hideArchive = p.getBoolean("hideArchive", false);
+            galleryHoldFrame = p.getBoolean("galleryHoldFrame", true);
+            galleryPrefetch = p.getBoolean("galleryPrefetch", true);
+            imageCacheMb = p.getInt("imageCacheMb", 0);
             loaded = true;
         }
     }
@@ -119,6 +125,17 @@ public class RawUiConfig {
         }
         e.apply();
     }
+
+    // ---- profile photos (RawAvatarGallery) ----
+    /** While the next photo is still decoding, the gallery keeps the previous one instead of its blurred preview. */
+    public static boolean galleryHoldFrame() { ensureLoaded(); return galleryHoldFrame; }
+    public static void setGalleryHoldFrame(boolean v) { ensureLoaded(); galleryHoldFrame = v; put("galleryHoldFrame", v); }
+    /** Photos ahead in the direction of browsing are decoded in advance. */
+    public static boolean galleryPrefetch() { ensureLoaded(); return galleryPrefetch; }
+    public static void setGalleryPrefetch(boolean v) { ensureLoaded(); galleryPrefetch = v; put("galleryPrefetch", v); }
+    /** ImageLoader's memory cache in MB, 0 = Telegram's size (applied on restart). */
+    public static int imageCacheMb() { ensureLoaded(); return imageCacheMb; }
+    public static void setImageCacheMb(int v) { ensureLoaded(); imageCacheMb = Math.max(0, v); put("imageCacheMb", imageCacheMb); }
 
     // ---- dividers ----
     public static boolean hideDividers() { ensureLoaded(); return hideDividers; }

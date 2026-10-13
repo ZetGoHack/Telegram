@@ -45,6 +45,9 @@ public class RawSeekBarCell extends FrameLayout {
     private int value;
     private String suffix = "";
     private Utilities.Callback<Integer> onChange;
+    /** A value marked on the track (-1 = none); values above it are shown in red. */
+    private int markValue = -1;
+    private final android.graphics.Paint markPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
 
     public RawSeekBarCell(Context context) {
         super(context);
@@ -125,6 +128,12 @@ public class RawSeekBarCell extends FrameLayout {
      * @param onChange called with every new value while dragging
      */
     public void bind(String title, int min, int max, int step, int value, String suffix, Utilities.Callback<Integer> onChange) {
+        bind(title, min, max, step, value, suffix, -1, onChange);
+    }
+
+    /** @param mark a value marked with a tick on the track; values above it are shown in red (-1 = none) */
+    public void bind(String title, int min, int max, int step, int value, String suffix, int mark, Utilities.Callback<Integer> onChange) {
+        this.markValue = mark > min && mark < max ? mark : -1;
         this.min = min;
         this.max = max;
         this.step = Math.max(1, step);
@@ -142,6 +151,8 @@ public class RawSeekBarCell extends FrameLayout {
 
     private void updateTexts(boolean animated) {
         valueView.setText(value + suffix, animated);
+        valueView.setTextColor(markValue >= 0 && value > markValue
+                ? Theme.getColor(Theme.key_text_RedRegular) : Theme.getColor(Theme.key_windowBackgroundWhiteBlueHeader));
         // the limit the value approaches is tinted with the accent, as in exteraGram
         int gray = Theme.getColor(Theme.key_windowBackgroundWhiteGrayText);
         int accent = Theme.getColor(Theme.key_windowBackgroundWhiteBlueText);
@@ -160,6 +171,20 @@ public class RawSeekBarCell extends FrameLayout {
         int gray = Theme.getColor(Theme.key_windowBackgroundWhiteGrayText);
         minView.setTextColor(gray);
         maxView.setTextColor(gray);
+    }
+
+    @Override
+    protected void dispatchDraw(@NonNull Canvas canvas) {
+        if (markValue >= 0 && max > min) {
+            // a tick across the track under the thumb, where SeekBarView puts the thumb's centre for that value
+            float progress = (markValue - min) / (float) (max - min);
+            float half = dp(16); // SeekBarView's selectorWidth / 2
+            float x = seekBar.getLeft() + half + progress * (seekBar.getWidth() - 2 * half);
+            float y = seekBar.getTop() + seekBar.getHeight() / 2f;
+            markPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
+            canvas.drawRoundRect(x - dp(1), y - dp(7), x + dp(1), y + dp(7), dp(1), dp(1), markPaint);
+        }
+        super.dispatchDraw(canvas);
     }
 
     @Override

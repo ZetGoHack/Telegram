@@ -142,6 +142,7 @@ public class ProfileGalleryView extends CircularViewPager implements Notificatio
     int prevPage;
 
     private ProfileGalleryBlurView blurView;
+    private final org.telegram.rawgram.RawAvatarGallery.Gallery rawGallery = new org.telegram.rawgram.RawAvatarGallery.Gallery(); // rawGram: fast browsing
 
     public ProfileGalleryView(Context context, ActionBar parentActionBar, RecyclerListView parentListView, Callback callback) {
         super(context);
@@ -218,6 +219,7 @@ public class ProfileGalleryView extends CircularViewPager implements Notificatio
                 if (dialogPhotos != null) {
                     dialogPhotos.loadAfter(position - (adapter != null ? adapter.getExtraCount() : 0), forward);
                 }
+                if (adapter != null) rawGallery.prefetch(ProfileGalleryView.this, imagesLocations, videoLocations, imagesLocationsSizes, adapter.getRealPosition(position) - (hasActiveVideo ? 1 : 0), forward, "avatar_" + dialogId); // rawGram
             }
 
             @Override
@@ -347,6 +349,7 @@ public class ProfileGalleryView extends CircularViewPager implements Notificatio
                 if (dialogPhotos != null) {
                     dialogPhotos.loadAfter(position - (adapter != null ? adapter.getExtraCount() : 0), forward);
                 }
+                if (adapter != null) rawGallery.prefetch(ProfileGalleryView.this, imagesLocations, videoLocations, imagesLocationsSizes, adapter.getRealPosition(position) - (hasActiveVideo ? 1 : 0), forward, "avatar_" + dialogId); // rawGram
             }
 
             @Override
@@ -395,6 +398,7 @@ public class ProfileGalleryView extends CircularViewPager implements Notificatio
 
     public void onDestroy() {
         blurView = null;
+        rawGallery.release(); // rawGram
 
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.dialogPhotosLoaded);
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.fileLoaded);
@@ -1288,6 +1292,7 @@ public class ProfileGalleryView extends CircularViewPager implements Notificatio
                 }
             });
             item.imageView.getImageReceiver().setCrossfadeAlpha((byte) 2);
+            rawGallery.setup(item.imageView.getImageReceiver()); // rawGram: no cross-fade while photos are held
 
             item.imageView.setRoundRadius(roundTopRadius, roundTopRadius, roundBottomRadius, roundBottomRadius);
             item.imageView.setTag(realPosition);
@@ -1548,6 +1553,7 @@ public class ProfileGalleryView extends CircularViewPager implements Notificatio
                     canvas.drawPath(path, placeholderPaint);
                 }
             }
+            if (!rawGallery.draw(getImageReceiver(), canvas, position == getCurrentItem())) // rawGram: keep the previous photo while this one decodes
             super.onDraw(canvas);
 
             if (radialProgress != null && radialProgress.getOverrideAlpha() > 0f) {
