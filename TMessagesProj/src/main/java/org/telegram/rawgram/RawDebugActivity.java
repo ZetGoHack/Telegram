@@ -22,11 +22,15 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
+import org.telegram.ui.Components.Bulletin;
+import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.RecyclerListView;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -82,6 +86,13 @@ public class RawDebugActivity extends RawPreferencesFragment {
         rows.add(new Row(TYPE_INFO, text, null, null));
     }
 
+    /** Extra notification samples from other parts of the app (the plugins branch adds its own). */
+    private static final Map<String, Runnable> extraSamples = new LinkedHashMap<>();
+
+    public static void registerSample(String name, Runnable show) {
+        extraSamples.put(name, show);
+    }
+
     private void buildRows() {
         rows.clear();
         header("Уведомления");
@@ -92,6 +103,11 @@ public class RawDebugActivity extends RawPreferencesFragment {
         button("Результат: сбой", () -> RawNotify.result(false, R.drawable.msg_saved, "Готово", "Не удалось выполнить"));
         button("В шторке", this::showSheetSample);
         button("Предупреждение о памяти", () -> RawMemWatch.showWarning(480L << 20, 512L << 20, null));
+        button("С кнопкой", () -> BulletinFactory.of(this).createSimpleBulletin(R.raw.info, "Изменение применится после перезапуска",
+                "Перезапустить", Bulletin.DURATION_PROLONG, () -> RawNotify.show(R.drawable.msg_info, "В примере перезапуска нет")).show());
+        for (Map.Entry<String, Runnable> sample : extraSamples.entrySet()) {
+            button(sample.getKey(), sample.getValue());
+        }
         info("Все уведомления rawGram рисуются одним стилем. Предупреждение о памяти — такое, как при почти полной куче.");
 
         header("Интерфейс");
