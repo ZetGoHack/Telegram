@@ -16,20 +16,27 @@ public final class RawRoundCamera {
 
     /** A choice made in the «ask» menu, consumed when the next round video starts. */
     private static Boolean pendingFront;
+    private static long pendingAt;
+    /** A choice not used this soon (the start was stopped, e.g. by a permission request) is dropped. */
+    private static final long PENDING_MS = 5000;
     /** Set while the start triggered by the menu runs, so it doesn't ask again. */
     private static boolean choosing;
 
     private RawRoundCamera() {
     }
 
-    /** InstantCameraView.showCamera (InstantCameraView2 via initialFacing): true = front, false = main, null = keep Telegram's choice. */
+    /** InstantCameraView.showCamera (InstantCameraView2 via initialFacing): true = front, false = main, null = keep Telegram's choice (the last used camera). */
     public static Boolean startFront() {
         if (pendingFront != null) {
             Boolean front = pendingFront;
             pendingFront = null;
-            return front;
+            if (android.os.SystemClock.elapsedRealtime() - pendingAt <= PENDING_MS) {
+                return front;
+            }
         }
-        return RawChatUiConfig.roundCamera.get() == RawChatUiConfig.ROUND_BACK ? Boolean.FALSE : null;
+        int mode = RawChatUiConfig.roundCamera.get();
+        // «Фронтальная» means front every time: InstantCameraView2 would otherwise reopen the last used camera
+        return mode == RawChatUiConfig.ROUND_BACK ? Boolean.FALSE : mode == RawChatUiConfig.ROUND_FRONT ? Boolean.TRUE : null;
     }
 
     /** InstantCameraView2 (the Camera2 round video recorder): the camera it starts with instead of the last used one. */
@@ -66,6 +73,7 @@ public final class RawRoundCamera {
 
     private static void choose(boolean front, Runnable start) {
         pendingFront = front;
+        pendingAt = android.os.SystemClock.elapsedRealtime();
         choosing = true;
         start.run();
     }
