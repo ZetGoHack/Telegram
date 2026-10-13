@@ -7402,7 +7402,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         frameLayout.addView(themeSwitchImageView, 0, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
                         themeSwitchSunView.setVisibility(View.GONE);
                     } else {
-                        frameLayout.addView(themeSwitchImageView, 1, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+                        frameLayout.addView(themeSwitchImageView, org.telegram.rawgram.RawSideMenu.themeSnapshotIndex(frameLayout, drawerLayoutContainer), LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT)); // rawGram: above the side menu too
                         themeSwitchSunView.setTranslationX(pos[0] - dp(24));
                         themeSwitchSunView.setTranslationY(pos[1] - dp(24));
                         themeSwitchSunView.setVisibility(View.VISIBLE);
@@ -7416,6 +7416,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     Animator anim = ViewAnimationUtils.createCircularReveal(toDark ? drawerLayoutContainer : themeSwitchImageView, pos[0], pos[1], toDark ? 0 : finalRadius, toDark ? finalRadius : 0);
                     anim.setDuration(400);
                     anim.setInterpolator(Easings.easeInOutQuad);
+                    if (toDark) org.telegram.rawgram.RawSideMenu.revealWithTheme(pos[0], pos[1], finalRadius, anim); // rawGram: the side menu takes part in the circle
                     anim.addListener(new AnimatorListenerAdapter() {
                         @Override
                         public void onAnimationEnd(Animator animation) {

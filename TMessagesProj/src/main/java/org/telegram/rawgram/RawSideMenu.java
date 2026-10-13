@@ -50,6 +50,32 @@ public final class RawSideMenu {
         root.addView(instance, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
     }
 
+    /**
+     * LaunchActivity's day/night circle, switching to light: the old-theme snapshot shrinks above the content; it
+     * has to go above the side menu too (Telegram puts it right above the drawer layout container).
+     */
+    public static int themeSnapshotIndex(FrameLayout root, View drawerLayoutContainer) {
+        int index = root.indexOfChild(drawerLayoutContainer) + 1;
+        if (instance != null && instance.getParent() == root) {
+            index = Math.max(index, root.indexOfChild(instance) + 1);
+        }
+        return index;
+    }
+
+    /**
+     * LaunchActivity's day/night circle, switching to dark: the new theme grows as a circular reveal of the drawer
+     * layout container; the side menu lies above it, so it gets the same reveal (otherwise it switches at once).
+     */
+    public static void revealWithTheme(int x, int y, float radius, android.animation.Animator main) {
+        if (instance == null || instance.getVisibility() != View.VISIBLE || !instance.isAttachedToWindow()) {
+            return;
+        }
+        android.animation.Animator anim = android.view.ViewAnimationUtils.createCircularReveal(instance, x, y, 0, radius);
+        anim.setDuration(main.getDuration());
+        anim.setInterpolator(main.getInterpolator());
+        anim.start();
+    }
+
     /** DialogsActivity: the ☰ button. */
     public static boolean open() {
         if (instance == null) {
