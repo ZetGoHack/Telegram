@@ -6861,6 +6861,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     protected void onDestroy() {
         isActive = false;
         activeInstanceCount--;
+        org.telegram.rawgram.RawSideMenu.detach(this); // rawGram
         unregisterReceiver(batteryReceiver);
 
         if (activeInstanceCount == 0) {

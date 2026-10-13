@@ -50,6 +50,13 @@ public final class RawSideMenu {
         root.addView(instance, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
     }
 
+    /** LaunchActivity.onDestroy: the static no longer keeps the destroyed activity's view tree (a newer activity's menu stays). */
+    public static void detach(LaunchActivity activity) {
+        if (instance != null && instance.getContext() == activity) {
+            instance = null;
+        }
+    }
+
     /**
      * LaunchActivity's day/night circle, switching to light: the old-theme snapshot shrinks above the content; it
      * has to go above the side menu too (Telegram puts it right above the drawer layout container).
