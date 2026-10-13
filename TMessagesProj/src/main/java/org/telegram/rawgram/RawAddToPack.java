@@ -5,6 +5,7 @@ import android.content.Context;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.os.SystemClock;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -50,6 +51,11 @@ import java.util.HashSet;
 public final class RawAddToPack {
 
     public static final String TITLE = "Добавить в…";
+
+    /** The last getMyStickers answer per account, shown before a fresh one arrives. */
+    private static final ArrayList<TLRPC.StickerSetCovered>[] mySets = new ArrayList[org.telegram.messenger.UserConfig.MAX_ACCOUNT_COUNT];
+    private static final long[] mySetsTime = new long[org.telegram.messenger.UserConfig.MAX_ACCOUNT_COUNT];
+    private static final long MY_SETS_TTL_MS = 60_000;
     private static final String FALLBACK_EMOJI = "😀";
 
     private RawAddToPack() {
@@ -97,7 +103,18 @@ public final class RawAddToPack {
         boolean emoji = isEmoji(document);
         boolean mask = !emoji && MessageObject.isMaskDocument(document);
 
-        LinearLayout page = new LinearLayout(context);
+        // as wide as the main menu: the sets loaded later must not widen the menu, or the reactions bar above it
+        // (ChatScrimPopupContainerLayout centres it on the swipe-back width) jumps half a second after opening
+        LinearLayout page = new LinearLayout(context) {
+            @Override
+            protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+                View main = menu.getSwipeBack() != null ? menu.getSwipeBack().getChildAt(0) : null;
+                if (main != null && main != this && main.getMeasuredWidth() > 0) {
+                    widthMeasureSpec = MeasureSpec.makeMeasureSpec(main.getMeasuredWidth(), MeasureSpec.EXACTLY);
+                }
+                super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+            }
+        };
         page.setOrientation(LinearLayout.VERTICAL);
         ActionBarMenuSubItem back = new ActionBarMenuSubItem(context, true, false, rp);
         back.setItemHeight(44);
@@ -131,8 +148,9 @@ public final class RawAddToPack {
             TLRPC.Document cover = cached.documents.isEmpty() ? null : cached.documents.get(0);
             rows.addView(setRow(context, rp, account, cached.set, cover, document, parent, closeMenu));
         }
-        // own sets the client doesn't keep (archived / removed) come from the server
-        loadMySets(account, 0, new ArrayList<>(), covered -> {
+        // own sets the client doesn't keep (archived / removed): the last server answer at once, a fresh one when
+        // the page is opened (at most once a minute)
+        org.telegram.messenger.Utilities.Callback<ArrayList<TLRPC.StickerSetCovered>> addMine = covered -> {
             if (covered == null) {
                 return;
             }
@@ -143,13 +161,23 @@ public final class RawAddToPack {
                 TLRPC.Document cover = c.cover != null ? c.cover : c.covers != null && !c.covers.isEmpty() ? c.covers.get(0) : null;
                 rows.addView(setRow(context, rp, account, c.set, cover, document, parent, closeMenu));
             }
-        });
+        };
+        addMine.run(mySets[account]);
 
         int index = menu.addViewToSwipeBack(page);
         item.setRightIcon(R.drawable.msg_arrowright);
         item.setOnClickListener(v -> {
             menu.getSwipeBack().openForeground(index);
             RawMotion.cascadeFromRight(page);
+            if (SystemClock.elapsedRealtime() - mySetsTime[account] > MY_SETS_TTL_MS) {
+                loadMySets(account, 0, new ArrayList<>(), covered -> {
+                    if (covered != null) {
+                        mySets[account] = covered;
+                        mySetsTime[account] = SystemClock.elapsedRealtime();
+                    }
+                    addMine.run(covered);
+                });
+            }
         });
     }
 
@@ -167,7 +195,6 @@ public final class RawAddToPack {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setMinimumWidth(AndroidUtilities.dp(220));
         row.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector, rp), 2));
         BackupImageView image = new BackupImageView(context);
         if (set == null) {
