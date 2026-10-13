@@ -151,6 +151,10 @@ android {
             cmake {
                 version '3.22.1'
                 arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-21' //, '-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON'
+                // rawGram: a compiler cache shared by the clones when the build script passes -PrawCcache=<path to ccache>
+                if (project.hasProperty('rawCcache')) {
+                    arguments "-DCMAKE_C_COMPILER_LAUNCHER=${project.property('rawCcache')}", "-DCMAKE_CXX_COMPILER_LAUNCHER=${project.property('rawCcache')}"
+                }
                 targets 'tmessages.49'
             }
         }
