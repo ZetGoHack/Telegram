@@ -873,7 +873,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                         // from Telegram's own size up to a quarter of the heap; the tick marks the comfortable maximum
                         final int min = RawAvatarGallery.telegramCacheMb();
                         final int step = 8;
-                        final int max = min + Math.max(1, (RawAvatarGallery.maxCacheMb() - min) / step) * step;
+                        final int max = min + Math.max(0, (RawAvatarGallery.maxCacheMb() - min) / step) * step; // never past the real maximum
                         final int stable = min + Math.round((RawAvatarGallery.stableCacheMb() - min) / (float) step) * step;
                         ((RawSeekBarCell) holder.itemView).bind("Кеш картинок в памяти", min, max, step, RawAvatarGallery.cacheMb(), " МБ", stable, value -> {
                             RawUiConfig.setImageCacheMb(value <= min ? 0 : value);
@@ -919,7 +919,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                         cell.setText("Пока следующее фото в профиле загружается, на экране остаётся предыдущее, а не размытое превью. "
                                 + "Фото впереди по ходу листания загружаются заранее — столько, сколько помещается в кеш. "
                                 + "Кеш — сколько памяти отдано под картинки: больше кеш — больше фото готово сразу. "
-                                + "Отметка на шкале — предел, до которого памяти хватает с запасом; выше приложение может падать при долгой работе. "
+                                + "Отметка на шкале — предел, до которого памяти хватает с запасом; выше телефону может не хватать памяти при долгой работе. "
                                 + "Размер кеша применяется после перезапуска.");
                     } else if (position == lookInfoRow) {
                         String fontStatus = RawUiConfig.fontMode() == RawUiConfig.FONT_CUSTOM && !RawCustomFont.status().isEmpty()

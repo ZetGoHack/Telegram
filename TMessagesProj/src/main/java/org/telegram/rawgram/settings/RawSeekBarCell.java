@@ -151,8 +151,7 @@ public class RawSeekBarCell extends FrameLayout {
 
     private void updateTexts(boolean animated) {
         valueView.setText(value + suffix, animated);
-        valueView.setTextColor(markValue >= 0 && value > markValue
-                ? Theme.getColor(Theme.key_text_RedRegular) : Theme.getColor(Theme.key_windowBackgroundWhiteBlueHeader));
+        valueView.setTextColor(valueColor());
         // the limit the value approaches is tinted with the accent, as in exteraGram
         int gray = Theme.getColor(Theme.key_windowBackgroundWhiteGrayText);
         int accent = Theme.getColor(Theme.key_windowBackgroundWhiteBlueText);
@@ -164,10 +163,16 @@ public class RawSeekBarCell extends FrameLayout {
         minView.setTextColor(ColorUtils.blendARGB(gray, accent, toMin));
     }
 
+    /** Accent, or red above the marked value. */
+    private int valueColor() {
+        return markValue >= 0 && value > markValue
+                ? Theme.getColor(Theme.key_text_RedRegular) : Theme.getColor(Theme.key_windowBackgroundWhiteBlueHeader);
+    }
+
     private void updateColors() {
         int accent = Theme.getColor(Theme.key_windowBackgroundWhiteBlueHeader);
         titleView.setTextColor(accent);
-        valueView.setTextColor(accent);
+        valueView.setTextColor(valueColor());
         int gray = Theme.getColor(Theme.key_windowBackgroundWhiteGrayText);
         minView.setTextColor(gray);
         maxView.setTextColor(gray);

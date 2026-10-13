@@ -36,6 +36,8 @@ public final class RawAvatarGallery {
     /** Pages ViewPager keeps bound on each side (ProfileGalleryView.setOffscreenPageLimit). */
     private static final int PAGER_NEIGHBOURS = 2;
     private static final int MAX_PREFETCH = 12;
+    /** How long a page may show the previous photo; after that its own preview shows (e.g. the photo is not downloaded). */
+    private static final long HOLD_MS = 400;
 
     private RawAvatarGallery() {
     }
@@ -95,6 +97,9 @@ public final class RawAvatarGallery {
     public static final class Gallery {
 
         private Bitmap held;
+        private ImageReceiver heldFor;
+        private long heldSince;
+        private int lastIndex = -1;
         private int frameBytes = DEFAULT_FRAME_BYTES;
         private ImageReceiver[] prefetch;
         private final Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
@@ -115,19 +120,34 @@ public final class RawAvatarGallery {
             if (!RawUiConfig.galleryHoldFrame() || receiver == null) {
                 return false;
             }
-            if (receiver.hasNotThumb()) {
-                if (current) {
+            // a video avatar handed over as a ready drawable (the first page) counts as loaded
+            if (receiver.hasNotThumb() || receiver.getAnimation() != null) {
+                if (current && receiver.getAnimation() == null) {
                     Bitmap bitmap = receiver.getBitmap();
                     if (bitmap != null && !bitmap.isRecycled()) {
                         held = bitmap;
-                        frameBytes = Math.max(frameBytes / 4, bitmap.getByteCount());
+                        frameBytes = bitmap.getByteCount();
                     }
                 }
+                heldFor = null;
                 return false;
             }
             Bitmap bitmap = held;
             if (!current || bitmap == null || bitmap.isRecycled()) {
                 return false;
+            }
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (heldFor != receiver) {
+                heldFor = receiver;
+                heldSince = now;
+            }
+            long holdLeft = HOLD_MS - (now - heldSince);
+            if (holdLeft <= 0) {
+                return false; // not loading in time: the page's own preview
+            }
+            View parent = receiver.getParentView();
+            if (parent != null) {
+                parent.postInvalidateDelayed(holdLeft + 16);
             }
             float w = receiver.getImageWidth();
             float h = receiver.getImageHeight();
@@ -166,6 +186,15 @@ public final class RawAvatarGallery {
             if (!RawUiConfig.galleryPrefetch() || n <= 0 || realIndex < 0) {
                 return;
             }
+            // the direction by the shorter way round, so going from the last photo to the first counts as forward
+            if (lastIndex >= 0 && lastIndex < count && lastIndex != realIndex) {
+                int delta = realIndex - lastIndex;
+                if (Math.abs(delta) > count / 2) {
+                    delta = -delta;
+                }
+                forward = delta > 0;
+            }
+            lastIndex = realIndex;
             if (prefetch == null || prefetch.length != n) {
                 release();
                 prefetch = new ImageReceiver[n];
@@ -208,6 +237,7 @@ public final class RawAvatarGallery {
                 prefetch = null;
             }
             held = null;
+            heldFor = null;
         }
     }
 }
