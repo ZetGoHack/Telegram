@@ -260,7 +260,7 @@ public final class RawMemWatch {
     }
 
     /** rawGram warning (red accent) at the bottom: the heap is almost full, a leak is likely. Tap opens the report. */
-    private static void showWarning(long heapUsed, long max, File report) {
+    static void showWarning(long heapUsed, long max, File report) {
         AndroidUtilities.runOnUIThread(() -> RawNotify.warn("Возможна утечка памяти: куча " + (heapUsed >> 20) + " из " + (max >> 20)
                 + " МБ" + (report != null ? ". Нажми, чтобы открыть отчёт" : ""), report == null ? null : () -> {
             BaseFragment last = LaunchActivity.getSafeLastFragment();
@@ -268,6 +268,37 @@ public final class RawMemWatch {
                 last.presentFragment(new RawCrashLogActivity(report));
             }
         }));
+    }
+
+    /** Debug menu: the current heap in one line. */
+    public static String heapLine() {
+        Runtime rt = Runtime.getRuntime();
+        return (rt.totalMemory() - rt.freeMemory() >> 20) + " из " + (rt.maxMemory() >> 20) + " МБ";
+    }
+
+    /** Debug menu: native allocations in one line. */
+    public static String nativeLine() {
+        return (Debug.getNativeHeapAllocatedSize() >> 20) + " МБ";
+    }
+
+    /** Debug menu: a heap dump on demand (replaces the previous one, no cooldown). Blocks while it is written; call off the UI thread. */
+    public static File dumpNow(Context ctx) throws java.io.IOException {
+        File dir = new File(ctx.getFilesDir(), DIR);
+        dir.mkdirs();
+        File[] old = dir.listFiles();
+        if (old != null) {
+            for (File f : old) {
+                if (f.getName().endsWith(".hprof")) {
+                    f.delete();
+                }
+            }
+        }
+        if (dir.getUsableSpace() < HPROF_MIN_FREE) {
+            throw new java.io.IOException("мало свободного места");
+        }
+        File dump = new File(dir, "heap_" + System.currentTimeMillis() + ".hprof");
+        Debug.dumpHprofData(dump.getAbsolutePath());
+        return dump;
     }
 
     /** One heap dump is kept; at most one per few hours and only with enough free space. */
