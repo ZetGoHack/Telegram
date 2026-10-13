@@ -371,7 +371,7 @@ public final class InstantCameraView2 extends InstantCameraViewBase {
         activeOutputResolution = SharedSettings.roundVideoOutputResolution.get();
         session = new RoundVideoSession.Builder(getContext(), textureView)
                 .setOutputDirectory(new File(ApplicationLoader.getFilesDirFixed(), "cache"))
-                .setInitialFacing(SharedSettings.roundVideoLastCamera.get())
+                .setInitialFacing(fromPaused ? SharedSettings.roundVideoLastCamera.get() : org.telegram.rawgram.RawRoundCamera.initialFacing(SharedSettings.roundVideoLastCamera.get())) // rawGram: front / back / asked (a resumed round keeps its camera)
                 .setOutputResolution(activeOutputResolution)
                 .setVideoBitrate(SharedSettings.roundVideoVideoBitrate.get())
                 .setCameraResolution(SharedSettings.roundVideoCameraResolution.get())

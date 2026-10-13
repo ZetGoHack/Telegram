@@ -14,7 +14,7 @@ import org.telegram.ui.Components.ItemOptions;
  */
 public final class RawRoundCamera {
 
-    /** A choice made in the «ask» menu, consumed by the next InstantCameraView.showCamera. */
+    /** A choice made in the «ask» menu, consumed when the next round video starts. */
     private static Boolean pendingFront;
     /** Set while the start triggered by the menu runs, so it doesn't ask again. */
     private static boolean choosing;
@@ -22,7 +22,7 @@ public final class RawRoundCamera {
     private RawRoundCamera() {
     }
 
-    /** InstantCameraView.showCamera: true = front, false = main, null = keep Telegram's choice. */
+    /** InstantCameraView.showCamera (InstantCameraView2 via initialFacing): true = front, false = main, null = keep Telegram's choice. */
     public static Boolean startFront() {
         if (pendingFront != null) {
             Boolean front = pendingFront;
@@ -30,6 +30,17 @@ public final class RawRoundCamera {
             return front;
         }
         return RawChatUiConfig.roundCamera.get() == RawChatUiConfig.ROUND_BACK ? Boolean.FALSE : null;
+    }
+
+    /** InstantCameraView2 (the Camera2 round video recorder): the camera it starts with instead of the last used one. */
+    public static org.telegram.utils.camera.roundvideo.RoundVideoSession.CameraFacing initialFacing(
+            org.telegram.utils.camera.roundvideo.RoundVideoSession.CameraFacing last) {
+        Boolean front = startFront();
+        if (front == null) {
+            return last;
+        }
+        return front ? org.telegram.utils.camera.roundvideo.RoundVideoSession.CameraFacing.FRONT
+                : org.telegram.utils.camera.roundvideo.RoundVideoSession.CameraFacing.BACK;
     }
 
     /**

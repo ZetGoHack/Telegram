@@ -803,6 +803,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 previewSize[0] = new Size(camera2SessionCurrent.getPreviewWidth(), camera2SessionCurrent.getPreviewHeight());
             }
         }
+        surfaceIndex = useCamera2 && bothCameras && !isFrontface ? 1 : 0; // rawGram: draw the chosen camera, not the one flipped to in the previous round
         textureView = new TextureView(getContext());
         textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
