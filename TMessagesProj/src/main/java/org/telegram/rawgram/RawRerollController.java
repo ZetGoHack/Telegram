@@ -254,9 +254,9 @@ public class RawRerollController {
         return detached;
     }
 
-    /** The chat is closing. */
-    public static void dismissActive() {
-        if (active != null) {
+    /** The chat that owns {@code owner} is closing: another chat's run is left alone. */
+    public static void dismissActive(Host owner) {
+        if (active != null && active.host == owner) {
             active.dismiss();
         }
     }

@@ -175,7 +175,9 @@ public class RawChatHooks {
         if (backBadge != null) {
             backBadge.onDestroy();
         }
-        RawRerollController.dismissActive();
+        if (rerollHost != null) {
+            RawRerollController.dismissActive(rerollHost);
+        }
         RawInlineStash.removeListener(stashListener);
     }
 
