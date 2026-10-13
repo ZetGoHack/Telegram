@@ -106,11 +106,11 @@ public class RawgramConfig {
 
     /** Last view chosen in the raw code block: JSON (true) or the flat field list (false). */
     public static boolean isRawViewJson() {
-        return prefs().getBoolean("rawViewJson", false);
+        return rawViewJson.get();
     }
 
     public static void setRawViewJson(boolean value) {
-        prefs().edit().putBoolean("rawViewJson", value).apply();
+        rawViewJson.set(value);
     }
 
     // ---- numbers: 100K vs 100 000 (read on every formatted number, so cached) ----
@@ -154,21 +154,21 @@ public class RawgramConfig {
     // ---- MTProto request log (the hot-path flag is cached in RawRequestLog.enabled) ----
 
     public static boolean isRequestLog() {
-        return prefs().getBoolean("requestLog", false);
+        return requestLog.get();
     }
 
     /** Use RawRequestLog.setEnabled: it also flips the cached flag. */
     static void setRequestLog(boolean value) {
-        prefs().edit().putBoolean("requestLog", value).apply();
+        requestLog.set(value);
     }
 
     /** Raw viewers minimize into the bottom tabs (like web apps) instead of closing; the close button still closes. */
     public static boolean isRawMinimize() {
-        return prefs().getBoolean("rawMinimize", false);
+        return rawMinimize.get();
     }
 
     public static void setRawMinimize(boolean value) {
-        prefs().edit().putBoolean("rawMinimize", value).apply();
+        rawMinimize.set(value);
     }
 
     /** How many newest entries the MTProto / updates logs keep, 0 = no limit (memory is the only cost). */
@@ -190,11 +190,11 @@ public class RawgramConfig {
     // ---- incoming updates log (the hot-path flag is cached in RawUpdatesLog.enabled) ----
 
     public static boolean isUpdatesLog() {
-        return prefs().getBoolean("updatesLog", false);
+        return updatesLog.get();
     }
 
     static void setUpdatesLog(boolean value) {
-        prefs().edit().putBoolean("updatesLog", value).apply();
+        updatesLog.set(value);
     }
 
     public static int getUpdatesLogLimit() {
@@ -215,11 +215,17 @@ public class RawgramConfig {
     public static final int ID_MTPROTO = 1;
     public static final int ID_BOTAPI = 2;
 
+    private static volatile int idFormat = -1;
+
     public static int getIdFormat() {
-        return prefs().getInt("idFormat", ID_BOTAPI);
+        if (idFormat < 0) {
+            idFormat = prefs().getInt("idFormat", ID_BOTAPI);
+        }
+        return idFormat;
     }
 
     public static void setIdFormat(int value) {
+        idFormat = value;
         prefs().edit().putInt("idFormat", value).apply();
     }
 
@@ -253,6 +259,10 @@ public class RawgramConfig {
     }
 
     private static final Flag messageDetails = new Flag("featMessageDetails", true);
+    private static final Flag rawViewJson = new Flag("rawViewJson", false);
+    private static final Flag requestLog = new Flag("requestLog", false);
+    private static final Flag rawMinimize = new Flag("rawMinimize", false);
+    private static final Flag updatesLog = new Flag("updatesLog", false);
     private static final Flag memWatch = new Flag("memWatch", true);
     private static final Flag memHprof = new Flag("memHprof", true);
 
