@@ -84,6 +84,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
     private int archivePullRow;
     private int noUnarchiveRow;
     private int downloadsRow;
+    private int hideWalletRow;
     private int tabsOrderRow;
     private int tabsSearchRow;
     private int sideMenuRow;
@@ -176,6 +177,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
         archivePullRow = rowCount++;
         noUnarchiveRow = rowCount++;
         downloadsRow = rowCount++;
+        hideWalletRow = rowCount++;
         previewAvatarsRow = rowCount++;
         chatsInfoRow = rowCount++;
 
@@ -357,6 +359,9 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
         } else if (position == downloadsRow) {
             RawChatUiConfig.alwaysDownloads.toggle();
             toggled(view, RawChatUiConfig.alwaysDownloads.get());
+        } else if (position == hideWalletRow) {
+            RawChatUiConfig.hideWalletMenu.toggle();
+            ((TextCheckCell) view).setChecked(RawChatUiConfig.hideWalletMenu.get());
         } else if (position == sideMenuRow) {
             boolean v = !RawUiConfig.sideMenu();
             RawUiConfig.setSideMenu(v);
@@ -821,6 +826,8 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                         cell.setTextAndCheck("Не разархивировать свайпом", RawChatUiConfig.noUnarchiveSwipe.get(), true);
                     } else if (position == downloadsRow) {
                         cell.setTextAndCheck("Всегда показывать загрузки", RawChatUiConfig.alwaysDownloads.get(), true);
+                    } else if (position == hideWalletRow) {
+                        cell.setTextAndCheck("Скрыть «Кошелёк» в меню", RawChatUiConfig.hideWalletMenu.get(), true);
                     } else if (position == previewAvatarsRow) {
                         cell.setTextAndCheck("Аватарки отправителей", RawChatUiConfig.previewAvatars.get(), false);
                     } else if (position == tabsSearchRow) {
@@ -904,6 +911,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                                 + "Без историй пропадают их кольца на аватарках, строка над чатами и вкладка в профиле. Истории — после перезапуска. "
                                 + "Скрытый архив открывается из бокового меню. Архив открывается, если потянуть список вниз до конца. Свайп в архиве не возвращает чат в общий список. "
                                 + "Значок загрузок виден в шапке, даже когда ничего не скачивается. "
+                                + "«Кошелёк» — пункт в меню ⋮ над списком чатов. "
                                 + "Аватарки отправителей — маленькое фото автора последнего сообщения в группах, перед его именем.");
                     } else if (position == bottomTabsInfoRow) {
                         cell.setText("Кнопка поиска — круглая кнопка справа от вкладок, открывает поиск по чатам. "

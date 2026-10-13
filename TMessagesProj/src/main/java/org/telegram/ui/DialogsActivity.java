@@ -13789,7 +13789,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         if (ApplicationLoader.applicationLoaderInstance != null) {
             ApplicationLoader.applicationLoaderInstance.addItemOptions(io);
         }
-        if (getMessagesController().config.walletAvailable.get()) {
+        if (getMessagesController().config.walletAvailable.get() && !org.telegram.rawgram.RawChatUiConfig.hideWalletMenu.get()) { // rawGram: «Скрыть «Кошелёк» в меню»
             io.add(R.drawable.ic_gram, LocaleController.getString(R.string.WalletAttachMoney), () -> {
                 presentFragment(new WalletActivity());
             });
