@@ -5988,7 +5988,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                         delegate.onTextChanged(charSequence, before > count + 1 || (count - before) > 2, false);
                     }
                 }
-                if (innerTextChange != 2 && (count - before) > 1) {
+                if (innerTextChange != 2 && ((count - before) > 1 || org.telegram.rawgram.RawPaste.isSingleEmojiChar(charSequence, start, count))) { // rawGram: also a one-char emoji (a bare ❤ from a custom emoji's alt)
                     processChange = true;
                 }
                 if (editingMessageObject == null && !canWriteToChannel && message.length() != 0 && lastTypingTimeSend < System.currentTimeMillis() - 5000 && !ignoreTextChange) {

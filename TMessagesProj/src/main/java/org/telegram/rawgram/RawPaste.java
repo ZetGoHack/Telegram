@@ -80,6 +80,19 @@ public class RawPaste {
         }
     }
 
+    /**
+     * ChatActivityEnterView only turns inserted text into Telegram emoji when more than one char comes in. Keyboards
+     * send ❤ with U+FE0F (two chars), but a custom emoji's alt pasted as plain text is the bare U+2764 and stayed the
+     * system glyph. True when the insertion is a single char Telegram has an emoji for.
+     */
+    public static boolean isSingleEmojiChar(CharSequence text, int start, int count) {
+        if (count != 1 || text == null || start < 0 || start >= text.length()) {
+            return false;
+        }
+        char c = text.charAt(start);
+        return (c == 0x00A9 || c == 0x00AE || c >= 0x203C && c <= 0x3299) && org.telegram.messenger.EmojiData.dataCharsMap.containsKey(c);
+    }
+
     private static boolean isCodeSpan(Object span) {
         if (span instanceof CodeHighlighting.Span || span instanceof URLSpanMono) {
             return true;
@@ -144,7 +157,8 @@ public class RawPaste {
 
     private static boolean isRichClipboardCommit(EditText view, CharSequence text) {
         try {
-            if (text == null || text.length() < 2) {
+            // one char is typing, except an emoji char: a custom emoji whose alt is the bare U+2764 copies as one char
+            if (text == null || text.length() == 0 || text.length() < 2 && !isSingleEmojiChar(text, 0, 1)) {
                 return false;
             }
             final Editable editable = view.getText();
