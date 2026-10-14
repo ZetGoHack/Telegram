@@ -64,7 +64,7 @@ in Telegram classes.
   `MentionsContainerView`. Other screens call static helpers (`RawProfileRaw`, `RawStickerSetRaw`, `RawDialogRaw`,
   `RawIdLookup`, `RawPaste`, `RawIcons`, ...).
 - **Raw data viewing**: `TLDumper` (reflection dump of TL objects → JSON / flat fields; `fieldsOf` is shared),
-  `RawObjectSheet` (tabs, JSON / Поля / «Дерево (beta)» via `RawTreeView`, actions), `RawSyntax` (highlighting).
+  `RawObjectSheet` (tabs, JSON / Поля / «Дерево» via `RawTreeView`, actions), `RawSyntax` (highlighting).
   Most "Raw" entry points open a `RawObjectSheet`.
 - **Config**: each area has its own SharedPreferences-backed static config with cached values —
   `RawgramConfig` ("rawgram": feature switches, dev tools, delays), `RawUiConfig` ("rawgram_ui"), `RawChatUiConfig`
