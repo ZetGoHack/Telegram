@@ -111,6 +111,7 @@ public class RawDebugActivity extends RawPreferencesFragment {
         info("Все уведомления rawGram рисуются одним стилем. Предупреждение о памяти — такое, как при почти полной куче.");
 
         header("Интерфейс");
+        button("Буфер обмена: коды символов", this::showClipboard);
         button("Галерея компонентов", () -> presentFragment(new RawDebugGalleryActivity()));
         button("Raw-окно с примером", () -> {
             if (getParentActivity() != null) {
@@ -184,6 +185,63 @@ public class RawDebugActivity extends RawPreferencesFragment {
                 RawNotify.result(failed == 0, R.drawable.msg_info, "Проверки пройдены: " + done.size(), "Проверки не пройдены: " + failed + " из " + done.size());
             });
         });
+    }
+
+    /** What the clipboard holds: plain text and HTML with every non-ASCII character as U+XXXX (e.g. which heart a custom emoji's alt is). */
+    private void showClipboard() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        StringBuilder out = new StringBuilder();
+        try {
+            android.content.ClipboardManager cm = (android.content.ClipboardManager) getParentActivity().getSystemService(Context.CLIPBOARD_SERVICE);
+            android.content.ClipData clip = cm == null ? null : cm.getPrimaryClip();
+            if (clip == null || clip.getItemCount() == 0) {
+                out.append("Буфер пуст");
+            } else {
+                android.content.ClipDescription desc = clip.getDescription();
+                for (int i = 0; desc != null && i < desc.getMimeTypeCount(); i++) {
+                    out.append(i == 0 ? "Типы: " : ", ").append(desc.getMimeType(i));
+                }
+                android.content.ClipData.Item item = clip.getItemAt(0);
+                out.append("\n\nТекст:\n").append(codes(item.getText()));
+                if (item.getHtmlText() != null) {
+                    out.append("\n\nHTML:\n").append(codes(item.getHtmlText()));
+                }
+            }
+        } catch (Throwable e) {
+            out.append("Не удалось прочитать: ").append(e);
+        }
+        String text = out.toString();
+        new AlertDialog.Builder(getParentActivity(), getResourceProvider())
+                .setTitle("Буфер обмена")
+                .setMessage(text)
+                .setPositiveButton("Копировать", (d, w) -> AndroidUtilities.addToClipboard(text))
+                .setNegativeButton("Закрыть", null)
+                .show();
+    }
+
+    /** ASCII as is, everything else as [U+XXXX], at most 2000 characters. */
+    private static String codes(CharSequence cs) {
+        if (cs == null) {
+            return "—";
+        }
+        StringBuilder sb = new StringBuilder();
+        String s = cs.toString();
+        int limit = Math.min(s.length(), 2000);
+        for (int i = 0; i < limit; ) {
+            int cp = s.codePointAt(i);
+            i += Character.charCount(cp);
+            if (cp >= 0x20 && cp < 0x7F || cp == '\n') {
+                sb.appendCodePoint(cp);
+            } else {
+                sb.append("[U+").append(String.format(java.util.Locale.US, "%04X", cp)).append(']');
+            }
+        }
+        if (s.length() > limit) {
+            sb.append("… (").append(s.length()).append(" симв.)");
+        }
+        return sb.toString();
     }
 
     private void showDetail(RawDebugChecks.Result result) {
