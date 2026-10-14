@@ -94,7 +94,14 @@ public class RawSyntax {
                             : (c == '-' || Character.isDigit(c)) ? p.number
                             : (text.startsWith("true", v) || text.startsWith("false", v) || text.startsWith("null", v) || text.startsWith("[]", v)) ? p.keyword
                             : p.string;
-                    color(sb, v, lineEnd, valueColor);
+                    // a unix time with its readable date after it: the date is dimmed (TLDumper.dateHint)
+                    int hint = valueColor == p.number ? text.indexOf(TLDumper.DATE_HINT_OPEN, v) : -1;
+                    if (hint > v && hint < lineEnd) {
+                        color(sb, v, hint, valueColor);
+                        color(sb, hint, lineEnd, p.punctuation);
+                    } else {
+                        color(sb, v, lineEnd, valueColor);
+                    }
                 }
             } else if (typeSep >= 0 && typeSep < lineEnd) {
                 color(sb, lineStart, typeSep, p.key);

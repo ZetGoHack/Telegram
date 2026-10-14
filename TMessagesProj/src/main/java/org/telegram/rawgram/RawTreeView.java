@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * "Tree (beta)" view of the raw code block: the dumped object as a collapsible tree.
+ * "Tree" view of the raw code block: the dumped object as a collapsible tree.
  * Nodes are built lazily by reflection with the same field enumeration and null handling as
  * {@link TLDumper} (null fields of TL objects are skipped), visible nodes are flattened into
  * rows of a RecyclerListView. Tap toggles containers (and long strings / byte arrays),
@@ -542,6 +542,7 @@ public class RawTreeView extends RecyclerListView {
                 appendValue(sb, node, p);
                 appendPeer(sb, node, p);
                 appendColor(sb, node, p);
+                appendDate(sb, node, p);
                 break;
             }
         }
@@ -612,6 +613,17 @@ public class RawTreeView extends RecyclerListView {
                 append(sb, "  ← " + info.name, Theme.multAlpha(p.punctuation, 0.9f));
             }
         } catch (Throwable ignore) {
+        }
+    }
+
+    /** "date = 1760425353  14.10.2026 10:22:33" for unix-time fields (TLDumper.dateHint), dimmed like the peer name. */
+    private static void appendDate(SpannableStringBuilder sb, Node node, RawSyntax.Palette p) {
+        if (node.kind != KIND_VALUE || node.marker != null || node.key == null) {
+            return;
+        }
+        String date = TLDumper.dateHint(node.key, node.source);
+        if (date != null) {
+            append(sb, "  " + date, Theme.multAlpha(p.punctuation, 0.9f));
         }
     }
 

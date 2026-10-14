@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-rawGram: a developer-oriented fork of Telegram Android (base 12.10.5, package `dev.rawgram.app`, `.beta` for debug).
+rawGram: a developer-oriented fork of Telegram Android (base 13.0.2, package `dev.rawgram.app`, `.beta` for debug).
 GPLv3 (see `CREDITS.md`; code/ideas ported from Nagram/NekoX/exteraGram/AyuGram). `RAWGRAM.md` is the user-facing overview.
 
 API credentials are never committed: `RAWGRAM_API_ID` / `RAWGRAM_API_HASH` come from `local.properties` (git-ignored) or
@@ -32,11 +32,17 @@ $env:JAVA_HOME='C:\Users\aleks\.jdks\jbr-21.0.11'
   `buildNNN_<date>_<commit>[-dirty].apk` with a `.patch`/`.new-files.zip` for uncommitted builds; `-List` shows the
   archive, `-Install N` rolls back to build N, `-NoInstall`, `-Repo ..\telegram-plugs -Tag plugins`).
 - Compile-only check (Java errors, no APK): `:TMessagesProj:compileDebugJavaWithJavac`.
-- Local, **never committed** edits that keep builds fast: `abiFilters "arm64-v8a"` in `TMessagesProj/build.gradle`
-  (`externalNativeBuild.cmake`) and in the `afat` flavor of `TMessagesProj_App/build.gradle`. Stage commits with
-  `git add TMessagesProj/src ...` and leave these two files out.
-- A normal Java-only change builds in ~4–6 min; switching branches (or running the plugins build in parallel) invalidates the
-  native `tmessages.49` build and costs 15–25 min. Avoid concurrent builds in both clones.
+- Local, **never committed** edits that keep builds fast, in **both clones**: `abiFilters "arm64-v8a"` in
+  `TMessagesProj/build.gradle` (`externalNativeBuild.cmake`) and in the `afat` flavor of `TMessagesProj_App/build.gradle`.
+  Without the first one the native code is built for all four ABIs (about 4× slower). Stage commits with
+  `git add TMessagesProj/src ...` and leave these two files out; when a build.gradle change is real, stage only its hunk.
+- `build.ps1` also wires the host tools (machine-local, in `C:\Users\aleks\tools`): ccache through `ccache\ccwrap.py`
+  (passed to CMake as `-PrawCcache`; the wrapper puts `-std=` in one place, because CMake orders it differently in the
+  plugins clone, so both clones share one cache with `base_dir` = the projects folder), and `CHAQUOPY_PYTHON` = a portable
+  Python 3.11 venv with Cython 3.0.11 (`chaquopy-venv311`) for the plugins branch's Chaquopy bridge.
+- A Java-only change builds in ~2–5 min. After native changes (upstream merges, CMake arguments) the main clone needs
+  ~25 min, then the plugins clone ~4 min from the shared cache. Avoid concurrent builds in both clones; build the main
+  clone first.
 - There is no unit-test suite in use; verification is done on a device.
 
 ## Device testing conventions

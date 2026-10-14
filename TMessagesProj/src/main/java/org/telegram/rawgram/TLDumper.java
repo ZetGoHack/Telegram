@@ -41,6 +41,43 @@ public class TLDumper {
         return sb.toString();
     }
 
+    /** Separates a readable date from the unix time it explains in the «Поля» view (RawSyntax dims it). */
+    public static final String DATE_HINT_OPEN = "  (";
+
+    /** Unix seconds between 2000 and 2100 count as a time; anything else under a date-like name is left alone. */
+    private static final long TIME_MIN = 946684800L, TIME_MAX = 4102444800L;
+
+    /**
+     * A readable local date for a unix-time field (date, edit_date, expires, until_date, was_online, *_at, *_time, …),
+     * or null when the field name or the value doesn't look like one.
+     */
+    static String dateHint(String path, Object value) {
+        if (!(value instanceof Integer) && !(value instanceof Long)) {
+            return null;
+        }
+        long v = ((Number) value).longValue();
+        if (v < TIME_MIN || v > TIME_MAX) {
+            return null;
+        }
+        String name = path;
+        int dot = name.lastIndexOf('.');
+        if (dot >= 0) {
+            name = name.substring(dot + 1);
+        }
+        int bracket = name.indexOf('[');
+        if (bracket >= 0) {
+            name = name.substring(0, bracket);
+        }
+        name = name.toLowerCase(java.util.Locale.US);
+        boolean time = name.endsWith("date") || name.equals("expires") || name.endsWith("_expires") || name.equals("until")
+                || name.endsWith("_until") || name.equals("was_online") || name.endsWith("_at") || name.equals("time")
+                || name.endsWith("_time") || name.equals("timestamp");
+        if (!time) {
+            return null;
+        }
+        return new java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale.US).format(new java.util.Date(v * 1000L));
+    }
+
     public static String typeName(Object object) {
         return object == null ? "null" : object.getClass().getSimpleName();
     }
@@ -263,6 +300,10 @@ public class TLDumper {
                 writeString(sb, (String) node);
             } else {
                 sb.append(node);
+                String date = dateHint(prefix, node);
+                if (date != null) {
+                    sb.append(DATE_HINT_OPEN).append(date).append(')');
+                }
             }
             sb.append('\n');
         }

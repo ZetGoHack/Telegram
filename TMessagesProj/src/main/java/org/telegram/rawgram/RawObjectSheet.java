@@ -11,10 +11,8 @@ import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.SystemClock;
-import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
-import android.text.style.RelativeSizeSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -214,8 +212,7 @@ public class RawObjectSheet extends BottomSheet {
         header.addView(typeLabel, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1f, 12, 0, 8, 0));
 
         int accent = getThemedColor(Theme.key_featuredStickers_addButton);
-        SpannableString treeLabel = new SpannableString("Дерево (beta)");
-        treeLabel.setSpan(new RelativeSizeSpan(0.8f), 7, treeLabel.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        CharSequence treeLabel = "Дерево";
         modeSwitch = new ModeSwitch(context, accent, getThemedColor(Theme.key_featuredStickers_buttonText),
                 new CharSequence[]{treeLabel, "JSON", "Поля"}, this::switchMode);
         header.addView(modeSwitch, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 26));
@@ -926,7 +923,7 @@ public class RawObjectSheet extends BottomSheet {
         previewContainer.setVisibility(View.VISIBLE);
     }
 
-    /** Segmented "Дерево (beta) / JSON / Поля" choice with a sliding accent thumb. */
+    /** Segmented "Дерево / JSON / Поля" choice with a sliding accent thumb. */
     private static class ModeSwitch extends LinearLayout {
 
         interface Listener {
