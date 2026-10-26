@@ -40,14 +40,14 @@ public final class RawRoundCamera {
     }
 
     /** InstantCameraView2 (the Camera2 round video recorder): the camera it starts with instead of the last used one. */
-    public static org.telegram.utils.camera.roundvideo.RoundVideoSession.CameraFacing initialFacing(
-            org.telegram.utils.camera.roundvideo.RoundVideoSession.CameraFacing last) {
+    public static org.telegram.utils.recorder.round.RoundVideoSession.CameraFacing initialFacing(
+            org.telegram.utils.recorder.round.RoundVideoSession.CameraFacing last) {
         Boolean front = startFront();
         if (front == null) {
             return last;
         }
-        return front ? org.telegram.utils.camera.roundvideo.RoundVideoSession.CameraFacing.FRONT
-                : org.telegram.utils.camera.roundvideo.RoundVideoSession.CameraFacing.BACK;
+        return front ? org.telegram.utils.recorder.round.RoundVideoSession.CameraFacing.FRONT
+                : org.telegram.utils.recorder.round.RoundVideoSession.CameraFacing.BACK;
     }
 
     /**
