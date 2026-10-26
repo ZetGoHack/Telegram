@@ -275,7 +275,7 @@ public class RawgramConfig {
         memWatch.set(value);
     }
 
-    /** A heap dump is saved together with that report (one file is kept). */
+    /** Heap dumps as the heap grows (50%, 70%, full; once each per process), kept within a size budget. */
     public static boolean isMemHprof() {
         return memHprof.get();
     }

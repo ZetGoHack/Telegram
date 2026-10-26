@@ -7,6 +7,7 @@ import android.os.SystemClock;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ImageLoader;
 import org.telegram.messenger.LruCache;
+import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.LaunchActivity;
@@ -25,8 +26,9 @@ import java.util.concurrent.TimeUnit;
  * Watches the Java heap. When it stays almost full (the freeze before an OutOfMemoryError: the
  * collector runs back to back and the UI stalls) it writes a "memory" report into the crash log
  * (same viewer): the heap history of the last minutes, which screens were open, the sizes of the
- * image caches, the busy threads. Optionally a heap dump is saved next to it (one file is kept),
- * to see which objects fill the heap. An OutOfMemoryError crash report gets the same history.
+ * image caches, the busy threads. Optionally heap dumps are taken as the heap grows (at 50% and 70%
+ * of the limit and when it is full, once each per process) and kept until they take too much space,
+ * so two dumps of one process show what grew. An OutOfMemoryError crash report gets the same history.
  */
 public final class RawMemWatch {
 
@@ -38,8 +40,10 @@ public final class RawMemWatch {
     private static final float FULL = 0.92f;                // share of the heap limit
     private static final int FULL_SAMPLES = 5;              // in a row: ~10 s
     private static final long REPORT_COOLDOWN_MS = 15 * 60 * 1000L;
-    private static final long HPROF_COOLDOWN_MS = 6 * 60 * 60 * 1000L;
-    private static final long HPROF_MIN_FREE = 2L * 1024 * 1024 * 1024;
+    /** Heap shares that get a dump on the way up (once each per process), before the one at FULL. */
+    private static final float[] HPROF_STEPS = {0.5f, 0.7f};
+    private static final long HPROF_BUDGET = 8L << 30;     // all kept dumps together; the oldest go first
+    private static final long HPROF_MIN_FREE = 4L << 30;   // left on the storage after a dump
 
     private static final Object lock = new Object();
     private static final long[] times = new long[HISTORY];
@@ -50,7 +54,9 @@ public final class RawMemWatch {
     private static int head;
     private static volatile boolean started;
     private static long lastReport;
-    private static long lastHprof;
+    private static int hprofStep;      // HPROF_STEPS already dumped in this process
+    private static int stepSamples;
+    private static boolean hprofFull;  // the FULL dump of this process is taken
     private static Context context;
 
     private RawMemWatch() {
@@ -85,6 +91,18 @@ public final class RawMemWatch {
                 long now = rt.totalMemory() - rt.freeMemory();
                 record(now);
                 full = now >= max * FULL ? full + 1 : 0;
+                if (RawgramConfig.isMemHprof() && hprofStep < HPROF_STEPS.length) {
+                    stepSamples = now >= max * HPROF_STEPS[hprofStep] ? stepSamples + 1 : 0;
+                    if (stepSamples >= FULL_SAMPLES) {
+                        stepSamples = 0;
+                        // a later step already passed (the heap jumped): dump once for the highest one
+                        while (hprofStep + 1 < HPROF_STEPS.length && now >= max * HPROF_STEPS[hprofStep + 1]) {
+                            hprofStep++;
+                        }
+                        hprofStep++;
+                        stepDump(now, max);
+                    }
+                }
                 if (full >= FULL_SAMPLES && SystemClock.elapsedRealtime() - lastReport > REPORT_COOLDOWN_MS) {
                     lastReport = SystemClock.elapsedRealtime();
                     full = 0;
@@ -281,48 +299,83 @@ public final class RawMemWatch {
         return (Debug.getNativeHeapAllocatedSize() >> 20) + " МБ";
     }
 
-    /** Debug menu: a heap dump on demand (replaces the previous one, no cooldown). Blocks while it is written; call off the UI thread. */
+    /** Debug menu: a heap dump on demand (kept with the others). Blocks while it is written; call off the UI thread. */
     public static File dumpNow(Context ctx) throws java.io.IOException {
+        Runtime rt = Runtime.getRuntime();
+        long used = rt.totalMemory() - rt.freeMemory();
         File dir = new File(ctx.getFilesDir(), DIR);
-        dir.mkdirs();
-        File[] old = dir.listFiles();
-        if (old != null) {
-            for (File f : old) {
-                if (f.getName().endsWith(".hprof")) {
-                    f.delete();
-                }
-            }
-        }
-        if (dir.getUsableSpace() < HPROF_MIN_FREE) {
+        if (!makeRoom(dir, used)) {
             throw new java.io.IOException("мало свободного места");
         }
-        File dump = new File(dir, "heap_" + System.currentTimeMillis() + ".hprof");
+        File dump = new File(dir, dumpName(System.currentTimeMillis(), used, rt.maxMemory()));
         Debug.dumpHprofData(dump.getAbsolutePath());
         return dump;
     }
 
-    /** One heap dump is kept; at most one per few hours and only with enough free space. */
-    private static void dumpHeap(File report, long now) {
-        try {
-            if (lastHprof != 0 && SystemClock.elapsedRealtime() - lastHprof < HPROF_COOLDOWN_MS) {
-                return;
-            }
-            File dir = new File(context.getFilesDir(), DIR);
-            dir.mkdirs();
-            File[] old = dir.listFiles();
-            if (old != null) {
-                for (File f : old) {
-                    if (f.getName().endsWith(".hprof")) {
-                        f.delete();
-                    }
+    /** "heap_<time>_<pid>_<percent>.hprof": dumps of one process sort together and show the heap level. */
+    private static String dumpName(long time, long used, long max) {
+        return "heap_" + time + "_" + android.os.Process.myPid() + "_" + used * 100 / Math.max(1, max) + ".hprof";
+    }
+
+    /**
+     * Deletes the oldest dumps until a new one (about 1.4x the used heap) fits into HPROF_BUDGET and leaves
+     * HPROF_MIN_FREE on the storage. False when even without old dumps there is not enough space.
+     */
+    private static boolean makeRoom(File dir, long heapUsed) {
+        dir.mkdirs();
+        long need = heapUsed * 14 / 10;
+        ArrayList<File> dumps = new ArrayList<>();
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File f : files) {
+                if (f.getName().endsWith(".hprof")) {
+                    dumps.add(f);
                 }
             }
-            if (dir.getUsableSpace() < HPROF_MIN_FREE) {
+        }
+        java.util.Collections.sort(dumps, (a, b) -> Long.compare(a.lastModified(), b.lastModified()));
+        long total = 0;
+        for (File f : dumps) {
+            total += f.length();
+        }
+        while (!dumps.isEmpty() && (total + need > HPROF_BUDGET || dir.getUsableSpace() - need < HPROF_MIN_FREE)) {
+            File oldest = dumps.remove(0);
+            total -= oldest.length();
+            oldest.delete();
+        }
+        return dir.getUsableSpace() - need >= HPROF_MIN_FREE;
+    }
+
+    /** A dump on the way up (HPROF_STEPS), announced first: the app freezes while it is written. */
+    private static void stepDump(long heapUsed, long max) {
+        try {
+            File dir = new File(context.getFilesDir(), DIR);
+            if (!makeRoom(dir, heapUsed)) {
+                return;
+            }
+            long percent = heapUsed * 100 / Math.max(1, max);
+            AndroidUtilities.runOnUIThread(() -> RawNotify.show(R.drawable.msg_info, "Дамп кучи (" + percent + "%): приложение замрёт на несколько секунд"));
+            Thread.sleep(2500);
+            Debug.dumpHprofData(new File(dir, dumpName(System.currentTimeMillis(), heapUsed, max)).getAbsolutePath());
+        } catch (Throwable ignore) {
+        }
+    }
+
+    /** The dump at FULL: once per process, kept with the others while there is space. */
+    private static void dumpHeap(File report, long now) {
+        try {
+            if (hprofFull) {
+                return;
+            }
+            Runtime rt = Runtime.getRuntime();
+            long used = rt.totalMemory() - rt.freeMemory();
+            File dir = new File(context.getFilesDir(), DIR);
+            if (!makeRoom(dir, used)) {
                 appendToReport(report, "\nдамп кучи не сделан: мало свободного места\n");
                 return;
             }
-            lastHprof = SystemClock.elapsedRealtime();
-            File dump = new File(dir, "heap_" + now + ".hprof");
+            hprofFull = true;
+            File dump = new File(dir, dumpName(now, used, rt.maxMemory()));
             long start = SystemClock.elapsedRealtime();
             Debug.dumpHprofData(dump.getAbsolutePath());
             appendToReport(report, "\nдамп кучи: " + dump.getAbsolutePath() + " (" + (dump.length() >> 20) + " МБ, "
