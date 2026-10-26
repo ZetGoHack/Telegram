@@ -58,6 +58,7 @@ public abstract class RightSlidingDialogContainer extends FrameLayout {
         if (isPaused) {
             return;
         }
+        finishClosingNow(); // rawGram
         this.navigationLayout = navigationLayout;
         if (fragment.onFragmentCreate()) {
             fragment.setInPreviewMode(true);
@@ -269,6 +270,7 @@ public abstract class RightSlidingDialogContainer extends FrameLayout {
     }
 
     public void finishPreviewInernal() {
+        cancelOpenAnimator(); // rawGram
         isOpenned = false;
         if (!SharedConfig.animationsEnabled()) {
             openedProgress = 0;
@@ -491,18 +493,43 @@ public abstract class RightSlidingDialogContainer extends FrameLayout {
     // rawGram: the host fragment is going away; without this the open preview fragment (a TopicsFragment) never gets
     // onFragmentDestroy and stays in NotificationCenter together with its parent DialogsActivity
     public void destroyCurrentFragment() {
-        ValueAnimator animator = openAnimator;
-        openAnimator = null;
-        if (animator != null) {
-            animator.cancel();
-            notificationsLocker.unlock();
-        }
+        cancelOpenAnimator();
         BaseFragment fragment = currentFragment;
         currentFragment = null;
         if (fragment != null) {
             fragment.onPause();
             fragment.onFragmentDestroy();
         }
+    }
+
+    // rawGram: closing the preview while its open animation was still running replaced openAnimator without cancelling
+    // it; the old animator then finished the opening, the closing one bailed out without destroying the fragment (a
+    // phantom panel), and the notifications lock taken twice was released once (the screen stopped reacting)
+    private void cancelOpenAnimator() {
+        ValueAnimator animator = openAnimator;
+        if (animator != null) {
+            openAnimator = null;
+            animator.cancel();
+            notificationsLocker.unlock();
+        }
+    }
+
+    // rawGram: a new preview while the previous one is still closing: finish the close at once, otherwise its animator
+    // would destroy the new fragment when it ends
+    private void finishClosingNow() {
+        if (openAnimator == null || isOpenned) {
+            return;
+        }
+        cancelOpenAnimator();
+        openedProgress = 0;
+        updateOpenAnimationProgress();
+        if (currentFragment != null) {
+            currentFragment.onPause();
+            currentFragment.onFragmentDestroy();
+            removeAllViews();
+            currentFragment = null;
+        }
+        openAnimationFinished(false);
     }
 
     public BaseFragment getFragment() {
