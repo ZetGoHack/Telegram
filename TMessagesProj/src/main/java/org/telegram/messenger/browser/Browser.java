@@ -381,7 +381,9 @@ public class Browser {
                     .build();
             }
             if (allowCustom && !(uri != null && MessagesController.getInstance(currentAccount).isWebBrowserOpenInApp(uri.toString())) && MessagesController.getInstance(currentAccount).isWebBrowserUseCustomTabs() && !internalUri && !scheme.equals("tel") && !isTonsite(uri.toString())) {
-                if (forceBrowser[0] || !openInExternalApp(context, uri.toString(), false) || !hasAppToOpen(context, uri.toString())) {
+                // rawGram: once an app has the link (the mail app chooser for mailto:), stop. hasAppToOpen can't see most apps
+                // on Android 11+ and sent the link on to custom tabs, and when it could, the code below opened it again
+                if (forceBrowser[0] || !openInExternalApp(context, uri.toString(), false)) {
                     if (MessagesController.getInstance(currentAccount).authDomains.contains(host)) {
                         Intent intent = new Intent(Intent.ACTION_VIEW, uri);
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -406,6 +408,8 @@ public class Browser {
                     intent.setUseNewTask();
                     intent.launchUrl(context, uri);
                     return;
+                } else {
+                    return; // rawGram
                 }
             }
         } catch (Exception e) {
