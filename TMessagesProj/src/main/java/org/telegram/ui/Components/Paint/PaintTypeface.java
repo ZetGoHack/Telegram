@@ -33,14 +33,15 @@ import java.util.Set;
 public class PaintTypeface {
     private final static boolean SYSTEM_FONTS_ENABLED = true;
 
-    public static final PaintTypeface ROBOTO_MEDIUM = new PaintTypeface("roboto", "PhotoEditorTypefaceRoboto", new LazyTypeface(() -> AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM)));
-    public static final PaintTypeface ROBOTO_ITALIC = new PaintTypeface("italic", "PhotoEditorTypefaceItalic", new LazyTypeface(() -> AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM_ITALIC)));
+    public static final PaintTypeface ROBOTO_MEDIUM = new PaintTypeface("roboto", "PhotoEditorTypefaceRoboto", new LazyTypeface(() -> org.telegram.rawgram.RawPaintFonts.asset(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM)));
+    public static final PaintTypeface ROBOTO_ITALIC = new PaintTypeface("italic", "PhotoEditorTypefaceItalic", new LazyTypeface(() -> org.telegram.rawgram.RawPaintFonts.asset(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM_ITALIC)));
     public static final PaintTypeface ROBOTO_SERIF = new PaintTypeface("serif", "PhotoEditorTypefaceSerif", new LazyTypeface(() -> Typeface.create("serif", Typeface.BOLD)));
-    public static final PaintTypeface ROBOTO_CONDENSED = new PaintTypeface("condensed", "PhotoEditorTypefaceCondensed", new LazyTypeface(() -> AndroidUtilities.getTypeface("fonts/rcondensedbold.ttf")));
-    public static final PaintTypeface ROBOTO_MONO = new PaintTypeface ("mono", "PhotoEditorTypefaceMono", new LazyTypeface(() -> AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MONO)));
-    public static final PaintTypeface MW_BOLD = new PaintTypeface("mw_bold", "PhotoEditorTypefaceMerriweather", new LazyTypeface(() -> AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_MERRIWEATHER_BOLD)));
+    public static final PaintTypeface ROBOTO_CONDENSED = new PaintTypeface("condensed", "PhotoEditorTypefaceCondensed", new LazyTypeface(() -> org.telegram.rawgram.RawPaintFonts.asset("fonts/rcondensedbold.ttf")));
+    public static final PaintTypeface ROBOTO_MONO = new PaintTypeface ("mono", "PhotoEditorTypefaceMono", new LazyTypeface(() -> org.telegram.rawgram.RawPaintFonts.asset(AndroidUtilities.TYPEFACE_ROBOTO_MONO)));
+    public static final PaintTypeface MW_BOLD = new PaintTypeface("mw_bold", "PhotoEditorTypefaceMerriweather", new LazyTypeface(() -> org.telegram.rawgram.RawPaintFonts.asset(AndroidUtilities.TYPEFACE_MERRIWEATHER_BOLD)));
 
     public final static List<PaintTypeface> BUILT_IN_FONTS = Arrays.asList(ROBOTO_MEDIUM, ROBOTO_ITALIC, ROBOTO_SERIF, ROBOTO_CONDENSED, ROBOTO_MONO, MW_BOLD);
+    // rawGram: the built-in ones above stay Telegram's fonts (RawPaintFonts.asset); the imported font is one more option
 
     private static final List<String> preferable = Arrays.asList(
         "Google Sans",
@@ -84,6 +85,16 @@ public class PaintTypeface {
         this.name = null;
         this.typeface = typeface;
         this.lazyTypeface = null;
+        this.font = null;
+    }
+
+    // rawGram: an option with its own name (the imported font)
+    PaintTypeface(String key, File file) {
+        this.key = key;
+        this.nameKey = null;
+        this.name = org.telegram.rawgram.RawPaintFonts.customName(file);
+        this.typeface = null;
+        this.lazyTypeface = new LazyTypeface(() -> org.telegram.rawgram.RawPaintFonts.loadCustom(file));
         this.font = null;
     }
 
@@ -150,6 +161,10 @@ public class PaintTypeface {
         loadingTypefaces = true;
         Utilities.themeQueue.postRunnable(() -> {
             ArrayList<PaintTypeface> typefaces = new ArrayList<PaintTypeface>(BUILT_IN_FONTS);
+            File rawFont = org.telegram.rawgram.RawPaintFonts.customFile(); // rawGram
+            if (rawFont != null) {
+                typefaces.add(new PaintTypeface(org.telegram.rawgram.RawPaintFonts.CUSTOM_KEY, rawFont));
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && SYSTEM_FONTS_ENABLED) {
                 Set<Font> fonts = SystemFonts.getAvailableFonts();
                 Iterator<Font> i = fonts.iterator();
