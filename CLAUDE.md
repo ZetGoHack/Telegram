@@ -127,4 +127,4 @@ javadoc. Nagram stays the reference for feature switches and their hook sites; i
   `TMessagesProj/src/main/assets/**` and `res/raw/**` are `-text` in `.gitattributes` (theme files break with CRLF).
 - When committing from PowerShell, write the message to a file and use `git commit -F` (quoting breaks `-m`); avoid
   `Set-Content`/`Out-File` defaults that add a BOM.
-- minSdk is 21: avoid API 26+ conveniences like `ThreadLocal.withInitial` without a version check.
+- minSdk is 23 (since 13.1): avoid API 26+ conveniences like `ThreadLocal.withInitial` without a version check.
