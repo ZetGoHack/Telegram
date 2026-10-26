@@ -72,6 +72,7 @@ public class SearchAdapterHelper {
     private final ArrayList<TLObject> globalSearch = new ArrayList<>();
     private final LongSparseArray<TLObject> globalSearchMap = new LongSparseArray<>();
     private final org.telegram.rawgram.RawIdSearch rawIdSearch = new org.telegram.rawgram.RawIdSearch(); // rawGram: id-like query -> cached peers
+    private final org.telegram.rawgram.RawParticipantIdSearch rawParticipantIdSearch = new org.telegram.rawgram.RawParticipantIdSearch(); // rawGram: the same in member lists
     private final ArrayList<TLObject> groupSearch = new ArrayList<>();
     private final LongSparseArray<TLObject> groupSearchMap = new LongSparseArray<>();
     private final LongSparseArray<TLObject> phoneSearchMap = new LongSparseArray<>();
@@ -133,6 +134,8 @@ public class SearchAdapterHelper {
                 ? !canAddGroupsOnly && (allowBots || !((TLRPC.User) obj).bot) && (allowSelf || !((TLRPC.User) obj).self) && ((TLRPC.User) obj).id != exceptDialogId && filter(obj)
                 : allowChats && (!canAddGroupsOnly || ChatObject.canAddBotsToChat((TLRPC.Chat) obj)) && -((TLRPC.Chat) obj).id != exceptDialogId && filter(obj),
                 () -> { if (delegate.canApplySearchResults(searchId)) { rawIdSearch.apply(globalSearch, globalSearchMap); delegate.onDataSetChanged(searchId); } });
+        rawParticipantIdSearch.start(currentAccount, channelId, type, query, // rawGram
+                () -> { if (delegate.canApplySearchResults(searchId)) { rawParticipantIdSearch.apply(groupSearch, groupSearchMap); delegate.onDataSetChanged(searchId); } });
 
         boolean hasChanged = false;
         ArrayList<Pair<TLObject, RequestDelegate>> requests = new ArrayList<>();
@@ -331,6 +334,7 @@ public class SearchAdapterHelper {
                         callback.run(res.first, res.second);
                     }
                     rawIdSearch.apply(globalSearch, globalSearchMap); // rawGram
+                    rawParticipantIdSearch.apply(groupSearch, groupSearchMap); // rawGram
                     removeGroupSearchFromGlobal();
                     if (localSearchResults != null) {
                         mergeResults(localSearchResults, localRecentResults);
