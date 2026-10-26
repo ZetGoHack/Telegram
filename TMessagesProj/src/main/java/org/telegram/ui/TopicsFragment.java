@@ -122,6 +122,7 @@ import org.telegram.ui.Components.RadialProgressView;
 import org.telegram.ui.Components.RecyclerAnimationScrollHelper;
 import org.telegram.ui.Components.RecyclerItemsEnterAnimator;
 import org.telegram.ui.Components.RecyclerListView;
+import org.telegram.ui.Components.SharedMediaLayout;
 import org.telegram.ui.Components.SearchDownloadsContainer;
 import org.telegram.ui.Components.SearchViewPager;
 import org.telegram.ui.Components.SizeNotifierFrameLayout;
@@ -874,6 +875,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
         reportSubmenu = other.addSubItem(report, R.drawable.msg_report, getString(R.string.ReportChat));
         deleteChatSubmenu = other.addSubItem(delete_chat_id, R.drawable.msg_leave, getString(R.string.LeaveMegaMenu), themeDelegate);
 
+        destroyMediaPreloader(); // rawGram: createView runs again on theme changes; the old preloader must go too
         avatarContainer = new ChatAvatarContainer(context, this, false, resourceProvider);
         avatarContainer.getAvatarImageView().setRoundRadius(AndroidUtilities.dp(16));
         avatarContainer.setOccupyStatusBar((!AndroidUtilities.isTablet() || parentLayout != null && parentLayout.isSheet()) && !inPreviewMode);
@@ -2719,6 +2721,15 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
         return true;
     }
 
+    // rawGram: the avatar's shared media preloader is a NotificationCenter observer holding this fragment (and through it
+    // the DialogsActivity with its chats); ChatAvatarContainer.onDestroy can't remove it here, it only knows ChatActivity
+    private void destroyMediaPreloader() {
+        SharedMediaLayout.SharedMediaPreloader preloader = avatarContainer != null ? avatarContainer.getSharedMediaPreloader() : null;
+        if (preloader != null) {
+            preloader.onDestroy(this);
+        }
+    }
+
     @Override
     public void onFragmentDestroy() {
         notificationsLocker.unlock();
@@ -2738,6 +2749,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
         if (ChatObject.isChannel(chatLocal)) {
             getMessagesController().startShortPoll(chatLocal, classGuid, true);
         }
+        destroyMediaPreloader(); // rawGram
         super.onFragmentDestroy();
 
         if (parentDialogsActivity != null && parentDialogsActivity.rightSlidingDialogContainer != null) {

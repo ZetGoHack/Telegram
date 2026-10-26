@@ -3085,6 +3085,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
+        if (sharedMediaPreloader != null) {
+            sharedMediaPreloader.onDestroy(this); // rawGram: a NotificationCenter observer holding this fragment
+        }
         if (observersGroup != null) {
             observersGroup.removeAllObservers();
             observersGroup = null;
