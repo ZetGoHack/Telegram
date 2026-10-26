@@ -12,7 +12,7 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.LayoutHelper;
 
-/** Picker for a log's size limit: presets, «без лимита» (0) or any number. */
+/** Picker for a log's size limit: presets, «максимум» (0) or any number. */
 public final class RawLogLimit {
 
     private static final int[] PRESETS = {100, 300, 1000, 5000};
@@ -29,7 +29,7 @@ public final class RawLogLimit {
         for (int i = 0; i < PRESETS.length; i++) {
             items[i] = (PRESETS[i] == current ? "● " : "") + PRESETS[i];
         }
-        items[PRESETS.length] = (current <= 0 ? "● " : "") + "Без лимита";
+        items[PRESETS.length] = (current <= 0 ? "● " : "") + "Максимум (" + RawLogBuffer.CEILING + ")";
         items[PRESETS.length + 1] = "Своё число…";
         fragment.showDialog(new AlertDialog.Builder(activity, fragment.getResourceProvider())
                 .setTitle(title)
@@ -52,7 +52,7 @@ public final class RawLogLimit {
         }
         EditText input = new EditText(activity);
         input.setInputType(InputType.TYPE_CLASS_NUMBER);
-        input.setHint("0 — без лимита");
+        input.setHint("0 — максимум");
         if (current > 0) {
             input.setText(String.valueOf(current));
             input.setSelection(input.length());
@@ -63,7 +63,7 @@ public final class RawLogLimit {
         layout.addView(input, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 24, 0, 24, 0));
         fragment.showDialog(new AlertDialog.Builder(activity, fragment.getResourceProvider())
                 .setTitle(title)
-                .setMessage("Сколько последних записей хранить. Большой лимит занимает больше памяти.")
+                .setMessage("Сколько последних записей хранить. Большой лимит занимает больше памяти, выше " + RawLogBuffer.CEILING + " не хранится.")
                 .setView(layout)
                 .setPositiveButton("Готово", (d, w) -> {
                     int value;

@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 /**
- * Thread-safe FIFO of the newest log entries with a changeable limit (0 = no limit). Entries keep their full
+ * Thread-safe FIFO of the newest log entries with a changeable limit (0 = as many as {@link #CEILING}). Entries keep their full
  * objects for as long as they are in the buffer: a log with cut objects is useless for analysis, so the limit
  * is the only trade-off (memory).
  */
@@ -14,6 +14,9 @@ public final class RawLogBuffer<E> {
     public interface LimitSource {
         int get();
     }
+
+    /** What «no limit» really keeps: entries hold whole requests, and the Java heap is 512 MB. */
+    public static final int CEILING = 5000;
 
     private final ArrayDeque<E> entries = new ArrayDeque<>();
     private final LimitSource limit;
@@ -38,10 +41,11 @@ public final class RawLogBuffer<E> {
 
     private void trimLocked() {
         int max = limit.get();
-        if (max > 0) {
-            while (entries.size() > max) {
-                entries.removeFirst();
-            }
+        if (max <= 0 || max > CEILING) {
+            max = CEILING;
+        }
+        while (entries.size() > max) {
+            entries.removeFirst();
         }
     }
 
@@ -69,8 +73,8 @@ public final class RawLogBuffer<E> {
         }
     }
 
-    /** «300» / «без лимита» for subtitles and settings. */
+    /** «300» / «до 5000» for subtitles and settings. */
     public static String limitText(int limit) {
-        return limit <= 0 ? "без лимита" : String.valueOf(limit);
+        return limit <= 0 || limit > CEILING ? "до " + CEILING : String.valueOf(limit);
     }
 }
