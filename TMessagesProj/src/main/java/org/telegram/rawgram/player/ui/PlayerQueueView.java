@@ -1,5 +1,6 @@
 package org.telegram.rawgram.player.ui;
 
+import org.telegram.rawgram.player.RawPlayerText;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.PorterDuff;
@@ -113,7 +114,7 @@ public class PlayerQueueView extends FrameLayout {
         editTextBoldCursor.setBackground(null);
         editTextBoldCursor.setSingleLine(true);
         editTextBoldCursor.setImeOptions(268435459);
-        editTextBoldCursor.setHint(LocaleController.getString(R.string.PlayerQueueSearch));
+        editTextBoldCursor.setHint(RawPlayerText.get(R.string.PlayerQueueSearch));
         editTextBoldCursor.setPadding(0, 0, 0, 0);
         editTextBoldCursor.setCursorSize(AndroidUtilities.dp(18.0f));
         editTextBoldCursor.setCursorWidth(1.5f);
@@ -168,7 +169,7 @@ public class PlayerQueueView extends FrameLayout {
         ExpressiveStateDrawable selectedRadius = new ExpressiveStateDrawable(8.0f).setSelectedRadius(12.0f);
         this.addBackground = selectedRadius;
         imageView3.setBackground(selectedRadius);
-        imageView3.setContentDescription(LocaleController.getString(R.string.PlayerQueueAdd));
+        imageView3.setContentDescription(RawPlayerText.get(R.string.PlayerQueueAdd));
         imageView3.setOnClickListener(new View.OnClickListener() {
             @Override
             public final void onClick(View view) {

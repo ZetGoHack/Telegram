@@ -309,7 +309,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
         this.collapseBackground = expressiveStateDrawable;
         ImageView imageViewCreateIconButton = createIconButton(context, i3, expressiveStateDrawable);
         this.collapseButton = imageViewCreateIconButton;
-        imageViewCreateIconButton.setContentDescription(LocaleController.getString(R.string.PlayerCollapse));
+        imageViewCreateIconButton.setContentDescription(RawPlayerText.get(R.string.PlayerCollapse));
         imageViewCreateIconButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public final void onClick(View view) {
@@ -505,7 +505,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
         textView4.setTextSize(1, 12.0f);
         textView4.setTypeface(org.telegram.rawgram.player.util.PlayerUtils.regular());
         textView4.setGravity(21);
-        textView4.setContentDescription(LocaleController.getString(R.string.PlayerShowRemaining));
+        textView4.setContentDescription(RawPlayerText.get(R.string.PlayerShowRemaining));
         textView4.setOnClickListener(new View.OnClickListener() {
             @Override
             public final void onClick(View view) {
@@ -606,7 +606,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
         this.lyricsBackground = expressiveStateDrawableCreateModeSegment;
         ImageView imageViewCreateIconButton7 = createIconButton(context, i7, expressiveStateDrawableCreateModeSegment);
         this.lyricsButton = imageViewCreateIconButton7;
-        imageViewCreateIconButton7.setContentDescription(LocaleController.getString(R.string.PlayerLyrics));
+        imageViewCreateIconButton7.setContentDescription(RawPlayerText.get(R.string.PlayerLyrics));
         imageViewCreateIconButton7.setOnClickListener(new View.OnClickListener() {
             @Override
             public final void onClick(View view) {
@@ -619,7 +619,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
         this.queueBackground = expressiveStateDrawableCreateModeSegment2;
         ImageView imageViewCreateIconButton8 = createIconButton(context, i8, expressiveStateDrawableCreateModeSegment2);
         this.queueButton = imageViewCreateIconButton8;
-        imageViewCreateIconButton8.setContentDescription(LocaleController.getString(R.string.PlayerQueue));
+        imageViewCreateIconButton8.setContentDescription(RawPlayerText.get(R.string.PlayerQueue));
         imageViewCreateIconButton8.setOnClickListener(new View.OnClickListener() {
             @Override
             public final void onClick(View view) {
@@ -812,7 +812,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
     private void lambda$new$4(View view) {
         boolean z = this.showRemaining;
         this.showRemaining = !z;
-        this.durationView.setContentDescription(LocaleController.getString(!z ? R.string.PlayerShowDuration : R.string.PlayerShowRemaining));
+        this.durationView.setContentDescription(RawPlayerText.get(!z ? R.string.PlayerShowDuration : R.string.PlayerShowRemaining));
         this.lastTime = -1;
         MessageObject playingMessageObject = MediaController.getInstance().getPlayingMessageObject();
         if (playingMessageObject != null) {
@@ -1023,7 +1023,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
         if (mediaController.isMessagePaused()) {
             mediaController.playMessage(playingMessageObject);
         } else {
-            mediaController.playMessage(playingMessageObject);
+            mediaController.pauseMessage(playingMessageObject);
         }
     }
 
@@ -1244,7 +1244,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
             } else {
                 MessagesController.getGlobalNotificationsSettings().edit().putInt("speedhint", -15).apply();
                 itemOptionsMakeMenu.addGap();
-                itemOptionsMakeMenu.addChecked(RawPlayerConfig.getPlayerSpeedPitch(), R.drawable.msg_tone_on, LocaleController.getString(R.string.PlayerSpeedPitch), new Runnable() {
+                itemOptionsMakeMenu.addChecked(RawPlayerConfig.getPlayerSpeedPitch(), R.drawable.msg_tone_on, RawPlayerText.get(R.string.PlayerSpeedPitch), new Runnable() {
                     @Override
                     public final void run() {
                         MusicPlayerSheet.restoreSpeed();
@@ -1411,7 +1411,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
         }
         if (!zIsServiceTrack) {
             final ItemOptions itemOptionsBuildDetailsOptions = buildDetailsOptions(itemOptionsMakeMenu, playingMessageObject);
-            itemOptionsMakeMenu.add(R.drawable.msg_info, LocaleController.getString(R.string.RawPlayerDetails), new Runnable() {
+            itemOptionsMakeMenu.add(R.drawable.msg_info, RawPlayerText.get(R.string.RawPlayerDetails), new Runnable() {
                 @Override
                 public final void run() {
                     itemOptionsMakeMenu.openSwipeback(itemOptionsBuildDetailsOptions);
@@ -1421,7 +1421,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
                 itemOptionsMakeMenu.getLast().setRightIcon(R.drawable.msg_arrowright);
             }
         }
-        itemOptionsMakeMenu.add(R.drawable.msg_settings, LocaleController.getString(R.string.PlayerSettings), new Runnable() {
+        itemOptionsMakeMenu.add(R.drawable.msg_settings, RawPlayerText.get(R.string.PlayerSettings), new Runnable() {
             @Override
             public final void run() {
                 MusicPlayerSheet.this.lambda$showMenu$35(itemOptionsMakeMenu);
@@ -1479,17 +1479,17 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
         TrackQuality.Info info = TrackQuality.get(messageObject);
         File localFile = PlayerActions.getLocalFile(messageObject);
         String absolutePath = null;
-        final ActionBarMenuSubItem actionBarMenuSubItemAddDetail = addDetail(itemOptions, itemOptionsMakeSwipeback, R.drawable.msg_media, LocaleController.getString(R.string.PlayerInfoFormat), info != null ? info.format : null);
-        final ActionBarMenuSubItem actionBarMenuSubItemAddDetail2 = addDetail(itemOptions, itemOptionsMakeSwipeback, R.drawable.msg_noise_on, LocaleController.getString(R.string.RawPlayerBitrate), info != null ? info.formatBitrate() : null);
-        final ActionBarMenuSubItem actionBarMenuSubItemAddDetail3 = addDetail(itemOptions, itemOptionsMakeSwipeback, R.drawable.msg_tone_on, LocaleController.getString(R.string.PlayerInfoSampleRate), info != null ? info.formatSampleRate() : null);
-        final ActionBarMenuSubItem actionBarMenuSubItemAddDetail4 = addDetail(itemOptions, itemOptionsMakeSwipeback, R.drawable.menu_quality_hd, LocaleController.getString(R.string.PlayerInfoBitDepth), info != null ? info.formatBitDepth() : null);
+        final ActionBarMenuSubItem actionBarMenuSubItemAddDetail = addDetail(itemOptions, itemOptionsMakeSwipeback, R.drawable.msg_media, RawPlayerText.get(R.string.PlayerInfoFormat), info != null ? info.format : null);
+        final ActionBarMenuSubItem actionBarMenuSubItemAddDetail2 = addDetail(itemOptions, itemOptionsMakeSwipeback, R.drawable.msg_noise_on, RawPlayerText.get(R.string.RawPlayerBitrate), info != null ? info.formatBitrate() : null);
+        final ActionBarMenuSubItem actionBarMenuSubItemAddDetail3 = addDetail(itemOptions, itemOptionsMakeSwipeback, R.drawable.msg_tone_on, RawPlayerText.get(R.string.PlayerInfoSampleRate), info != null ? info.formatSampleRate() : null);
+        final ActionBarMenuSubItem actionBarMenuSubItemAddDetail4 = addDetail(itemOptions, itemOptionsMakeSwipeback, R.drawable.menu_quality_hd, RawPlayerText.get(R.string.PlayerInfoBitDepth), info != null ? info.formatBitDepth() : null);
         long size = messageObject.getSize();
-        addDetail(itemOptions, itemOptionsMakeSwipeback, R.drawable.msg_sendfile, LocaleController.getString(R.string.RawPlayerFileSize), size > 0 ? AndroidUtilities.formatFileSize(size) : null);
+        addDetail(itemOptions, itemOptionsMakeSwipeback, R.drawable.msg_sendfile, RawPlayerText.get(R.string.RawPlayerFileSize), size > 0 ? AndroidUtilities.formatFileSize(size) : null);
         int duration = (int) messageObject.getDuration();
-        addDetail(itemOptions, itemOptionsMakeSwipeback, R.drawable.msg2_animations, LocaleController.getString(R.string.RawPlayerDuration), duration > 0 ? AndroidUtilities.formatShortDuration(duration) : null);
-        addDetail(itemOptions, itemOptionsMakeSwipeback, R.drawable.msg_log, LocaleController.getString(R.string.RawPlayerFileName), FileLoader.getDocumentFileName(messageObject.getDocument()));
+        addDetail(itemOptions, itemOptionsMakeSwipeback, R.drawable.msg2_animations, RawPlayerText.get(R.string.RawPlayerDuration), duration > 0 ? AndroidUtilities.formatShortDuration(duration) : null);
+        addDetail(itemOptions, itemOptionsMakeSwipeback, R.drawable.msg_log, RawPlayerText.get(R.string.RawPlayerFileName), FileLoader.getDocumentFileName(messageObject.getDocument()));
         int i = R.drawable.msg_map;
-        String string = LocaleController.getString(R.string.RawPlayerFilePath);
+        String string = RawPlayerText.get(R.string.RawPlayerFilePath);
         if (localFile != null && localFile.exists()) {
             absolutePath = localFile.getAbsolutePath();
         }
@@ -1954,7 +1954,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
             return;
         }
         String creditName = lyrics.getCreditName();
-        this.lyricsView.setLyrics(lyrics, creditName != null ? LocaleController.formatString(R.string.LyricsCredit, creditName) : null);
+        this.lyricsView.setLyrics(lyrics, creditName != null ? RawPlayerText.format(R.string.LyricsCredit, creditName) : null);
         MessageObject playingMessageObject = MediaController.getInstance().getPlayingMessageObject();
         if (playingMessageObject != null) {
             this.lyricsView.setPosition(getPositionMs(playingMessageObject), !MediaController.getInstance().isMessagePaused());
@@ -1971,20 +1971,20 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
 
     private void showLyricsState(int i) {
         if (i == 1) {
-            this.lyricsView.setState(i, LocaleController.getString(R.string.LyricsOfferTitle), LocaleController.getString(R.string.LyricsOfferText), LocaleController.getString(R.string.LyricsOfferButton));
+            this.lyricsView.setState(i, RawPlayerText.get(R.string.LyricsOfferTitle), RawPlayerText.get(R.string.LyricsOfferText), RawPlayerText.get(R.string.LyricsOfferButton));
             return;
         }
         if (i == 4) {
-            this.lyricsView.setState(i, LocaleController.getString(R.string.LyricsNotFoundTitle), LocaleController.getString(RawPlayerConfig.getLyricsOnline() ? R.string.LyricsNotFoundText : R.string.LyricsNotFoundTextOffline), null);
+            this.lyricsView.setState(i, RawPlayerText.get(R.string.LyricsNotFoundTitle), LocaleController.getString(RawPlayerConfig.getLyricsOnline() ? R.string.LyricsNotFoundText : R.string.LyricsNotFoundTextOffline), null);
             return;
         }
         if (i == 5) {
-            this.lyricsView.setState(i, LocaleController.getString(R.string.LyricsInstrumentalTitle), LocaleController.getString(R.string.LyricsInstrumentalText), null);
+            this.lyricsView.setState(i, RawPlayerText.get(R.string.LyricsInstrumentalTitle), RawPlayerText.get(R.string.LyricsInstrumentalText), null);
             return;
         }
         LyricsView lyricsView = this.lyricsView;
         if (i == 6) {
-            lyricsView.setState(i, LocaleController.getString(R.string.LyricsErrorTitle), LocaleController.getString(R.string.LyricsErrorText), LocaleController.getString(R.string.Retry));
+            lyricsView.setState(i, RawPlayerText.get(R.string.LyricsErrorTitle), RawPlayerText.get(R.string.LyricsErrorText), LocaleController.getString(R.string.Retry));
         } else {
             lyricsView.setState(i, null, null, null);
         }
@@ -2210,7 +2210,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
         float playbackSpeed = MediaController.getInstance().getPlaybackSpeed(true);
         this.speedIcon.setValue(playbackSpeed, z);
         this.speedBackground.setSelected(Math.abs(playbackSpeed - 1.0f) > 0.05f, z);
-        this.speedButton.setContentDescription(LocaleController.formatString(R.string.PlayerSpeedDescription, SpeedIconDrawable.formatNumber(playbackSpeed)));
+        this.speedButton.setContentDescription(RawPlayerText.format(R.string.PlayerSpeedDescription, SpeedIconDrawable.formatNumber(playbackSpeed)));
         updateToggleColors();
     }
 
@@ -2242,7 +2242,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
         if (playingMessageObject == null || (iIndexOf = (playlist = MediaController.getInstance().getPlaylist()).indexOf(playingMessageObject)) < 0 || playlist.size() <= 1) {
             string = null;
         } else {
-            string = LocaleController.formatString(R.string.PlayerTrackOf, Integer.valueOf((savedMusicList == null) == SharedConfig.playOrderReversed ? iIndexOf + 1 : playlist.size() - iIndexOf), Integer.valueOf(playlist.size()));
+            string = RawPlayerText.format(R.string.PlayerTrackOf, Integer.valueOf((savedMusicList == null) == SharedConfig.playOrderReversed ? iIndexOf + 1 : playlist.size() - iIndexOf), Integer.valueOf(playlist.size()));
         }
         this.headerSubtitle.setText(string);
         int i = TextUtils.isEmpty(string) ? 8 : 0;
@@ -2370,7 +2370,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
                 boolean z2 = this.showRemaining;
                 TextView textView = this.durationView;
                 if (z2) {
-                    textView.setText(LocaleController.formatString(R.string.PlayerTimeRemaining, AndroidUtilities.formatShortDuration(Math.max(0, i2 - duration))));
+                    textView.setText(RawPlayerText.format(R.string.PlayerTimeRemaining, AndroidUtilities.formatShortDuration(Math.max(0, i2 - duration))));
                 } else {
                     textView.setText(AndroidUtilities.formatShortDuration(i2));
                 }

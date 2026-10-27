@@ -31,7 +31,7 @@ public abstract class TrackQuality {
         public String formatBitrate() {
             int i = this.bitrateKbps;
             if (i > 0) {
-                return LocaleController.formatString(R.string.PlayerQualityKbps, Integer.valueOf(i));
+                return RawPlayerText.format(R.string.PlayerQualityKbps, Integer.valueOf(i));
             }
             return null;
         }
@@ -43,13 +43,13 @@ public abstract class TrackQuality {
             }
             float f = i / 1000.0f;
             int i2 = (int) f;
-            return LocaleController.formatString(R.string.PlayerQualityKhz, f == ((float) i2) ? String.valueOf(i2) : String.format(Locale.US, "%.1f", Float.valueOf(f)));
+            return RawPlayerText.format(R.string.PlayerQualityKhz, f == ((float) i2) ? String.valueOf(i2) : String.format(Locale.US, "%.1f", Float.valueOf(f)));
         }
 
         public String formatBitDepth() {
             int i = this.bitsPerSample;
             if (i > 0) {
-                return LocaleController.formatString(R.string.PlayerQualityBits, Integer.valueOf(i));
+                return RawPlayerText.format(R.string.PlayerQualityBits, Integer.valueOf(i));
             }
             return null;
         }

@@ -320,7 +320,7 @@ public class MiniPlayerUiHelper implements NotificationCenter.NotificationCenter
         if (mediaController.isMessagePaused()) {
             mediaController.playMessage(playingMessageObject);
         } else {
-            mediaController.playMessage(playingMessageObject);
+            mediaController.pauseMessage(playingMessageObject);
         }
     }
 

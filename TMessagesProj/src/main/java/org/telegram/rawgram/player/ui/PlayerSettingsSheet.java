@@ -1,5 +1,6 @@
 package org.telegram.rawgram.player.ui;
 
+import org.telegram.rawgram.player.RawPlayerText;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
@@ -217,7 +218,7 @@ public class PlayerSettingsSheet extends BottomSheetWithRecyclerListView {
 
     @Override
     public CharSequence getTitle() {
-        return LocaleController.getString(R.string.PlayerSettings);
+        return RawPlayerText.get(R.string.PlayerSettings);
     }
 
     @Override
@@ -238,25 +239,25 @@ public class PlayerSettingsSheet extends BottomSheetWithRecyclerListView {
             return;
         }
         arrayList.add(UItem.asShadow(null));
-        arrayList.add(UItem.asHeader(LocaleController.getString(R.string.RawPlayerAppearance)));
+        arrayList.add(UItem.asHeader(RawPlayerText.get(R.string.RawPlayerAppearance)));
         boolean playerCoverColors = RawPlayerConfig.getPlayerCoverColors();
         boolean playerMiniCoverColors = RawPlayerConfig.getPlayerMiniCoverColors();
-        arrayList.add(UItem.asRoundCheckbox(6, LocaleController.getString(R.string.PlayerCoverColorsFull)).setChecked(playerCoverColors));
-        arrayList.add(UItem.asRoundCheckbox(7, LocaleController.getString(R.string.PlayerCoverColorsMini)).setChecked(playerMiniCoverColors));
-        arrayList.add(UItem.asButtonCheck(5, LocaleController.getString(R.string.PlayerRhythmBackground), LocaleController.getString(R.string.PlayerRhythmBackgroundInfo)).setChecked(RawPlayerConfig.getPlayerRhythmBackground()));
-        arrayList.add(UItem.asButtonCheck(8, LocaleController.getString(R.string.PlayerParticles), LocaleController.getString(R.string.PlayerParticlesInfo)).setChecked(RawPlayerConfig.getPlayerParticles()));
+        arrayList.add(UItem.asRoundCheckbox(6, RawPlayerText.get(R.string.PlayerCoverColorsFull)).setChecked(playerCoverColors));
+        arrayList.add(UItem.asRoundCheckbox(7, RawPlayerText.get(R.string.PlayerCoverColorsMini)).setChecked(playerMiniCoverColors));
+        arrayList.add(UItem.asButtonCheck(5, RawPlayerText.get(R.string.PlayerRhythmBackground), RawPlayerText.get(R.string.PlayerRhythmBackgroundInfo)).setChecked(RawPlayerConfig.getPlayerRhythmBackground()));
+        arrayList.add(UItem.asButtonCheck(8, RawPlayerText.get(R.string.PlayerParticles), RawPlayerText.get(R.string.PlayerParticlesInfo)).setChecked(RawPlayerConfig.getPlayerParticles()));
         arrayList.add(UItem.asShadow(null));
-        arrayList.add(UItem.asHeader(LocaleController.getString(R.string.PlayerLyrics)));
-        arrayList.add(UItem.asButtonCheck(3, LocaleController.getString(R.string.PlayerLyricsOnline), LocaleController.getString(R.string.PlayerLyricsOnlineInfo)).setChecked(RawPlayerConfig.getLyricsOnline()));
+        arrayList.add(UItem.asHeader(RawPlayerText.get(R.string.PlayerLyrics)));
+        arrayList.add(UItem.asButtonCheck(3, RawPlayerText.get(R.string.PlayerLyricsOnline), RawPlayerText.get(R.string.PlayerLyricsOnlineInfo)).setChecked(RawPlayerConfig.getLyricsOnline()));
         arrayList.add(UItem.asShadow(null));
-        arrayList.add(UItem.asHeader(LocaleController.getString(R.string.PlayerLyricsProgress)));
-        arrayList.add(UItem.asSlideView(new String[]{LocaleController.getString(R.string.RawPlayerLyricsProgressOff), LocaleController.getString(R.string.PlayerLyricsProgressHorizontal), LocaleController.getString(R.string.PlayerLyricsProgressVertical)}, RawPlayerConfig.getLyricsProgress(), new Utilities.Callback() {
+        arrayList.add(UItem.asHeader(RawPlayerText.get(R.string.PlayerLyricsProgress)));
+        arrayList.add(UItem.asSlideView(new String[]{RawPlayerText.get(R.string.RawPlayerLyricsProgressOff), RawPlayerText.get(R.string.PlayerLyricsProgressHorizontal), RawPlayerText.get(R.string.PlayerLyricsProgressVertical)}, RawPlayerConfig.getLyricsProgress(), new Utilities.Callback() {
             @Override
             public final void run(Object obj) {
                 PlayerSettingsSheet.this.lambda$fillItems$3((Integer) obj);
             }
         }));
-        arrayList.add(UItem.asShadow(LocaleController.getString(R.string.PlayerLyricsProgressInfo)));
+        arrayList.add(UItem.asShadow(RawPlayerText.get(R.string.PlayerLyricsProgressInfo)));
     }
 
     private void lambda$fillItems$3(Integer num) {
