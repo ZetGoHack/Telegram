@@ -31429,7 +31429,7 @@ public class ChatActivity extends BaseFragment implements
             final boolean isEphemeral = message != null && message.isEphemeral();
             final boolean isReactionsViewAvailable = !isEphemeral && !suggestEdit && !isSecretChat() && !isInScheduleMode() && currentUser == null && primaryMessage.hasReactions() && (!ChatObject.isChannel(currentChat) || currentChat.megagroup) && !ChatObject.isMonoForum(currentChat) && !availableReacts.isEmpty() && primaryMessage.messageOwner.reactions.can_see_list && !primaryMessage.isSecretMedia();
             final boolean isReactionsAvailable;
-            if (suggestEdit || isEphemeral) {
+            if (suggestEdit || isEphemeral || org.telegram.rawgram.RawReactionsHide.hidden(currentChat, currentUser)) { // rawGram
                 isReactionsAvailable = false;
             } else if (message.isForwardedChannelPost()) {
                 TLRPC.ChatFull chatInfo = getMessagesController().getChatFull(-message.getFromChatId());

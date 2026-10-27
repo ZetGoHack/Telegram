@@ -24,7 +24,8 @@ import org.telegram.tgnet.TLRPC;
  * ShowOnlineStatus, HideAiEditor, HideAiSummary, ShowCopyPhoto/Frame, showDeleteDownloadedFile, ShowSetReminder, ShowText*,
  * MediaViewerMenuItem*, ChatMenuItemGoToMessage, ChatMenuItemDeleteOwnMessages, openArchiveOnPull, DoNotUnarchiveBySwipe,
  * IgnoreUnreadCount, AlwaysShowDownloadIcon, tabStyleStroke
- * — https://github.com/NextAlone/Nagram, https://github.com/NekoX-Dev/NekoX.
+ * — https://github.com/NextAlone/Nagram, https://github.com/NekoX-Dev/NekoX;
+ * and exteraGram (GPLv3): RelativeLastSeen, PauseOnMinimizeVoice/Round, HideReactionsIn* — https://github.com/exteraSquad/exteraGram.
  */
 public class RawChatUiConfig {
 
@@ -156,6 +157,9 @@ public class RawChatUiConfig {
 
     /** Media viewer: GIFs play in the video player (seek bar, pause) instead of a looping animation, as in exteraGram (RawViewerExtras). */
     public static final Flag gifAsVideo = new Flag("gifAsVideo", true);
+
+    /** Built-in PDF viewer (RawPdfViewer) instead of the external app. */
+    public static final Flag pdfViewer = new Flag("pdfViewer", false);
 
     /** «Информация о юзере» (@usinfobot) suggestion when the input is just an ID (RawUserInfo). */
     public static final Flag usinfobotHint = new Flag("usinfobotHint", false);
@@ -294,6 +298,18 @@ public class RawChatUiConfig {
     public static final Flag tabStroke = new Flag("tabStroke", false);
     /** Sender avatar before «Имя: текст» in group rows (RawPreviewAvatar). */
     public static final Flag previewAvatars = new Flag("previewAvatars", false);
+
+    // ---- exteraGram switches ----
+
+    /** «был(а) 5 минут назад» instead of the clock time for last seen within a day (exteraGram's RelativeLastSeen). */
+    public static final Flag relativeLastSeen = new Flag("relativeLastSeen", false);
+    /** A playing voice message / round video pauses when the app is minimized (exteraGram's PauseOnMinimize*). */
+    public static final Flag pauseVoiceOnMinimize = new Flag("pauseVoiceOnMinimize", false);
+    public static final Flag pauseRoundOnMinimize = new Flag("pauseRoundOnMinimize", false);
+    /** No reactions bar in the message menu, by chat type (exteraGram's HideReactionsIn*). */
+    public static final Flag hideReactionsChannels = new Flag("hideReactionsChannels", false);
+    public static final Flag hideReactionsGroups = new Flag("hideReactionsGroups", false);
+    public static final Flag hideReactionsPrivate = new Flag("hideReactionsPrivate", false);
 
     // ---- message menu ----
 

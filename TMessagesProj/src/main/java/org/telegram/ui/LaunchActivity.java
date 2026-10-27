@@ -6855,6 +6855,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         isResumed = false;
         pipActivityHandler.onPause();
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.stopAllHeavyOperations, 4096);
+        org.telegram.rawgram.RawPauseOnMinimize.onMinimized(); // rawGram
         ApplicationLoader.mainInterfacePaused = true;
         int account = currentAccount;
         Utilities.stageQueue.postRunnable(() -> {

@@ -227,10 +227,12 @@ public class RawChatUiSettingsActivity extends RawPreferencesFragment {
         check("Сразу показывать спойлеры", RawChatUiConfig.revealSpoilers);
         check("Дата оригинала у пересланных", RawChatUiConfig.forwardDate);
         check("GIF как видео", RawChatUiConfig.gifAsVideo);
+        check("Был(а) в сети: «5 минут назад»", RawChatUiConfig.relativeLastSeen);
         info("Секунды видны и в списке чатов. Числа без округления — в просмотрах, реакциях и подписчиках. "
                 + "Спойлеры в тексте и на фото и видео открыты без нажатия. "
                 + "У пересланного сообщения рядом с автором — когда было отправлено оригинальное. Применяется при следующем открытии чата. "
-                + "GIF как видео — открытую GIF можно поставить на паузу и перемотать.");
+                + "GIF как видео — открытую GIF можно поставить на паузу и перемотать. "
+                + "Время визита в сети, если оно меньше суток назад, показывается как «5 минут назад».");
 
         header("Двойное нажатие");
         value("Входящие", VALUE_TAP_IN);
@@ -270,6 +272,11 @@ public class RawChatUiSettingsActivity extends RawPreferencesFragment {
         check("«Печатает» вместо «выбирает стикер»", RawChatUiConfig.typingForStickers);
         info("Без разметки `код`, **жирный**, __курсив__, ~~зачёркнутый~~ и ||спойлер|| отправляются как набраны; "
                 + "форматирование из меню выделения работает. HD можно переключить у каждого фото перед отправкой.");
+
+        header("Голосовые и кружки");
+        check("Пауза голосовых при сворачивании", RawChatUiConfig.pauseVoiceOnMinimize);
+        check("Пауза кружков при сворачивании", RawChatUiConfig.pauseRoundOnMinimize);
+        info("Воспроизведение останавливается, когда приложение уходит в фон.");
 
         header("Вибрация");
         check("Отключить вибрацию", CHECK_NO_VIBRATION);
@@ -323,6 +330,10 @@ public class RawChatUiSettingsActivity extends RawPreferencesFragment {
                 + "В разрешениях «Стикеры и GIF» делятся на стикеры, GIF, игры и инлайн-ботов. "
                 + "«О себе» и описание в профиле показываются полностью, без «ещё».");
 
+        header("Просмотр файлов");
+        check("Встроенный просмотр PDF", RawChatUiConfig.pdfViewer);
+        info("PDF из чата открываются внутри приложения: страницы, масштаб щипком и двойным нажатием. Другое приложение — в меню «⋮».");
+
         header("Сохранение файлов");
         value("Папка", VALUE_SAVE_FOLDER);
         check("Сохранять по названию чата", RawChatUiConfig.saveByChat);
@@ -354,6 +365,12 @@ public class RawChatUiSettingsActivity extends RawPreferencesFragment {
         check("Статистика", RawChatUiConfig.menuHideStatistics);
         check("Факт-чек", RawChatUiConfig.menuHideFactCheck);
         info("Отмеченные пункты не показываются в меню сообщения.");
+
+        header("Скрыть реакции в меню");
+        check("В каналах", RawChatUiConfig.hideReactionsChannels);
+        check("В группах", RawChatUiConfig.hideReactionsGroups);
+        check("В личных чатах", RawChatUiConfig.hideReactionsPrivate);
+        info("Панель реакций над меню сообщения не показывается. Уже поставленные реакции видны.");
 
         header("Меню форматирования");
         for (int i = 0; i < RawFormatMenu.NAMES.length; i++) {

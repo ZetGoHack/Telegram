@@ -2600,6 +2600,10 @@ public class LocaleController {
 
     public static String formatDateOnline(long date, boolean[] madeShorter) {
         try {
+            String relative = org.telegram.rawgram.RawLastSeen.format(date); // rawGram
+            if (relative != null) {
+                return relative;
+            }
             date *= 1000;
             Calendar rightNow = Calendar.getInstance();
             int day = rightNow.get(Calendar.DAY_OF_YEAR);
