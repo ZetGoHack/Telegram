@@ -87,6 +87,11 @@ public final class RawMemWatch {
                 if (!RawgramConfig.isMemWatch()) {
                     continue;
                 }
+                if (!isForeground()) {
+                    full = 0; // nothing is sampled while the app is in the background (exteraGram's HeapMonitor does the same)
+                    stepSamples = 0;
+                    continue;
+                }
                 Runtime rt = Runtime.getRuntime();
                 long max = rt.maxMemory();
                 long now = rt.totalMemory() - rt.freeMemory();
@@ -310,8 +315,23 @@ public final class RawMemWatch {
         }
         File dump = new File(dir, dumpName(System.currentTimeMillis(), used, rt.maxMemory()));
         RawFreezeMonitor.pause(90_000); // the dump freezes the app on purpose
+        collectGarbage();
         Debug.dumpHprofData(dump.getAbsolutePath());
         return dump;
+    }
+
+    /** True when the app is on screen (or the foreground state is unknown). */
+    private static boolean isForeground() {
+        org.telegram.ui.Components.ForegroundDetector detector = org.telegram.ui.Components.ForegroundDetector.getInstance();
+        return detector == null || detector.isForeground();
+    }
+
+    /** A full collection with finalizers before a dump, so garbage does not hide what really holds the heap. */
+    private static void collectGarbage() {
+        Runtime rt = Runtime.getRuntime();
+        rt.gc();
+        rt.runFinalization();
+        rt.gc();
     }
 
     /** "heap_<time>_<pid>_<percent>.hprof": dumps of one process sort together and show the heap level. */
@@ -336,6 +356,19 @@ public final class RawMemWatch {
             }
         }
         java.util.Collections.sort(dumps, (a, b) -> Long.compare(a.lastModified(), b.lastModified()));
+        // dumps of earlier runs: only the newest two stay (this run's steps are kept to compare the growth)
+        String ownPid = "_" + android.os.Process.myPid() + "_";
+        int keptOlder = 0;
+        for (int i = dumps.size() - 1; i >= 0; i--) {
+            File f = dumps.get(i);
+            if (f.getName().contains(ownPid)) {
+                continue;
+            }
+            if (++keptOlder > 2) {
+                f.delete();
+                dumps.remove(i);
+            }
+        }
         long total = 0;
         for (File f : dumps) {
             total += f.length();
@@ -359,6 +392,7 @@ public final class RawMemWatch {
             AndroidUtilities.runOnUIThread(() -> RawNotify.show(R.drawable.msg_info, "Дамп кучи (" + percent + "%): приложение замрёт на несколько секунд"));
             Thread.sleep(2500);
             RawFreezeMonitor.pause(90_000);
+            collectGarbage();
             Debug.dumpHprofData(new File(dir, dumpName(System.currentTimeMillis(), heapUsed, max)).getAbsolutePath());
         } catch (Throwable ignore) {
         }
@@ -381,6 +415,7 @@ public final class RawMemWatch {
             File dump = new File(dir, dumpName(now, used, rt.maxMemory()));
             long start = SystemClock.elapsedRealtime();
             RawFreezeMonitor.pause(90_000);
+            collectGarbage();
             Debug.dumpHprofData(dump.getAbsolutePath());
             appendToReport(report, "\nдамп кучи: " + dump.getAbsolutePath() + " (" + (dump.length() >> 20) + " МБ, "
                     + (SystemClock.elapsedRealtime() - start) / 1000 + " с)\n"
