@@ -73,6 +73,10 @@ public class DialogsActivityTopPanelLayout extends AnimatedLinearLayout {
 
     private int defaultRadiusDp = 24;
 
+    public int getDefaultRadiusDp() { // rawGram: the mini player matches its cover to the panel corners
+        return defaultRadiusDp;
+    }
+
     public void setDefaultRadiusDp(int defaultRadius) {
         this.defaultRadiusDp = defaultRadius;
     }

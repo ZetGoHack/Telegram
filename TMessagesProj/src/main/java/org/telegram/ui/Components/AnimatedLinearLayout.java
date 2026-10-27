@@ -59,6 +59,10 @@ public class AnimatedLinearLayout extends LinearLayout {
 
     private boolean skipNextAnimation;
 
+    public void setSkipNextLayoutAnimation(boolean skip) { // rawGram: the mini player's swipe shrinks the panel without animating
+        skipNextAnimation = skip;
+    }
+
     public void setViewVisible(View child, boolean visible, boolean animated) {
         if (child == null) {
             return;

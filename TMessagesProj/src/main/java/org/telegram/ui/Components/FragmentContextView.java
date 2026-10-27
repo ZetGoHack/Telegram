@@ -145,6 +145,7 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
     private ImageView closeButton;
     private ActionBarMenuItem playbackSpeedButton;
     private SpeedIconDrawable speedIcon;
+    private org.telegram.rawgram.player.mini.MiniPlayerUiHelper miniPlayer; // rawGram: the new player's mini panel
     private ActionBarMenuSlider.SpeedSlider speedSlider;
     private ActionBarMenuItem.Item[] speedItems = new ActionBarMenuItem.Item[6];
     private FrameLayout silentButton;
@@ -998,13 +999,26 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
         speedSlider.setSpeed(currentPlaybackSpeed, animated);
     }
 
+    // rawGram: speed icon colour from the mini player
+    private void applyMiniPlayerAccent() {
+        if (speedIcon == null || !org.telegram.rawgram.player.mini.MiniPlayerUiHelper.isActive(miniPlayer)) {
+            return;
+        }
+        speedIcon.setColor(miniPlayer.getSpeedColor(MediaController.getInstance().getPlaybackSpeed(isMusic)));
+        speedIcon.invalidateSelf();
+    }
+
     public void updateColors() {
         float currentPlaybackSpeed = MediaController.getInstance().getPlaybackSpeed(isMusic);
-        final int color = getThemedColor(!equals(currentPlaybackSpeed, 1.0f) ? Theme.key_featuredStickers_addButtonPressed : Theme.key_inappPlayerClose);
+        final boolean miniActive = org.telegram.rawgram.player.mini.MiniPlayerUiHelper.isActive(miniPlayer); // rawGram
+        if (miniActive) { // rawGram
+            miniPlayer.updateColors();
+        }
+        final int color = miniActive ? miniPlayer.getSpeedColor(currentPlaybackSpeed) : getThemedColor(!equals(currentPlaybackSpeed, 1.0f) ? Theme.key_featuredStickers_addButtonPressed : Theme.key_inappPlayerClose);
         if (speedIcon != null) {
             speedIcon.setColor(color);
         }
-        if (playbackSpeedButton != null) {
+        if (playbackSpeedButton != null && !miniActive) {
             playbackSpeedButton.setBackground(Theme.createSelectorDrawable(color & 0x19ffffff, 1, dp(14)));
         }
 
@@ -1172,6 +1186,10 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
             }
         }
         currentStyle = style;
+        if (miniPlayer == null && style == STYLE_AUDIO_PLAYER && org.telegram.rawgram.player.RawPlayerConfig.getNewPlayerStyle()) { // rawGram
+            miniPlayer = new org.telegram.rawgram.player.mini.MiniPlayerUiHelper(this, resourcesProvider);
+            miniPlayer.setOnColorsChanged(this::applyMiniPlayerAccent);
+        }
         frameLayout.setWillNotDraw(currentStyle != STYLE_INACTIVE_GROUP_CALL);
         if (style != STYLE_INACTIVE_GROUP_CALL) {
             notifyButtonEnabled = false;
@@ -1379,6 +1397,9 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                 playbackSpeedButton.setTag(null);
             }
         }
+        if (miniPlayer != null) { // rawGram
+            miniPlayer.onStyleApplied(style == STYLE_AUDIO_PLAYER, playButton, titleTextView, closeButton, playbackSpeedButton, silentButton, silentButtonImage, frameLayout, selector);
+        }
     }
 
     @Override
@@ -1511,6 +1532,9 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, AndroidUtilities.dp2(getStyleHeight()));
+        if (currentStyle == STYLE_AUDIO_PLAYER && miniPlayer != null && miniPlayer.getSwipeShrink() > 0) { // rawGram: the swipe-to-close shrinks the panel
+            setMeasuredDimension(getMeasuredWidth(), Math.max(0, getMeasuredHeight() - miniPlayer.getSwipeShrink()));
+        }
     }
 
     @Override
@@ -1608,7 +1632,7 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
     float micAmplitude;
 
     public int getStyleHeight() {
-        return currentStyle == STYLE_INACTIVE_GROUP_CALL ? 48 : 36;
+        return currentStyle == STYLE_INACTIVE_GROUP_CALL || (currentStyle == STYLE_AUDIO_PLAYER && miniPlayer != null) ? 48 : 36; // rawGram: taller with the mini player
     }
 
     public boolean isCallTypeVisible() {
@@ -1829,6 +1853,9 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                 create = true;
             }
         }
+        if (!create && miniPlayer != null && miniPlayer.isSwipeClosing()) { // rawGram
+            create = true;
+        }
         boolean wasVisible = visible;
         if (messageObject == null || messageObject.getId() == 0 || messageObject.isVideo()) {
             lastMessageObject = null;
@@ -2009,6 +2036,9 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                 stringBuilder.setSpan(span, 0, messageObject.getMusicAuthor().length(), Spanned.SPAN_INCLUSIVE_INCLUSIVE);
                 titleTextView.setText(stringBuilder, !create && wasVisible && isMusic);
             }
+        }
+        if (miniPlayer != null) { // rawGram
+            miniPlayer.bind(messageObject, !create && wasVisible);
         }
     }
 
@@ -2657,11 +2687,14 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
             }
             invalidate();
         }
+        final int miniSwipeSave = currentStyle == STYLE_AUDIO_PLAYER && miniPlayer != null ? miniPlayer.beginSwipeDraw(canvas) : -1; // rawGram
         super.dispatchDraw(canvas);
 
         if (currentStyle == STYLE_AUDIO_PLAYER) {
             MessageObject playingMessageObject = MediaController.getInstance().getPlayingMessageObject();
-            if (playingMessageObject != null) {
+            if (miniPlayer != null) { // rawGram
+                miniPlayer.drawProgress(canvas, playingMessageObject);
+            } else if (playingMessageObject != null) {
                 final float left = -dpf2(1);
                 final float right = getMeasuredWidth() + dpf2(1);
                 final float p = lerp(left, right, playingMessageObject.audioProgress);
@@ -2672,7 +2705,31 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                 canvas.drawRoundRect(left, top, p, bottom, dpf2(1), dpf2(1), progressPaint);
             }
         }
+        if (miniSwipeSave >= 0) { // rawGram
+            canvas.restoreToCount(miniSwipeSave);
+        }
         wasDraw = true;
+    }
+
+    // rawGram: swipe-to-close of the mini player
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent event) {
+        if (currentStyle == STYLE_AUDIO_PLAYER && miniPlayer != null && miniPlayer.onInterceptSwipe(event)) {
+            return true;
+        }
+        return super.onInterceptTouchEvent(event);
+    }
+
+    private boolean superOnTouchEvent(MotionEvent event) {
+        return super.onTouchEvent(event);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (currentStyle == STYLE_AUDIO_PLAYER && miniPlayer != null && miniPlayer.onSwipeTouchEvent(event, this::superOnTouchEvent)) {
+            return true;
+        }
+        return super.onTouchEvent(event);
     }
 
     boolean drawOverlay;

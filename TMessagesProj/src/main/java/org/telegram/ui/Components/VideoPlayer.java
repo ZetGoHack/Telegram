@@ -1805,6 +1805,17 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
                     .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                     .setAudioProcessors(new AudioProcessor[]{
                             new TeeAudioProcessor(new VisualizerBufferSink())
+            if (org.telegram.rawgram.player.RawPlayerConfig.getNewPlayerStyle()) { // rawGram: beat analysis for the new player's rhythm background
+                org.telegram.rawgram.player.rhythm.RhythmTap rhythmTap = new org.telegram.rawgram.player.rhythm.RhythmTap();
+                return rhythmTap.wrap(new DefaultAudioSink.Builder(context)
+                        .setEnableFloatOutput(enableFloatOutput)
+                        .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                        .setAudioProcessors(new AudioProcessor[]{
+                                new TeeAudioProcessor(new VisualizerBufferSink()),
+                                rhythmTap.createProcessor()
+                        })
+                        .build());
+            }
                     })
                     .build();
         }
