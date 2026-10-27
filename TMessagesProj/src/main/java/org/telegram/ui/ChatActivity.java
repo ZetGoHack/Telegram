@@ -10804,7 +10804,7 @@ public class ChatActivity extends BaseFragment implements
         };
         if (createUnreadMessageAfterId != 0) {
             scrollToMessageId(createUnreadMessageAfterId, 0, false, returnToLoadIndex, true, 0, null, inCaseLoading);
-        } else if (returnToMessageId > 0) {
+        } else if (returnToMessageId > 0 && !rawReturnTargetIsLastMessage()) {
             scrollToMessageId(returnToMessageId, 0, true, returnToLoadIndex, true, 0, null, inCaseLoading);
         } else {
             scrollToLastMessage(true, !forceScrollToMessageBottom, inCaseLoading);
@@ -10814,6 +10814,15 @@ public class ChatActivity extends BaseFragment implements
                 forceNextPinnedMessageId = pinnedMessageIds.get(0);
             }
         }
+    }
+
+    // rawGram: the way back to the newest message goes through the "jump to the end" load, which asks the server; an around-load from the cache can join the old part of the history to the newest message
+    private boolean rawReturnTargetIsLastMessage() {
+        if (chatMode != 0 || threadMessageId != 0 || forwardEndReached[0]) {
+            return false;
+        }
+        TLRPC.Dialog dialog = getMessagesController().dialogs_dict.get(dialog_id);
+        return dialog != null && dialog.top_message > 0 && returnToMessageId >= dialog.top_message;
     }
 
     public ActionBarMenuItem getHeaderItem() {
