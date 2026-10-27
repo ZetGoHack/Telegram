@@ -442,11 +442,19 @@ public class ApplicationLoader extends Application {
                             @Override
                             public void onAvailable(@NonNull Network network) {
                                 lastKnownNetworkType = -1;
+                                org.telegram.rawgram.RawProxyExtras.onNetworkChanged(); // rawGram
+                            }
+
+                            @Override
+                            public void onLost(@NonNull Network network) { // rawGram
+                                lastKnownNetworkType = -1;
+                                org.telegram.rawgram.RawProxyExtras.onNetworkChanged();
                             }
 
                             @Override
                             public void onCapabilitiesChanged(@NonNull Network network, @NonNull NetworkCapabilities networkCapabilities) {
                                 lastKnownNetworkType = -1;
+                                org.telegram.rawgram.RawProxyExtras.onNetworkChanged(); // rawGram
                             }
                         };
                         connectivityManager.registerDefaultNetworkCallback(networkCallback);

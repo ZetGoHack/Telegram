@@ -23,3 +23,4 @@ rawGram is free software distributed under the **GNU General Public License v3.0
 
 Original file headers and copyright notices of ported code are kept in place.
 rawGram is an unofficial client and is not affiliated with Telegram.
+- **exteraGram proxy extras** — `RawProxyExtras` (disable on VPN / mobile / Wi-Fi, IP info) follows exteraGram's `ApplicationLoader.checkProxyForNetworkState`, `proxy/ProxyController` and `proxy/IpAddressInfoController` (GPL-2.0-or-later)
