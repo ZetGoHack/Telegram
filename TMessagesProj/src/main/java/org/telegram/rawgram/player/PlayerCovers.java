@@ -82,6 +82,7 @@ public abstract class PlayerCovers {
     }
 
     public static boolean setCover(ImageReceiver imageReceiver, MessageObject messageObject, int i, boolean z) {
+        PENDING.remove(imageReceiver);
         if (messageObject == null) {
             clearCover(imageReceiver);
             return false;
@@ -106,6 +107,14 @@ public abstract class PlayerCovers {
             imageReceiver.setImageBitmap((z || playingAudioInfo.getSmallCover() == null) ? playingAudioInfo.getCover() : playingAudioInfo.getSmallCover());
             return true;
         }
+        if (z && playingAudioInfo == null) {
+            // rawGram: a neighbour track has no decoded cover yet; its Telegram thumb is tiny and gets grainy when scaled up, so the embedded cover is read from the downloaded file
+            Bitmap embedded = embeddedCover(imageReceiver, messageObject);
+            if (embedded != null) {
+                imageReceiver.setImageBitmap(embedded);
+                return true;
+            }
+        }
         String artworkUrl = null;
         ImageLocation thumbLocation = getThumbLocation(messageObject);
         ImageLocation documentThumbLocation2 = z ? getDocumentThumbLocation(messageObject, 1280) : null;
@@ -128,7 +137,49 @@ public abstract class PlayerCovers {
         return false;
     }
 
+    private static final android.util.LruCache<String, Bitmap> EMBEDDED = new android.util.LruCache<>(4);
+    private static final java.util.Set<String> NO_EMBEDDED = new java.util.HashSet<>();
+    private static final java.util.WeakHashMap<ImageReceiver, MessageObject> PENDING = new java.util.WeakHashMap<>();
+
+    private static Bitmap embeddedCover(ImageReceiver imageReceiver, MessageObject messageObject) {
+        final String key = messageObject.getDialogId() + "_" + messageObject.getId();
+        Bitmap cached = EMBEDDED.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        if (NO_EMBEDDED.contains(key) || messageObject.messageOwner == null) {
+            return null;
+        }
+        java.io.File file = FileLoader.getInstance(messageObject.currentAccount).getPathToMessage(messageObject.messageOwner);
+        if (file == null || !file.exists()) {
+            return null;
+        }
+        PENDING.put(imageReceiver, messageObject);
+        org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
+            Bitmap cover = null;
+            try {
+                AudioInfo info = AudioInfo.getAudioInfo(file);
+                cover = info != null ? info.getCover() : null;
+            } catch (Throwable ignore) {
+            }
+            final Bitmap result = cover;
+            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                if (result == null) {
+                    NO_EMBEDDED.add(key);
+                    return;
+                }
+                EMBEDDED.put(key, result);
+                if (PENDING.get(imageReceiver) == messageObject) {
+                    PENDING.remove(imageReceiver);
+                    imageReceiver.setImageBitmap(result);
+                }
+            });
+        });
+        return null;
+    }
+
     private static void clearCover(ImageReceiver imageReceiver) {
+        PENDING.remove(imageReceiver);
         imageReceiver.setImageBitmap((Bitmap) null);
     }
 
