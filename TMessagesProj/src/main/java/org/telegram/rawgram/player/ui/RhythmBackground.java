@@ -36,6 +36,7 @@ public class RhythmBackground {
     private float particlePresence;
     private float particleTime;
     private boolean particlesEnabled;
+    private boolean backgroundEnabled = true; // rawGram: the particles can run without the glow
     private boolean particlesReady;
     private float presence;
     private float pulse;
@@ -110,6 +111,10 @@ public class RhythmBackground {
 
     public void setParticlesEnabled(boolean z) {
         this.particlesEnabled = z;
+    }
+
+    public void setBackgroundEnabled(boolean z) {
+        this.backgroundEnabled = z;
     }
 
     public void setActive(boolean z) {
@@ -197,16 +202,21 @@ public class RhythmBackground {
         if (this.particlePresence > 0.003f && this.particlesReady) {
             drawParticles(canvas);
         }
-        this.matrix.setScale(1.0f, 0.48000002f * fHeight);
-        this.matrix.postTranslate(0.0f, rectF3.top + (fHeight * 0.52f));
-        this.scrimShader.setLocalMatrix(this.matrix);
-        this.scrimPaint.setShader(this.scrimShader);
-        this.scrimPaint.setAlpha((int) (this.presence * 255.0f));
-        canvas.drawRoundRect(rectF3, f, f, this.scrimPaint);
+        if (this.backgroundEnabled) {
+            this.matrix.setScale(1.0f, 0.48000002f * fHeight);
+            this.matrix.postTranslate(0.0f, rectF3.top + (fHeight * 0.52f));
+            this.scrimShader.setLocalMatrix(this.matrix);
+            this.scrimPaint.setShader(this.scrimShader);
+            this.scrimPaint.setAlpha((int) (this.presence * 255.0f));
+            canvas.drawRoundRect(rectF3, f, f, this.scrimPaint);
+        }
         return needsFrame();
     }
 
     private void drawBlob(Canvas canvas, RectF rectF, float f, RadialGradient radialGradient, float f2, float f3, float f4, float f5) {
+        if (!this.backgroundEnabled) {
+            return;
+        }
         if (f5 <= 0.0f || f4 <= 0.0f) {
             return;
         }

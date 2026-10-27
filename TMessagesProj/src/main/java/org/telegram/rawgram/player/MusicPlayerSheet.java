@@ -2636,10 +2636,12 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
 
     public void updateRhythm() {
         boolean z = false;
-        boolean z2 = (!RawPlayerConfig.getPlayerRhythmBackground() || AndroidUtilities.isTablet() || isDismissed()) ? false : true;
+        boolean particlesOn = RawPlayerConfig.getPlayerParticles() && LiteMode.isEnabled(131072);
+        boolean z2 = ((!RawPlayerConfig.getPlayerRhythmBackground() && !particlesOn) || AndroidUtilities.isTablet() || isDismissed()) ? false : true;
         boolean z3 = z2 && isShowing() && this.playerLayout.getWindowVisibility() == 0 && LiteMode.isEnabled(32);
         boolean z4 = z3 && !MediaController.getInstance().isMessagePaused();
         RhythmTap.setEnabled(z3);
+        this.rhythmBackground.setBackgroundEnabled(RawPlayerConfig.getPlayerRhythmBackground());
         this.rhythmBackground.setActive(z2);
         this.rhythmBackground.setAnimating(z4);
         RhythmBackground rhythmBackground = this.rhythmBackground;
