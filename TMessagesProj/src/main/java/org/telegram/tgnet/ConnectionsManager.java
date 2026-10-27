@@ -389,9 +389,14 @@ public class ConnectionsManager extends BaseController {
 
     public int sendRequest(final TLObject object, final RequestDelegate onComplete, final RequestDelegateTimestamp onCompleteTimestamp, final QuickAckDelegate onQuickAck, final WriteToSocketDelegate onWriteToSocket, final int flags, final int datacenterId, final int connectionType, final boolean immediate) {
         final int requestToken = lastRequestToken.getAndIncrement();
-        Utilities.stageQueue.postRunnable(() -> {
+        Runnable send = () -> {
             sendRequestInternal(object, onComplete, onCompleteTimestamp, onQuickAck, onWriteToSocket, flags, datacenterId, connectionType, immediate, requestToken);
-        });
+        };
+        // rawGram: confirmation of sensitive requests sent by plugins / hooks (a cached flag read when off)
+        if (org.telegram.rawgram.RawSensitive.hold(object, onComplete, onCompleteTimestamp, send)) {
+            return requestToken;
+        }
+        Utilities.stageQueue.postRunnable(send);
         return requestToken;
     }
 

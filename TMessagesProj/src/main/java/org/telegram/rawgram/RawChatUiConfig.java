@@ -158,6 +158,9 @@ public class RawChatUiConfig {
     /** Media viewer: GIFs play in the video player (seek bar, pause) instead of a looping animation, as in exteraGram (RawViewerExtras). */
     public static final Flag gifAsVideo = new Flag("gifAsVideo", true);
 
+    /** Confirmation of sensitive requests sent by plugins / hooks (RawSensitive). */
+    public static final Flag confirmSensitive = new Flag("confirmSensitive", false);
+
     /** Built-in PDF viewer (RawPdfViewer) instead of the external app. */
     public static final Flag pdfViewer = new Flag("pdfViewer", false);
 
