@@ -52,10 +52,11 @@ public final class RawCalcmula implements RawCalcProvider {
     @Override
     public void evaluate(CharSequence text, int caret, Callback callback) {
         cancel();
-        String expression = MathExpression.INSTANCE.expressionAt(text, caret);
-        if (expression == null) {
-            expression = wordsExpressionAt(text, caret);
+        String found = MathExpression.INSTANCE.expressionAt(text, caret);
+        if (found == null) {
+            found = wordsExpressionAt(text, caret);
         }
+        final String expression = found;
         if (expression == null || expression.length() > MAX_QUERY || looksPrivate(expression)) {
             callback.onResult(null);
             return;
