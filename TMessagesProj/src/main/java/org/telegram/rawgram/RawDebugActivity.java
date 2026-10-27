@@ -63,6 +63,7 @@ public class RawDebugActivity extends RawPreferencesFragment {
     private List<RawDebugChecks.Result> results;
     private boolean running;
     private boolean dumping;
+    private boolean capturing;
     private int heapRow = -1;
     private final Runnable tick = new Runnable() {
         @Override
@@ -141,8 +142,10 @@ public class RawDebugActivity extends RawPreferencesFragment {
         rows.add(new Row(TYPE_VALUE, "Зависания интерфейса", this::openLastFreeze, RawFreezeMonitor::statusLine));
         button("Сымитировать зависание", this::simulateFreeze);
         rows.add(new Row(TYPE_VALUE, "Счётчик кадров", this::toggleFrameOverlay, RawFrameStats::statusLine));
+        rows.add(new Row(TYPE_VALUE, "Нагрузка в фоне", this::openLastLoad, RawLoadMonitor::statusLine));
+        button(capturing ? "Идёт замер…" : "Снять отчёт нагрузки (10 с)", this::captureLoad);
         button("Открыть отчёты мониторов", () -> RawCrashLog.openViewer(this));
-        info("Мониторы включаются в инструментах разработчика. Отчёты попадают в журнал крашей. Имитация замораживает интерфейс примерно на секунду, чтобы сторож зависаний записал отчёт. Нажатие на счётчик кадров показывает или прячет плашку.");
+        info("Мониторы включаются в инструментах разработчика. Отчёты попадают в журнал крашей. Имитация замораживает интерфейс примерно на секунду, чтобы сторож зависаний записал отчёт. Нажатие на счётчик кадров показывает или прячет плашку. Замер нагрузки пишет отчёт сразу, без порога.");
     }
 
     private void showSheetSample() {
@@ -305,6 +308,35 @@ public class RawDebugActivity extends RawPreferencesFragment {
         } else {
             RawNotify.show(R.drawable.msg_info, "Отчётов о зависании в этом запуске пока нет");
         }
+    }
+
+    private void openLastLoad() {
+        java.io.File report = RawLoadMonitor.lastReport();
+        if (report != null && report.exists()) {
+            presentFragment(new RawCrashLogActivity(report));
+        } else {
+            RawNotify.show(R.drawable.msg_info, "Отчётов о нагрузке в этом запуске пока нет");
+        }
+    }
+
+    private void captureLoad() {
+        if (capturing) {
+            return;
+        }
+        capturing = true;
+        refresh();
+        RawNotify.show(R.drawable.msg_info, "Замеряю нагрузку десять секунд");
+        Utilities.globalQueue.postRunnable(() -> {
+            java.io.File report = RawLoadMonitor.captureNow();
+            AndroidUtilities.runOnUIThread(() -> {
+                capturing = false;
+                refresh();
+                RawNotify.result(report != null, R.drawable.msg_saved, "Отчёт нагрузки готов", "Не удалось снять отчёт нагрузки");
+                if (report != null) {
+                    presentFragment(new RawCrashLogActivity(report));
+                }
+            });
+        });
     }
 
     private void toggleFrameOverlay() {

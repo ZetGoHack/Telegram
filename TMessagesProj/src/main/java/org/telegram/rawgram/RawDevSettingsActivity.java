@@ -47,6 +47,7 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
     private static final int SPEED_TIERS = 40;
     private static final int FREEZE_MONITOR = 16;
     private static final int FRAME_METRICS = 17;
+    private static final int LOAD_MONITOR = 18;
     // values / actions
     private static final int ID_FORMAT = 20;
     private static final int OPEN_REQUEST_LOG = 21;
@@ -56,6 +57,7 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
     private static final int OPEN_UPDATES_LOG = 25;
     private static final int UPDATES_LOG_LIMIT = 26;
     private static final int FREEZE_THRESHOLD = 27;
+    private static final int LOAD_CPU = 28;
 
     private static class Row {
         final int type;
@@ -142,10 +144,13 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
         check("Следить за зависаниями интерфейса", FREEZE_MONITOR);
         value("Порог зависания", FREEZE_THRESHOLD);
         check("Показывать fps и рывки", FRAME_METRICS);
+        check("Следить за нагрузкой в фоне", LOAD_MONITOR);
+        value("Порог нагрузки", LOAD_CPU);
         value("Конфиг сервера", SERVER_CONFIG);
         info("Конфиг сервера — настройки, которые сервер выдаёт текущему аккаунту: лимиты (обычные и Premium), дата-центры, флаги клиента.");
         info("Слежение за зависаниями: если интерфейс не отвечает дольше порога, в журнал крашей попадает отчёт «зависание UI»: где застрял главный поток (снимки стека), экраны, сборки мусора, занятые потоки, подписки на события и число живых объектов. Постоянно работает отдельный поток, пока приложение на экране.");
         info("Плашка у левого края экрана: время фаз каждого кадра, частота кадров и доля рывков (кадры дольше полутора интервалов обновления экрана). Нужен Android 7 или новее.");
+        info("Слежение за нагрузкой: раз в минуту читается процессорное время процесса и потоков. Если в фоне или при выключенном экране за пять минут процесс занял больше порога (процентов одного ядра), в журнал крашей попадает отчёт «нагрузка»: потоки по процессору, их стеки, трафик, батарея, состояние службы поддержания связи.");
         info("Слежение за памятью: если куча Java держится почти полной (так выглядит зависание перед вылетом по нехватке памяти), в журнал крашей попадает отчёт «память»: график кучи за последние минуты, открытые экраны, размеры кешей картинок, занятые потоки. Дамп кучи (сотни мегабайт) показывает, какие объекты её занимают. За один запуск снимается до трёх: при заполнении кучи на 50% и 70% и при нехватке памяти, по ним видно, что растёт. Из прошлых запусков остаются два последних дампа; старые удаляются и раньше, когда дампы занимают больше 8 ГБ или свободного места меньше 4 ГБ. Слежение стоит на паузе, пока приложение свёрнуто.");
     }
 
@@ -169,6 +174,7 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
             case SPEED_TIERS: return RawgramConfig.isSpeedTiers();
             case FREEZE_MONITOR: return RawgramConfig.isFreezeMonitor();
             case FRAME_METRICS: return RawFrameStats.isOverlayOn();
+            case LOAD_MONITOR: return RawgramConfig.isLoadMonitor();
             default: return false;
         }
     }
@@ -197,6 +203,10 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
             case MEM_HPROF: RawgramConfig.setMemHprof(value); break;
             case SPEED_TIERS: RawgramConfig.setSpeedTiers(value); break;
             case FRAME_METRICS: RawFrameStats.setOverlay(value); break;
+            case LOAD_MONITOR:
+                RawgramConfig.setLoadMonitor(value);
+                RawLoadMonitor.onSettingChanged();
+                break;
             case FREEZE_MONITOR:
                 RawgramConfig.setFreezeMonitor(value);
                 RawFreezeMonitor.onSettingChanged();
@@ -272,12 +282,19 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
                     adapter.notifyItemChanged(position);
                 });
                 break;
+            case LOAD_CPU:
+                askThreshold("Порог нагрузки", LOAD_PERCENTS, RawgramConfig.getLoadCpuPercent(), "%", v -> {
+                    RawgramConfig.setLoadCpuPercent(v);
+                    adapter.notifyItemChanged(position);
+                });
+                break;
             case SERVER_CONFIG:
                 RawServerConfig.show(getParentActivity(), currentAccount, getResourceProvider());
                 break;
         }
     }
 
+    private static final int[] LOAD_PERCENTS = {2, 3, 5, 10, 25};
     private static final int[] THRESHOLDS = {300, 500, 700, 1000, 2000};
 
     private void askThreshold(String title, int[] options, int current, String unit, org.telegram.messenger.Utilities.Callback<Integer> onChosen) {
@@ -357,6 +374,8 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
                 case TYPE_VALUE:
                     if (row.id == ID_FORMAT) {
                         ((TextSettingsCell) holder.itemView).setTextAndValue(row.text, idFormatName(), needDivider(position));
+                    } else if (row.id == LOAD_CPU) {
+                        ((TextSettingsCell) holder.itemView).setTextAndValue(row.text, RawgramConfig.getLoadCpuPercent() + "%", needDivider(position));
                     } else if (row.id == FREEZE_THRESHOLD) {
                         ((TextSettingsCell) holder.itemView).setTextAndValue(row.text, RawgramConfig.getFreezeThreshold() + " мс", needDivider(position));
                     } else if (row.id == REQUEST_LOG_LIMIT || row.id == UPDATES_LOG_LIMIT) {

@@ -65,7 +65,8 @@ public final class RawMemWatch {
     /** Called from ApplicationLoader.onCreate (after RawCrashLog.install). Never throws. */
     public static void start(Context ctx) {
         try {
-            RawFreezeMonitor.start(); // the other diagnostics watcher starts from the same place (off by default)
+            RawFreezeMonitor.start(); // the other diagnostics watchers start from the same place (off by default)
+            RawLoadMonitor.start();
             if (started || !RawgramConfig.isMemWatch()) {
                 return;
             }

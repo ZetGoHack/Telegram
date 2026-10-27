@@ -779,6 +779,8 @@ public class RawCrashLog {
             return "память";
         } else if (RawFreezeMonitor.TYPE_FREEZE.equals(type)) {
             return "зависание UI";
+        } else if (RawLoadMonitor.TYPE_LOAD.equals(type)) {
+            return "нагрузка";
         }
         return "java";
     }

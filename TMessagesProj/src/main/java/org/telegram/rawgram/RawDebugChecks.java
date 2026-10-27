@@ -61,6 +61,7 @@ public class RawDebugChecks {
         register("UI-поток отвечает", RawDebugChecks::uiThread);
         register("Сторож зависаний", RawFreezeMonitor::selfCheck);
         register("Счётчик кадров", RawFrameStats::selfCheck);
+        register("Сэмплер нагрузки", RawLoadMonitor::selfCheck);
     }
 
     private RawDebugChecks() {
