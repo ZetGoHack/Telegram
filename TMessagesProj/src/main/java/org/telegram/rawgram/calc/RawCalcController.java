@@ -2,6 +2,8 @@ package org.telegram.rawgram.calc;
 
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Path;
+import android.os.SystemClock;
 import android.text.Editable;
 import android.text.Layout;
 import android.text.Selection;
@@ -86,6 +88,12 @@ public final class RawCalcController {
     private boolean insertingSelf;
     private int swallowKeyCode;
     private static boolean warmed;
+    private static final int STATUS_NONE = 0;
+    private static final int STATUS_LOADING = 1;
+    private static final int STATUS_ERROR = 2;
+    private int status;
+    private int statusAt = -1;
+    private final Path trianglePath = new Path();
 
     public RawCalcController(TextView view, Delegate delegate) {
         this.view = view;
@@ -126,6 +134,10 @@ public final class RawCalcController {
 
     /** Draws the ghost; call after the field has drawn its text. */
     public void draw(Canvas canvas) {
+        if (suggestionInsert == null && status != STATUS_NONE && RawCalcConfig.display.get() == RawCalcConfig.DISPLAY_GHOST) {
+            drawStatus(canvas);
+            return;
+        }
         if (suggestionInsert == null || RawCalcConfig.display.get() == RawCalcConfig.DISPLAY_PANEL) {
             appear.set(0f, true);
             return;
@@ -159,6 +171,63 @@ public final class RawCalcController {
         }
         canvas.drawText(suggestionInsert, 0, suggestionInsert.length(),
                 view.getCompoundPaddingLeft() + x, top + layout.getLineBaseline(line), ghostPaint);
+    }
+
+    /** Grey dots while the online answer is awaited, a warning triangle when it failed. */
+    private void drawStatus(Canvas canvas) {
+        Layout layout = view.getLayout();
+        CharSequence text = view.getText();
+        int selection = view.getSelectionStart();
+        if (layout == null || text == null || selection != statusAt || selection != view.getSelectionEnd() || selection > text.length()) {
+            return;
+        }
+        int line = layout.getLineForOffset(selection);
+        ghostPaint.set(view.getPaint());
+        ghostPaint.setColor(view.getCurrentTextColor());
+        float size = ghostPaint.getTextSize();
+        float x = view.getCompoundPaddingLeft() + layout.getPrimaryHorizontal(selection) + size * 0.35f;
+        float top = view.getExtendedPaddingTop();
+        int gravity = view.getGravity() & Gravity.VERTICAL_GRAVITY_MASK;
+        if (gravity != Gravity.TOP) {
+            int box = view.getHeight() - view.getExtendedPaddingTop() - view.getExtendedPaddingBottom();
+            int content = layout.getHeight();
+            if (content < box) {
+                top += gravity == Gravity.BOTTOM ? box - content : (box - content) / 2f;
+            }
+        }
+        float baseline = top + layout.getLineBaseline(line);
+        int base = ghostPaint.getAlpha();
+        ghostPaint.setStyle(Paint.Style.FILL);
+        if (status == STATUS_LOADING) {
+            long phase = SystemClock.uptimeMillis() % 1200;
+            float radius = size * 0.09f;
+            for (int i = 0; i < 3; i++) {
+                float t = ((phase / 1200f) - i * 0.18f + 1f) % 1f;
+                float pulse = 0.5f + 0.5f * (float) Math.sin(t * 2 * Math.PI);
+                ghostPaint.setAlpha(Math.round(base * (0.18f + 0.5f * pulse)));
+                canvas.drawCircle(x + radius + i * radius * 3.4f, baseline - size * 0.22f, radius, ghostPaint);
+            }
+            view.postInvalidateOnAnimation();
+        } else {
+            float w = size * 0.8f;
+            float h = size * 0.7f;
+            float bottom = baseline - size * 0.05f;
+            float topY = bottom - h;
+            ghostPaint.setAlpha(Math.round(base * 0.6f));
+            ghostPaint.setStyle(Paint.Style.STROKE);
+            ghostPaint.setStrokeWidth(Math.max(1.5f, size * 0.07f));
+            ghostPaint.setStrokeJoin(Paint.Join.ROUND);
+            ghostPaint.setStrokeCap(Paint.Cap.ROUND);
+            trianglePath.rewind();
+            trianglePath.moveTo(x + w / 2, topY);
+            trianglePath.lineTo(x + w, bottom);
+            trianglePath.lineTo(x, bottom);
+            trianglePath.close();
+            canvas.drawPath(trianglePath, ghostPaint);
+            canvas.drawLine(x + w / 2, topY + h * 0.38f, x + w / 2, topY + h * 0.66f, ghostPaint);
+            ghostPaint.setStyle(Paint.Style.FILL);
+            canvas.drawCircle(x + w / 2, topY + h * 0.82f, Math.max(1f, size * 0.04f), ghostPaint);
+        }
     }
 
     /** Hardware keys and keys sent by the keyboard: Space / Tab / right arrow insert, Backspace takes back. */
@@ -227,6 +296,7 @@ public final class RawCalcController {
 
     private void drop() {
         token++;
+        clearStatus();
         if (calcmula != null) {
             calcmula.cancel();
         }
@@ -330,16 +400,57 @@ public final class RawCalcController {
         }
         // the text is edited in place: keep an immutable copy of what is asked about
         final String snapshot = text.toString();
-        calcmula.evaluate(snapshot, caret, value -> {
-            if (value != null) {
-                accept(snapshot, caret, value, mine);
-            } else if (mine == token) {
-                clearSuggestion();
+        calcmula.evaluate(snapshot, caret, new RawCalcProvider.Callback() {
+            @Override
+            public void onResult(String value) {
+                if (value != null) {
+                    accept(snapshot, caret, value, mine);
+                } else if (mine == token) {
+                    clearSuggestion();
+                }
+            }
+
+            @Override
+            public void onLoading() {
+                if (mine == token) {
+                    setStatus(STATUS_LOADING, caret);
+                }
+            }
+
+            @Override
+            public void onError() {
+                if (mine == token) {
+                    setStatus(STATUS_ERROR, caret);
+                }
             }
         });
     }
 
+    private void setStatus(int value, int caret) {
+        status = value;
+        statusAt = caret;
+        if (RawCalcConfig.display.get() == RawCalcConfig.DISPLAY_PANEL) {
+            Hint hint = new Hint();
+            hint.id = 7;
+            hint.first_name = value == STATUS_LOADING ? "Считаю…" : "Не удалось посчитать";
+            panelHint = hint;
+            if (delegate != null) {
+                delegate.showPanel(hint);
+            }
+        }
+        view.invalidate();
+    }
+
+    private void clearStatus() {
+        if (status != STATUS_NONE) {
+            status = STATUS_NONE;
+            statusAt = -1;
+            view.invalidate();
+        }
+    }
+
     private void clearSuggestion() {
+        clearStatus();
         hidePanel();
         if (suggestionInsert != null) {
             suggestionInsert = null;
@@ -358,6 +469,7 @@ public final class RawCalcController {
                 || !sameBefore(asked, now, caret)) {
             return;
         }
+        clearStatus();
         char before = now.charAt(caret - 2);
         boolean blank = before == ' ' || before == '\t' || before == ' ';
         suggestionValue = value;

@@ -26,6 +26,9 @@ public final class RawCalcmula implements RawCalcProvider {
     private static final int MAX_QUERY = 200;
     private static final int MAX_RESPONSE = 32 * 1024;
     private static final String NONE = "";
+    private static final String FAILED = "\u0000";
+    private static final java.util.regex.Pattern WORDS = java.util.regex.Pattern.compile(
+            "(?iu)(?<![\\p{L}])(today|tomorrow|yesterday|now|сегодня|завтра|вчера|послезавтра|позавчера|сейчас|сьогодні|вчора|зараз|післязавтра|позавчора)(?![\\p{L}])");
 
     /** expression -> answer ("" = the server has none); touched on the UI thread only */
     private final Map<String, String> cache = new LinkedHashMap<String, String>(32, 0.75f, true) {
@@ -50,15 +53,23 @@ public final class RawCalcmula implements RawCalcProvider {
     public void evaluate(CharSequence text, int caret, Callback callback) {
         cancel();
         String expression = MathExpression.INSTANCE.expressionAt(text, caret);
+        if (expression == null) {
+            expression = wordsExpressionAt(text, caret);
+        }
         if (expression == null || expression.length() > MAX_QUERY || looksPrivate(expression)) {
             callback.onResult(null);
             return;
         }
         String cached = cache.get(expression);
         if (cached != null) {
-            callback.onResult(cached.isEmpty() ? null : cached);
+            if (cached.equals(FAILED)) {
+                callback.onError();
+            } else {
+                callback.onResult(cached.isEmpty() ? null : cached);
+            }
             return;
         }
+        callback.onLoading();
         final int mine = ++generation;
         pending = () -> {
             pending = null;
@@ -83,6 +94,23 @@ public final class RawCalcmula implements RawCalcProvider {
         }
     }
 
+    /** «сегодня - вчера =»: the date words need no digits, but one of them must be there. */
+    private static String wordsExpressionAt(CharSequence text, int caret) {
+        if (caret < 2 || caret > text.length() || text.charAt(caret - 1) != '=') {
+            return null;
+        }
+        int start = caret - 1;
+        while (start > 0 && caret - 1 - start < MAX_QUERY) {
+            char c = text.charAt(start - 1);
+            if (!(Character.isLetterOrDigit(c) || " \t.:+-*/()".indexOf(c) >= 0)) {
+                break;
+            }
+            start--;
+        }
+        String expression = text.subSequence(start, caret - 1).toString().trim();
+        return expression.length() >= 3 && WORDS.matcher(expression).find() ? expression : null;
+    }
+
     private static boolean looksPrivate(String expression) {
         return expression.indexOf('@') >= 0 || expression.contains("://") || expression.contains("www.");
     }
@@ -97,6 +125,7 @@ public final class RawCalcmula implements RawCalcProvider {
             }
             String answer = null;
             boolean definite = false; // a reply from the server, not a network failure
+            boolean failed = true;
             HttpURLConnection connection = null;
             try {
                 connection = (HttpURLConnection) new URL(ENDPOINT + URLEncoder.encode(expression, "UTF-8")).openConnection();
@@ -108,6 +137,7 @@ public final class RawCalcmula implements RawCalcProvider {
                 if (code == 200) {
                     answer = parse(read(connection.getInputStream()), expression);
                     definite = true;
+                    failed = false;
                 } else if (code == 400) {
                     definite = true;
                 }
@@ -120,12 +150,17 @@ public final class RawCalcmula implements RawCalcProvider {
             }
             final String result = answer;
             final boolean remember = definite;
+            final boolean error = failed;
             AndroidUtilities.runOnUIThread(() -> {
                 if (remember) {
-                    cache.put(expression, result == null ? NONE : result);
+                    cache.put(expression, error ? FAILED : result == null ? NONE : result);
                 }
                 if (mine == generation) {
-                    callback.onResult(result);
+                    if (error) {
+                        callback.onError();
+                    } else {
+                        callback.onResult(result);
+                    }
                 }
             });
         });
