@@ -3316,7 +3316,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             }
         }
         if (audioPlayer != null) {
-            audioPlayer.setPlaybackSpeed(Math.round(speed * 10f) / 10f);
+            audioPlayer.setPlaybackSpeed(Math.round(speed * 10f) / 10f, music && org.telegram.rawgram.player.RawPlayerConfig.tapeSpeed()); // rawGram
         } else if (videoPlayer != null) {
             videoPlayer.setPlaybackSpeed(Math.round(speed * 10f) / 10f);
         }
@@ -4024,7 +4024,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                         }
                         shouldSavePositionForCurrentAudio = name;
                         if (Math.abs(currentMusicPlaybackSpeed - 1.0f) > 0.001f) {
-                            audioPlayer.setPlaybackSpeed(Math.round(currentMusicPlaybackSpeed * 10f) / 10f);
+                            audioPlayer.setPlaybackSpeed(Math.round(currentMusicPlaybackSpeed * 10f) / 10f, org.telegram.rawgram.player.RawPlayerConfig.tapeSpeed()); // rawGram
                         }
                     }
                 }

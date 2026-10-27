@@ -1458,9 +1458,14 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
     }
 
     public void setPlaybackSpeed(float speed) {
+        setPlaybackSpeed(speed, false);
+    }
+
+    // rawGram: tape = the pitch follows the speed (the new music player's "speed with pitch")
+    public void setPlaybackSpeed(float speed, boolean tape) {
         try {
             if (player != null) {
-                player.setPlaybackParameters(new PlaybackParameters(speed, speed > 1.0f ? 0.98f : 1.0f));
+                player.setPlaybackParameters(new PlaybackParameters(speed, tape ? speed : (speed > 1.0f ? 0.98f : 1.0f)));
             }
         } catch (Exception ignore) {}
     }
@@ -1800,11 +1805,6 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
                 @NonNull Context context,
                 boolean enableFloatOutput,
                 boolean enableAudioTrackPlaybackParams) {
-            return new DefaultAudioSink.Builder(context)
-                    .setEnableFloatOutput(enableFloatOutput)
-                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-                    .setAudioProcessors(new AudioProcessor[]{
-                            new TeeAudioProcessor(new VisualizerBufferSink())
             if (org.telegram.rawgram.player.RawPlayerConfig.getNewPlayerStyle()) { // rawGram: beat analysis for the new player's rhythm background
                 org.telegram.rawgram.player.rhythm.RhythmTap rhythmTap = new org.telegram.rawgram.player.rhythm.RhythmTap();
                 return rhythmTap.wrap(new DefaultAudioSink.Builder(context)
@@ -1816,6 +1816,11 @@ public class VideoPlayer implements Player.Listener, VideoListener, AnalyticsLis
                         })
                         .build());
             }
+            return new DefaultAudioSink.Builder(context)
+                    .setEnableFloatOutput(enableFloatOutput)
+                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                    .setAudioProcessors(new AudioProcessor[]{
+                            new TeeAudioProcessor(new VisualizerBufferSink())
                     })
                     .build();
         }
