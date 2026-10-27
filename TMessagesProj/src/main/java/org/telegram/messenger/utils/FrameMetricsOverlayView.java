@@ -226,6 +226,7 @@ public final class FrameMetricsOverlayView extends View {
         metricsHandler = new Handler(metricsThread.getLooper());
 
         listener = (window, fm, dropCount) -> {
+            org.telegram.rawgram.RawFrameStats.onFrame(fm.getMetric(FrameMetrics.TOTAL_DURATION), dropCount); // rawGram: fps / jank
             // ── per-metric processing ────────────────────────────────────────
             for (Metric m : Metric.values()) {
                 if (!m.isAvailable()) {
@@ -320,7 +321,7 @@ public final class FrameMetricsOverlayView extends View {
         float line = dp(11);
 
         // +3: blank line before counters + vsync/s + onDraw/s
-        int lines = Metric.values().length + 6 + 3;
+        int lines = Metric.values().length + 6 + 5;
 
         float w = getWidth() > 0 ? getWidth() : dp(260);
         float h = pad * 2 + line * lines;
@@ -411,13 +412,18 @@ public final class FrameMetricsOverlayView extends View {
         canvas.drawText(String.format(Locale.US, "%-16s : %d /s",
                         observedView != null ? "onDraw" : "onDraw (none)", onDrawPerSecond),
                 x, y, textPaint);
+        // rawGram: fps and jank counters
+        y += line;
+        canvas.drawText(org.telegram.rawgram.RawFrameStats.fpsLine(), x, y, textPaint);
+        y += line;
+        canvas.drawText(org.telegram.rawgram.RawFrameStats.jankLine(), x, y, textPaint);
     }
 
     @Override
     protected void onMeasure(int w, int h) {
         int width  = dp(210);
         // +3 for blank separator + vsync/s + onDraw/s
-        int height = dp(8) * 2 + dp(11) * (Metric.values().length + 6 + 3);
+        int height = dp(8) * 2 + dp(11) * (Metric.values().length + 6 + 5);
         setMeasuredDimension(width, height);
     }
 }

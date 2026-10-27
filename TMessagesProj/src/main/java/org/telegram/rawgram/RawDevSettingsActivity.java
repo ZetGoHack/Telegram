@@ -46,6 +46,7 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
     private static final int MEM_HPROF = 15;
     private static final int SPEED_TIERS = 40;
     private static final int FREEZE_MONITOR = 16;
+    private static final int FRAME_METRICS = 17;
     // values / actions
     private static final int ID_FORMAT = 20;
     private static final int OPEN_REQUEST_LOG = 21;
@@ -140,9 +141,11 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
         check("Дампы кучи по мере роста", MEM_HPROF);
         check("Следить за зависаниями интерфейса", FREEZE_MONITOR);
         value("Порог зависания", FREEZE_THRESHOLD);
+        check("Показывать fps и рывки", FRAME_METRICS);
         value("Конфиг сервера", SERVER_CONFIG);
         info("Конфиг сервера — настройки, которые сервер выдаёт текущему аккаунту: лимиты (обычные и Premium), дата-центры, флаги клиента.");
         info("Слежение за зависаниями: если интерфейс не отвечает дольше порога, в журнал крашей попадает отчёт «зависание UI»: где застрял главный поток (снимки стека), экраны, сборки мусора, занятые потоки, подписки на события и число живых объектов. Постоянно работает отдельный поток, пока приложение на экране.");
+        info("Плашка у левого края экрана: время фаз каждого кадра, частота кадров и доля рывков (кадры дольше полутора интервалов обновления экрана). Нужен Android 7 или новее.");
         info("Слежение за памятью: если куча Java держится почти полной (так выглядит зависание перед вылетом по нехватке памяти), в журнал крашей попадает отчёт «память»: график кучи за последние минуты, открытые экраны, размеры кешей картинок, занятые потоки. Дамп кучи (сотни мегабайт) показывает, какие объекты её занимают. За один запуск снимается до трёх: при заполнении кучи на 50% и 70% и при нехватке памяти, по ним видно, что растёт. Старые удаляются, когда дампы занимают больше 8 ГБ или свободного места меньше 4 ГБ.");
     }
 
@@ -165,6 +168,7 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
             case MEM_HPROF: return RawgramConfig.isMemHprof();
             case SPEED_TIERS: return RawgramConfig.isSpeedTiers();
             case FREEZE_MONITOR: return RawgramConfig.isFreezeMonitor();
+            case FRAME_METRICS: return RawFrameStats.isOverlayOn();
             default: return false;
         }
     }
@@ -192,6 +196,7 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
                 break;
             case MEM_HPROF: RawgramConfig.setMemHprof(value); break;
             case SPEED_TIERS: RawgramConfig.setSpeedTiers(value); break;
+            case FRAME_METRICS: RawFrameStats.setOverlay(value); break;
             case FREEZE_MONITOR:
                 RawgramConfig.setFreezeMonitor(value);
                 RawFreezeMonitor.onSettingChanged();
@@ -218,7 +223,7 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
             if (row.type == TYPE_CHECK) {
                 boolean value = !isOn(row.id);
                 set(row.id, value);
-                ((TextCheckCell) view).setChecked(value);
+                ((TextCheckCell) view).setChecked(isOn(row.id));
             } else if (row.type == TYPE_VALUE) {
                 onValueClick(row.id, position);
             }

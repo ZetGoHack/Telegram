@@ -140,8 +140,9 @@ public class RawDebugActivity extends RawPreferencesFragment {
         header("Мониторы");
         rows.add(new Row(TYPE_VALUE, "Зависания интерфейса", this::openLastFreeze, RawFreezeMonitor::statusLine));
         button("Сымитировать зависание", this::simulateFreeze);
+        rows.add(new Row(TYPE_VALUE, "Счётчик кадров", this::toggleFrameOverlay, RawFrameStats::statusLine));
         button("Открыть отчёты мониторов", () -> RawCrashLog.openViewer(this));
-        info("Мониторы включаются в инструментах разработчика. Отчёты попадают в журнал крашей. Имитация замораживает интерфейс примерно на секунду, чтобы сторож зависаний записал отчёт.");
+        info("Мониторы включаются в инструментах разработчика. Отчёты попадают в журнал крашей. Имитация замораживает интерфейс примерно на секунду, чтобы сторож зависаний записал отчёт. Нажатие на счётчик кадров показывает или прячет плашку.");
     }
 
     private void showSheetSample() {
@@ -304,6 +305,15 @@ public class RawDebugActivity extends RawPreferencesFragment {
         } else {
             RawNotify.show(R.drawable.msg_info, "Отчётов о зависании в этом запуске пока нет");
         }
+    }
+
+    private void toggleFrameOverlay() {
+        if (!RawFrameStats.isSupported()) {
+            RawNotify.warn("Счётчик кадров работает на Android 7 и новее");
+            return;
+        }
+        RawFrameStats.setOverlay(!RawFrameStats.isOverlayOn());
+        refresh();
     }
 
     private void simulateFreeze() {
