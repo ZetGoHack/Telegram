@@ -428,6 +428,11 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         if (a instanceof QuickRepliesController.QuickReply) {
             return false;
         }
+        if (a instanceof org.telegram.rawgram.calc.RawCalcController.Hint || b instanceof org.telegram.rawgram.calc.RawCalcController.Hint) {
+            // rawGram: the calculator row keeps its id while its text changes («Считаю…» → the answer)
+            return a == b || (a instanceof org.telegram.rawgram.calc.RawCalcController.Hint && b instanceof org.telegram.rawgram.calc.RawCalcController.Hint
+                    && java.util.Objects.equals(((TLRPC.User) a).first_name, ((TLRPC.User) b).first_name));
+        }
         if (a == b) {
             return true;
         }
