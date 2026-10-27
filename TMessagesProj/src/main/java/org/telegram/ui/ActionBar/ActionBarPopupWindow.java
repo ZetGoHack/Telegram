@@ -185,7 +185,8 @@ public class ActionBarPopupWindow extends PopupWindow {
             if ((flags & FLAG_DONT_USE_SCROLLVIEW) == 0) {
                 try {
                     scrollView = new ScrollView(context);
-                    scrollView.getViewTreeObserver().addOnScrollChangedListener(new ViewTreeObserver.OnScrollChangedListener() {
+                    // rawGram: only while attached; added here, it stayed in the activity window's observer (chat preview menus)
+                    org.telegram.rawgram.RawLeakFixes.onScrollChanged(scrollView, new ViewTreeObserver.OnScrollChangedListener() {
                         @Override
                         public void onScrollChanged() {
                             invalidate();

@@ -1267,7 +1267,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
     public void setCaption(CharSequence caption) {
         hasCaptionForAllMedia = true;
-        captionForAllMedia = caption;
+        captionForAllMedia = org.telegram.rawgram.RawLeakFixes.detachedText(caption); // rawGram: not the caption field's own Editable
         setCurrentCaption(null, caption, false, false);
         updateCaptionTextForCurrentPhoto(null);
     }
@@ -9986,7 +9986,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         }
 
         ArrayList<TLRPC.MessageEntity> entities = MediaDataController.getInstance(currentAccount).getEntities(result, supportsSendingNewEntities());
-        captionForAllMedia = result[0];
+        captionForAllMedia = org.telegram.rawgram.RawLeakFixes.detachedText(result[0]); // rawGram: not the caption field's own Editable
 
         if (object instanceof MediaController.PhotoEntry) {
             MediaController.PhotoEntry photoEntry = (MediaController.PhotoEntry) object;

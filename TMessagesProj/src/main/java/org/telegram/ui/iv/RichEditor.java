@@ -1009,7 +1009,7 @@ public class RichEditor extends BaseFragment implements NotificationCenter.Notif
 
         updateHistoryButtons();
 
-        container.getViewTreeObserver().addOnGlobalFocusChangeListener((oldFocus, newFocus) -> updateBlockButtons());
+        org.telegram.rawgram.RawLeakFixes.onGlobalFocusChange(container, (oldFocus, newFocus) -> updateBlockButtons()); // rawGram: only while attached (it outlived the editor)
 
         updatePremiumButtons();
 
