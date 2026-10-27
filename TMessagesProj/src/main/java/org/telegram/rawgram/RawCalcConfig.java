@@ -14,6 +14,8 @@ public class RawCalcConfig {
     public static final int PROVIDER_LOCAL = 0;
     public static final int PROVIDER_CALCMULA = 1;
     public static final int PROVIDER_LOCAL_THEN_CALCMULA = 2;
+    public static final int DISPLAY_GHOST = 0;
+    public static final int DISPLAY_PANEL = 1;
 
     private static SharedPreferences prefs;
 
@@ -97,10 +99,12 @@ public class RawCalcConfig {
     /** Thousands separated by a space in results. */
     public static final Flag grouping = new Flag("grouping", true);
     /** Fiat and crypto rates from Coinbase; off: only Stars (the rate Telegram gives). */
-    public static final Flag onlineRates = new Flag("onlineRates", false);
+    public static final Flag onlineRates = new Flag("onlineRates", true);
     /** Calcmula (a third-party server) may be asked; off by default. */
     public static final Flag calcmula = new Flag("calcmula", false);
     public static final Choice provider = new Choice("provider", PROVIDER_LOCAL);
+    /** Where the answer shows: grey after the cursor, or a row above the field. */
+    public static final Choice display = new Choice("display", DISPLAY_GHOST);
 
     /** Whether Calcmula takes part: chosen as a provider and allowed. */
     public static boolean useCalcmula() {

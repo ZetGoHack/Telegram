@@ -5356,6 +5356,20 @@ public class ChatActivityEnterView extends FrameLayout implements
             public boolean allowRemote() {
                 return parentFragment == null || !parentFragment.isSecretChat();
             }
+
+            @Override
+            public void showPanel(org.telegram.rawgram.calc.RawCalcController.Hint hint) {
+                if (parentFragment != null) {
+                    parentFragment.rawCalcPanel(hint);
+                }
+            }
+
+            @Override
+            public void hidePanel() {
+                if (parentFragment != null) {
+                    parentFragment.rawCalcPanel(null);
+                }
+            }
         });
 
         @Override

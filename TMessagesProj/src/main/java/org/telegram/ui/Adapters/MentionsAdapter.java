@@ -1345,7 +1345,10 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         }
         if (foundType == -1) {
             // rawGram: the input is just an ID → «Информация о юзере» (@usinfobot) as a mention-like row
-            ArrayList<TLObject> rawInfo = org.telegram.rawgram.RawUserInfo.hintFor(currentAccount, text, parentFragment);
+            ArrayList<TLObject> rawInfo = org.telegram.rawgram.calc.RawCalcController.panelList();
+            if (rawInfo == null) {
+                rawInfo = org.telegram.rawgram.RawUserInfo.hintFor(currentAccount, text, parentFragment);
+            }
             if (rawInfo != null) {
                 contextMedia = false;
                 searchResultHashtags = null;
@@ -1758,6 +1761,28 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             if (itemCount > 1) {
                 notifyItemChanged(itemCount - 1);
             }
+        }
+    }
+
+    // rawGram: a row of the inline calculator above the field
+    public void rawShowHint(ArrayList<TLObject> list) {
+        if (list == null) {
+            return;
+        }
+        contextMedia = false;
+        searchResultHashtags = null;
+        searchResultCommands = null;
+        quickReplies = null;
+        searchResultSuggestions = null;
+        showUsersResult(list, null, true);
+    }
+
+    public void rawHideCalc() {
+        if (searchResultUsernames != null && searchResultUsernames.size() == 1
+                && searchResultUsernames.get(0) instanceof org.telegram.rawgram.calc.RawCalcController.Hint) {
+            searchResultUsernames = null;
+            notifyDataSetChanged();
+            delegate.needChangePanelVisibility(false);
         }
     }
 

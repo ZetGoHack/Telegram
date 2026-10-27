@@ -111,6 +111,13 @@ public class RawChatHooks {
             RawUserInfo.lookup(host, (RawUserInfo.Hint) item);
             return true;
         }
+        if (item instanceof org.telegram.rawgram.calc.RawCalcController.Hint) {
+            Runnable insert = ((org.telegram.rawgram.calc.RawCalcController.Hint) item).insert;
+            if (insert != null) {
+                insert.run();
+            }
+            return true;
+        }
         return false;
     }
 
@@ -125,7 +132,7 @@ public class RawChatHooks {
             return false;
         }
         Object item = mentions.getAdapter().getItem(position - 1);
-        if (!(item instanceof TLRPC.User) || item instanceof RawUserInfo.Hint) {
+        if (!(item instanceof TLRPC.User) || item instanceof RawUserInfo.Hint || item instanceof org.telegram.rawgram.calc.RawCalcController.Hint) {
             return false;
         }
         TLRPC.User user = (TLRPC.User) item;

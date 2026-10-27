@@ -41,6 +41,28 @@ public final class RawCalcController {
 
         /** Whether the typed expression may leave the device (false in secret chats). */
         boolean allowRemote();
+
+        /** Panel mode: puts the answer row above the field / takes it away. */
+        void showPanel(Hint hint);
+
+        void hidePanel();
+    }
+
+    /** The answer row above the field (panel mode); a tap inserts the answer. */
+    public static final class Hint extends org.telegram.tgnet.TLRPC.TL_user {
+        public Runnable insert;
+    }
+
+    private static Hint panelHint;
+
+    /** The row for the mentions list when the panel mode has an answer ready; null otherwise. */
+    public static java.util.ArrayList<org.telegram.tgnet.TLObject> panelList() {
+        if (panelHint == null) {
+            return null;
+        }
+        java.util.ArrayList<org.telegram.tgnet.TLObject> list = new java.util.ArrayList<>();
+        list.add(panelHint);
+        return list;
     }
 
     private static final float GHOST_ALPHA = 0.4f;
@@ -104,7 +126,7 @@ public final class RawCalcController {
 
     /** Draws the ghost; call after the field has drawn its text. */
     public void draw(Canvas canvas) {
-        if (suggestionInsert == null) {
+        if (suggestionInsert == null || RawCalcConfig.display.get() == RawCalcConfig.DISPLAY_PANEL) {
             appear.set(0f, true);
             return;
         }
@@ -208,11 +230,40 @@ public final class RawCalcController {
         if (calcmula != null) {
             calcmula.cancel();
         }
+        hidePanel();
         if (suggestionInsert != null) {
             suggestionInsert = null;
             suggestionValue = null;
             suggestionAt = -1;
             view.invalidate();
+        }
+    }
+
+    private void hidePanel() {
+        if (panelHint != null) {
+            panelHint = null;
+            if (delegate != null) {
+                delegate.hidePanel();
+            }
+        }
+    }
+
+    private void showPanel(CharSequence text, int caret, String value) {
+        int lineStart = caret - 1;
+        while (lineStart > 0 && text.charAt(lineStart - 1) != '\n') {
+            lineStart--;
+        }
+        String expression = text.subSequence(lineStart, caret - 1).toString().trim();
+        if (expression.length() > 40) {
+            expression = "…" + expression.substring(expression.length() - 40);
+        }
+        Hint hint = new Hint();
+        hint.id = 7;
+        hint.first_name = expression + " = " + value;
+        hint.insert = this::commit;
+        panelHint = hint;
+        if (delegate != null) {
+            delegate.showPanel(hint);
         }
     }
 
@@ -289,6 +340,7 @@ public final class RawCalcController {
     }
 
     private void clearSuggestion() {
+        hidePanel();
         if (suggestionInsert != null) {
             suggestionInsert = null;
             suggestionValue = null;
@@ -311,6 +363,9 @@ public final class RawCalcController {
         suggestionValue = value;
         suggestionInsert = blank ? " " + value : value;
         suggestionAt = caret;
+        if (RawCalcConfig.display.get() == RawCalcConfig.DISPLAY_PANEL) {
+            showPanel(now, caret, value);
+        }
         view.invalidate();
     }
 
@@ -386,6 +441,7 @@ public final class RawCalcController {
         suggestionValue = null;
         suggestionAt = -1;
         token++;
+        hidePanel();
         if (calcmula != null) {
             calcmula.cancel();
         }

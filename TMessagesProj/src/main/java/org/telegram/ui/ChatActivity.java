@@ -10825,6 +10825,18 @@ public class ChatActivity extends BaseFragment implements
         return dialog != null && dialog.top_message > 0 && returnToMessageId >= dialog.top_message;
     }
 
+    // rawGram: the inline calculator answer as a row above the field (panel mode)
+    public void rawCalcPanel(org.telegram.rawgram.calc.RawCalcController.Hint hint) {
+        if (mentionContainer == null) {
+            return;
+        }
+        if (hint != null) {
+            mentionContainer.getAdapter().rawShowHint(org.telegram.rawgram.calc.RawCalcController.panelList());
+        } else {
+            mentionContainer.getAdapter().rawHideCalc();
+        }
+    }
+
     public ActionBarMenuItem getHeaderItem() {
         return headerItem;
     }

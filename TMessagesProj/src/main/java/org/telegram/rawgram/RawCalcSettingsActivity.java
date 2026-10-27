@@ -38,8 +38,10 @@ public class RawCalcSettingsActivity extends RawPreferencesFragment {
     private static final int GROUPING = 8;
     private static final int CALCMULA = 9;
     private static final int PROVIDER = 20;
+    private static final int DISPLAY = 21;
 
     private static final String[] PROVIDER_NAMES = {"Локальный", "Calcmula", "Локальный, затем Calcmula"};
+    private static final String[] DISPLAY_NAMES = {"Серым после курсора", "Строкой над полем"};
 
     private static class Row {
         final int type;
@@ -76,8 +78,9 @@ public class RawCalcSettingsActivity extends RawPreferencesFragment {
         rows.clear();
         header("Калькулятор в поле ввода");
         check("Считать в поле ввода", ENABLED);
-        info("Напиши выражение и «=», например «12% от 1200 =» или «5 кг в фунтах =»: результат появится серым после курсора. "
-                + "Пробел вставляет его, Backspace сразу после вставки возвращает как было.");
+        value("Где показывать ответ", DISPLAY);
+        info("Напиши выражение и «=» в конце, например «12% от 1200 =», «5 кг в фунтах =» или «122 rub eur =». Ответ появится серым после курсора или строкой над полем: "
+                + "пробел или нажатие на строку вставляет его, Backspace сразу после вставки возвращает как было.");
 
         header("Что считать");
         check("Арифметика и функции", MATH);
@@ -90,7 +93,7 @@ public class RawCalcSettingsActivity extends RawPreferencesFragment {
 
         header("Курсы валют");
         check("Курсы из интернета", ONLINE_RATES);
-        info("Курсы фиата и криптовалют загружаются с Coinbase и обновляются раз в 5 минут. Выкл: только звёзды и доллар.");
+        info("Курсы фиата и криптовалют загружаются с Coinbase и обновляются раз в 5 минут. Выкл: только звёзды.");
 
         header("Источник");
         value("Источник ответа", PROVIDER);
@@ -147,6 +150,14 @@ public class RawCalcSettingsActivity extends RawPreferencesFragment {
                 boolean value = !isOn(row.id);
                 set(row.id, value);
                 ((TextCheckCell) view).setChecked(value);
+            } else if (row.type == TYPE_VALUE && row.id == DISPLAY && getParentActivity() != null) {
+                new AlertDialog.Builder(getParentActivity(), getResourceProvider())
+                        .setTitle("Где показывать ответ")
+                        .setItems(DISPLAY_NAMES, (d, which) -> {
+                            RawCalcConfig.display.set(which);
+                            adapter.notifyItemChanged(position);
+                        })
+                        .show();
             } else if (row.type == TYPE_VALUE && row.id == PROVIDER && getParentActivity() != null) {
                 new AlertDialog.Builder(getParentActivity(), getResourceProvider())
                         .setTitle("Источник ответа")
@@ -216,7 +227,7 @@ public class RawCalcSettingsActivity extends RawPreferencesFragment {
                     ((TextCheckCell) holder.itemView).setTextAndCheck(row.text, isOn(row.id), needDivider(position));
                     break;
                 case TYPE_VALUE:
-                    ((TextSettingsCell) holder.itemView).setTextAndValue(row.text, PROVIDER_NAMES[RawCalcConfig.provider.get()], needDivider(position));
+                    ((TextSettingsCell) holder.itemView).setTextAndValue(row.text, row.id == DISPLAY ? DISPLAY_NAMES[RawCalcConfig.display.get()] : PROVIDER_NAMES[RawCalcConfig.provider.get()], needDivider(position));
                     break;
                 default:
                     ((TextInfoPrivacyCell) holder.itemView).setText(row.text);
