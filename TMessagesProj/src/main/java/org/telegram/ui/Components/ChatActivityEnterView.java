@@ -5340,6 +5340,46 @@ public class ChatActivityEnterView extends FrameLayout implements
             super(context, resourcesProvider);
         }
 
+        // rawGram: inline calculator («2+2=» → grey answer, Space inserts it)
+        final org.telegram.rawgram.calc.RawCalcController rawCalc = new org.telegram.rawgram.calc.RawCalcController(this, new org.telegram.rawgram.calc.RawCalcController.Delegate() {
+            @Override
+            public void runProgrammatic(Runnable action) {
+                innerTextChange = 2;
+                try {
+                    action.run();
+                } finally {
+                    innerTextChange = 0;
+                }
+            }
+
+            @Override
+            public boolean allowRemote() {
+                return parentFragment == null || !parentFragment.isSecretChat();
+            }
+        });
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            rawCalc.draw(canvas); // rawGram
+        }
+
+        @Override
+        protected void onTextChanged(CharSequence text, int start, int lengthBefore, int lengthAfter) {
+            super.onTextChanged(text, start, lengthBefore, lengthAfter);
+            if (rawCalc != null) {
+                rawCalc.onTextChanged(); // rawGram
+            }
+        }
+
+        @Override
+        protected void onFocusChanged(boolean focused, int direction, Rect previouslyFocusedRect) {
+            super.onFocusChanged(focused, direction, previouslyFocusedRect);
+            if (rawCalc != null) {
+                rawCalc.onFocusChanged(focused); // rawGram
+            }
+        }
+
         CanvasButton canvasButton;
 
         @Override
@@ -5418,7 +5458,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                     }
                     return true;
                 };
-                return org.telegram.rawgram.RawPaste.wrapClipboardCommit(InputConnectionCompat.createWrapper(ic, editorInfo, callback), this); // rawGram: rich paste from Gboard clipboard
+                return rawCalc.wrap(org.telegram.rawgram.RawPaste.wrapClipboardCommit(InputConnectionCompat.createWrapper(ic, editorInfo, callback), this)); // rawGram: rich paste from Gboard clipboard, inline calculator
             } catch (Throwable e) {
                 FileLog.e(e);
             }
@@ -5475,6 +5515,9 @@ public class ChatActivityEnterView extends FrameLayout implements
             if (event.getAction() == KeyEvent.ACTION_DOWN && event.isCtrlPressed() && !event.isAltPressed() && handleFormattingShortcut(event)) {
                 return true;
             }
+            if (rawCalc.onKeyEvent(event)) { // rawGram
+                return true;
+            }
             return super.dispatchKeyEvent(event);
         }
 
@@ -5515,6 +5558,9 @@ public class ChatActivityEnterView extends FrameLayout implements
         @Override
         protected void onSelectionChanged(int selStart, int selEnd) {
             super.onSelectionChanged(selStart, selEnd);
+            if (rawCalc != null) {
+                rawCalc.onSelectionChanged(); // rawGram
+            }
             if (delegate != null) {
                 delegate.onTextSelectionChanged(selStart, selEnd);
             }

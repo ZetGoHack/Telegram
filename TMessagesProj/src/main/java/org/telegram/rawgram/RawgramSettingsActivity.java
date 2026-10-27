@@ -79,6 +79,8 @@ public class RawgramSettingsActivity extends RawPreferencesFragment {
                 "Вид чата, сообщения, меню, стикеры", () -> presentFragment(new RawChatUiSettingsActivity()));
         category(R.drawable.msg_palette, "Внешний вид",
                 "Главный экран, папки, аватарки, иконки", () -> presentFragment(new RawUiSettingsActivity()));
+        category(R.drawable.msg_calc, "Калькулятор",
+                "Результат после «=» в поле ввода", () -> presentFragment(new RawCalcSettingsActivity()));
         // Плагины (branch rawgram-plugins): add one line here, e.g.
         // category(R.drawable.msg_bots, "Плагины", "Установленные плагины", () -> presentFragment(new RawPluginsActivity()));
         category(R.drawable.settings_rawgram, "Инструменты разработчика",

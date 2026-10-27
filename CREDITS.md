@@ -28,3 +28,4 @@ rawGram is an unofficial client and is not affiliated with Telegram.
 - **exteraGram proxy extras** — `RawProxyExtras` (disable on VPN / mobile / Wi-Fi, IP info) follows exteraGram's `ApplicationLoader.checkProxyForNetworkState`, `proxy/ProxyController` and `proxy/IpAddressInfoController` (GPL-2.0-or-later)
 - **exteraGram PDF viewer** — `RawPdfViewer` / `RawPdfViewerActivity` follow the idea of exteraGram's `pdf/**` (GPL-2.0-or-later), rewritten on `android.graphics.pdf.PdfRenderer`
 - **exteraGram sensitive requests** — `RawSensitive` follows `security/SensitiveRequestConfirmation` (request list, Java-level gate only; GPL-2.0-or-later)
+- **exteraGram inline calculator** — `rawgram/calc/**` (`MathExpression`, `MathOperators`, units, currencies, time zones) is a Java port of exteraGram 13.1.1's `inline/**` parser and the ghost-result UX of `InlineMathController` (GPL-2.0-or-later)
