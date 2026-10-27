@@ -1512,7 +1512,7 @@ public class MessagesStorage extends BaseController {
                         database.executeFast("DELETE FROM bot_keyboard WHERE uid = " + did).stepThis().dispose();
                         database.executeFast("DELETE FROM bot_keyboard_topics WHERE uid = " + did).stepThis().dispose();
                         database.executeFast("DELETE FROM media_counts_v2 WHERE uid = " + did).stepThis().dispose();
-                        database.executeFast("DELETE FROM media_v4 WHERE uid = " + did).stepThis().dispose();
+                        org.telegram.rawgram.RawChunkedDelete.deleteByUid(database, "media_v4", did); // rawGram
                         database.executeFast("DELETE FROM media_holes_v2 WHERE uid = " + did).stepThis().dispose();
                         MediaDataController.getInstance(currentAccount).clearBotKeyboard(did);
                         if (messageId != -1) {
@@ -4490,7 +4490,7 @@ public class MessagesStorage extends BaseController {
                         database.executeFast("DELETE FROM bot_keyboard WHERE uid = " + did).stepThis().dispose();
                         database.executeFast("DELETE FROM bot_keyboard_topics WHERE uid = " + did).stepThis().dispose();
                         database.executeFast("DELETE FROM media_counts_v2 WHERE uid = " + did).stepThis().dispose();
-                        database.executeFast("DELETE FROM media_v4 WHERE uid = " + did).stepThis().dispose();
+                        org.telegram.rawgram.RawChunkedDelete.deleteByUid(database, "media_v4", did); // rawGram
                         database.executeFast("DELETE FROM media_holes_v2 WHERE uid = " + did).stepThis().dispose();
                         getMediaDataController().clearBotKeyboard(did);
 
@@ -4511,12 +4511,12 @@ public class MessagesStorage extends BaseController {
                 }
 
                 database.executeFast("UPDATE dialogs SET unread_count = 0, unread_count_i = 0 WHERE did = " + did).stepThis().dispose();
-                database.executeFast("DELETE FROM messages_v2 WHERE uid = " + did).stepThis().dispose();
-                database.executeFast("DELETE FROM messages_topics WHERE uid = " + did).stepThis().dispose();
+                org.telegram.rawgram.RawChunkedDelete.deleteByUid(database, "messages_v2", did); // rawGram
+                org.telegram.rawgram.RawChunkedDelete.deleteByUid(database, "messages_topics", did); // rawGram
                 database.executeFast("DELETE FROM bot_keyboard WHERE uid = " + did).stepThis().dispose();
                 database.executeFast("DELETE FROM bot_keyboard_topics WHERE uid = " + did).stepThis().dispose();
                 database.executeFast("DELETE FROM media_counts_v2 WHERE uid = " + did).stepThis().dispose();
-                database.executeFast("DELETE FROM media_v4 WHERE uid = " + did).stepThis().dispose();
+                org.telegram.rawgram.RawChunkedDelete.deleteByUid(database, "media_v4", did); // rawGram
                 database.executeFast("DELETE FROM messages_holes WHERE uid = " + did).stepThis().dispose();
                 database.executeFast("DELETE FROM media_holes_v2 WHERE uid = " + did).stepThis().dispose();
                 getMediaDataController().clearBotKeyboard(did);
@@ -11422,19 +11422,19 @@ public class MessagesStorage extends BaseController {
 
                 database.executeFast("DELETE FROM chat_pinned_count WHERE uid = " + did).stepThis().dispose();
                 database.executeFast("DELETE FROM chat_pinned_v2 WHERE uid = " + did).stepThis().dispose();
-                database.executeFast("DELETE FROM messages_v2 WHERE uid = " + did).stepThis().dispose();
+                org.telegram.rawgram.RawChunkedDelete.deleteByUid(database, "messages_v2", did); // rawGram
                 database.executeFast("DELETE FROM bot_keyboard WHERE uid = " + did).stepThis().dispose();
                 database.executeFast("DELETE FROM bot_keyboard_topics WHERE uid = " + did).stepThis().dispose();
                 database.executeFast("UPDATE media_counts_v2 SET old = 1 WHERE uid = " + did).stepThis().dispose();
-                database.executeFast("DELETE FROM media_v4 WHERE uid = " + did).stepThis().dispose();
+                org.telegram.rawgram.RawChunkedDelete.deleteByUid(database, "media_v4", did); // rawGram
                 database.executeFast("DELETE FROM messages_holes WHERE uid = " + did).stepThis().dispose();
                 database.executeFast("DELETE FROM media_holes_v2 WHERE uid = " + did).stepThis().dispose();
 
                 database.executeFast("DELETE FROM topics WHERE did = " + did).stepThis().dispose();
-                database.executeFast("DELETE FROM media_topics WHERE uid = " + did).stepThis().dispose();
+                org.telegram.rawgram.RawChunkedDelete.deleteByUid(database, "media_topics", did); // rawGram
                 database.executeFast("DELETE FROM media_holes_topics WHERE uid = " + did).stepThis().dispose();
                 database.executeFast("UPDATE media_counts_topics SET old = 1 WHERE uid = " + did).stepThis().dispose();
-                database.executeFast("DELETE FROM messages_topics WHERE uid = " + did).stepThis().dispose();
+                org.telegram.rawgram.RawChunkedDelete.deleteByUid(database, "messages_topics", did); // rawGram
                 database.executeFast("DELETE FROM messages_holes_topics WHERE uid = " + did).stepThis().dispose();
 
                 getMediaDataController().clearBotKeyboard(did);
