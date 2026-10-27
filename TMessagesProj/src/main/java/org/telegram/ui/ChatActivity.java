@@ -1075,6 +1075,7 @@ public class ChatActivity extends BaseFragment implements
 
     private int postponedScrollMinMessageId;
     private int postponedScrollToLastMessageQueryIndex;
+    private boolean rawJumpFromOldPosition; // rawGram: the jump to the bottom left an old part of the history; the cache alone can join it to the last message
     private int postponedScrollMessageId;
     private boolean fakePostponedScroll;
     private boolean postponedScrollIsCanceled;
@@ -16036,6 +16037,7 @@ public class ChatActivity extends BaseFragment implements
             fakePostponedScroll = false;
             postponedScrollMessageId = 0;
             postponedScrollIsCanceled = false;
+            rawJumpFromOldPosition = true;
             waitingForLoad.clear();
 
             waitingForLoad.add(lastLoadIndex);
@@ -20939,8 +20941,10 @@ public class ChatActivity extends BaseFragment implements
         boolean postponedScroll = postponedScrollToLastMessageQueryIndex > 0 && queryLoadIndex == postponedScrollToLastMessageQueryIndex;
         boolean fakePostponedScroll = this.fakePostponedScroll;
         this.fakePostponedScroll = false;
+        boolean rawJumpFromOld = postponedScroll && rawJumpFromOldPosition;
         if (postponedScroll) {
             postponedScrollToLastMessageQueryIndex = 0;
+            rawJumpFromOldPosition = false;
         }
         ArrayList<MessageObject> messArr = (ArrayList<MessageObject>) args[2];
 
@@ -21108,7 +21112,8 @@ public class ChatActivity extends BaseFragment implements
         }
 
         if (postponedScroll) {
-            if (load_type == 0 && isCache && messArr.size() < count) {
+            // rawGram: also when the cache batch is full: after a jump from an old position it can be the newest message plus the old part of the history, with no hole between
+            if (load_type == 0 && isCache && (messArr.size() < count || rawJumpFromOld)) {
                 postponedScrollToLastMessageQueryIndex = lastLoadIndex;
                 waitingForLoad.add(lastLoadIndex);
                 getMessagesController().loadMessages(dialog_id, mergeDialogId, false, count, 0, 0, false, 0, classGuid, 0, 0, chatMode, threadMessageId, replyMaxReadId, lastLoadIndex++, isTopic);
