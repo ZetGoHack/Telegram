@@ -9,6 +9,7 @@ rawGram is free software distributed under the **GNU General Public License v3.0
 - **NekoX / Nekogram** — NekoX-Dev, Nekogram contributors (GPL-3.0) — https://github.com/NekoX-Dev/NekoX, https://gitlab.com/Nekogram/Nekogram
 - **AyuGram** — Radolyn Labs (GPL-2.0-or-later); code is used with credit as its authors ask — https://github.com/AyuGram
 - **exteraGram** — exteraSquad (GPL-2.0-or-later) — https://github.com/exteraSquad/exteraGram
+- **exteraGram speed tiers** — the faster file transfer option (`updateParams` in `FileLoadOperation`, part sizes in `FileUploadOperation`) follows exteraGram (GPL-2.0-or-later)
 - **exteraGram Zalgo filter** — `RawZalgoFilter` follows exteraGram's `ZalgoFilter` (GPL-2.0-or-later)
 - **exteraGram storage** — chunked per-dialog row deletion (`RawChunkedDelete`) follows `MessagesStorage.deleteDialogRowsChunked` (GPL-2.0-or-later)
 - **exteraGram debug monitors** — the UI freeze watchdog (`RawFreezeMonitor`), the load sampler (`RawLoadMonitor`) and the
