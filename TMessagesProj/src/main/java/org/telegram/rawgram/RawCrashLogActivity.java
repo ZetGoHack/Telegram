@@ -619,7 +619,8 @@ public class RawCrashLogActivity extends BaseFragment {
         actionBar.setTitle(RawCrashLog.TYPE_LOGCAT.equals(type) ? "logcat"
                 : RawCrashLog.TYPE_ANR.equals(type) ? "Зависание (ANR)"
                 : RawCrashLog.TYPE_KILLED.equals(type) ? "Убит системой"
-                : "Падение (" + RawCrashLog.typeLabel(type) + ")");
+                : RawCrashLog.isCrashType(type) ? "Падение (" + RawCrashLog.typeLabel(type) + ")"
+                : "Отчёт (" + RawCrashLog.typeLabel(type) + ")");
         actionBar.setSubtitle(dateFormat.format(new Date(header.time)) + " · " + AndroidUtilities.formatFileSize(reportFile.length()));
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override

@@ -283,6 +283,72 @@ public class RawgramConfig {
     public static void setMemHprof(boolean value) {
         memHprof.set(value);
     }
+    private static final Flag freezeMonitor = new Flag("freezeMonitor", false);
+    private static final Flag loadMonitor = new Flag("loadMonitor", false);
+    private static int freezeThreshold = -1;
+    private static int loadCpuPercent = -1;
+
+    /** Freeze watchdog: a report when the UI thread stalls. Off by default. */
+    public static boolean isFreezeMonitor() {
+        return freezeMonitor.get();
+    }
+
+    public static void setFreezeMonitor(boolean value) {
+        freezeMonitor.set(value);
+    }
+
+    /** How long the UI thread has to stall (ms) before the freeze watchdog writes a report. */
+    public static int getFreezeThreshold() {
+        if (freezeThreshold < 0) {
+            if (ApplicationLoader.applicationContext == null) {
+                return 700;
+            }
+            freezeThreshold = clamp(prefs().getInt("freezeThreshold", 700), 200, 5000);
+        }
+        return freezeThreshold;
+    }
+
+    public static void setFreezeThreshold(int value) {
+        freezeThreshold = clamp(value, 200, 5000);
+        prefs().edit().putInt("freezeThreshold", freezeThreshold).apply();
+    }
+
+    /** Load sampler: a report when the process burns CPU in the background. Off by default. */
+    public static boolean isLoadMonitor() {
+        return loadMonitor.get();
+    }
+
+    public static void setLoadMonitor(boolean value) {
+        loadMonitor.set(value);
+    }
+
+    /** Average CPU share (percent of one core) over a background stretch that triggers a load report. */
+    public static int getLoadCpuPercent() {
+        if (loadCpuPercent < 0) {
+            if (ApplicationLoader.applicationContext == null) {
+                return 5;
+            }
+            loadCpuPercent = clamp(prefs().getInt("loadCpuPercent", 5), 1, 100);
+        }
+        return loadCpuPercent;
+    }
+
+    public static void setLoadCpuPercent(int value) {
+        loadCpuPercent = clamp(value, 1, 100);
+        prefs().edit().putInt("loadCpuPercent", loadCpuPercent).apply();
+    }
+
+    private static final Flag speedTiers = new Flag("speedTiers", false);
+
+    /** Faster file transfers (exteraGram's speed tiers): downloads 8 x 512 KB, uploads 14 initial requests of 512 KB parts. Off by default. */
+    public static boolean isSpeedTiers() {
+        return speedTiers.get();
+    }
+
+    public static void setSpeedTiers(boolean value) {
+        speedTiers.set(value);
+    }
+
     private static final Flag inlineRaw = new Flag("featInlineRaw", true);
     private static final Flag inlineTray = new Flag("featInlineTray", true);
     private static final Flag botButtonDebug = new Flag("featBotButtonDebug", true);

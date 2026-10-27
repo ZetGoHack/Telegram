@@ -136,6 +136,12 @@ public class RawDebugActivity extends RawPreferencesFragment {
         button("Собрать мусор", this::collectGarbage);
         button(dumping ? "Снимается дамп…" : "Снять дамп кучи", this::dumpHeap);
         info("Дамп кучи — сотни мегабайт, приложение замирает на 10–20 секунд. Файл лежит в files/rawgram_diag/, прежний дамп заменяется.");
+
+        header("Мониторы");
+        rows.add(new Row(TYPE_VALUE, "Зависания интерфейса", this::openLastFreeze, RawFreezeMonitor::statusLine));
+        button("Сымитировать зависание", this::simulateFreeze);
+        button("Открыть отчёты мониторов", () -> RawCrashLog.openViewer(this));
+        info("Мониторы включаются в инструментах разработчика. Отчёты попадают в журнал крашей. Имитация замораживает интерфейс примерно на секунду, чтобы сторож зависаний записал отчёт.");
     }
 
     private void showSheetSample() {
@@ -289,6 +295,24 @@ public class RawDebugActivity extends RawPreferencesFragment {
                 RawNotify.result(result != null, R.drawable.msg_saved, "Дамп снят: " + (result != null ? result.length() >> 20 : 0) + " МБ", "Не удалось снять дамп кучи");
             });
         }, 600);
+    }
+
+    private void openLastFreeze() {
+        java.io.File report = RawFreezeMonitor.lastReport();
+        if (report != null && report.exists()) {
+            presentFragment(new RawCrashLogActivity(report));
+        } else {
+            RawNotify.show(R.drawable.msg_info, "Отчётов о зависании в этом запуске пока нет");
+        }
+    }
+
+    private void simulateFreeze() {
+        if (!RawgramConfig.isFreezeMonitor()) {
+            RawNotify.warn("Слежение за зависаниями выключено: включи его в инструментах разработчика");
+            return;
+        }
+        RawNotify.show(R.drawable.msg_info, "Интерфейс замрёт примерно на секунду");
+        AndroidUtilities.runOnUIThread(RawFreezeMonitor::simulate, 600);
     }
 
     private void refresh() {

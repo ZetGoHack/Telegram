@@ -59,6 +59,7 @@ public class RawDebugChecks {
         register("Конфиги читаются", RawDebugChecks::configs);
         register("Настройки: запись и чтение", RawDebugChecks::prefs);
         register("UI-поток отвечает", RawDebugChecks::uiThread);
+        register("Сторож зависаний", RawFreezeMonitor::selfCheck);
     }
 
     private RawDebugChecks() {

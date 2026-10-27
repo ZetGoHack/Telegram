@@ -65,6 +65,7 @@ public final class RawMemWatch {
     /** Called from ApplicationLoader.onCreate (after RawCrashLog.install). Never throws. */
     public static void start(Context ctx) {
         try {
+            RawFreezeMonitor.start(); // the other diagnostics watcher starts from the same place (off by default)
             if (started || !RawgramConfig.isMemWatch()) {
                 return;
             }
@@ -308,6 +309,7 @@ public final class RawMemWatch {
             throw new java.io.IOException("мало свободного места");
         }
         File dump = new File(dir, dumpName(System.currentTimeMillis(), used, rt.maxMemory()));
+        RawFreezeMonitor.pause(90_000); // the dump freezes the app on purpose
         Debug.dumpHprofData(dump.getAbsolutePath());
         return dump;
     }
@@ -356,6 +358,7 @@ public final class RawMemWatch {
             long percent = heapUsed * 100 / Math.max(1, max);
             AndroidUtilities.runOnUIThread(() -> RawNotify.show(R.drawable.msg_info, "Дамп кучи (" + percent + "%): приложение замрёт на несколько секунд"));
             Thread.sleep(2500);
+            RawFreezeMonitor.pause(90_000);
             Debug.dumpHprofData(new File(dir, dumpName(System.currentTimeMillis(), heapUsed, max)).getAbsolutePath());
         } catch (Throwable ignore) {
         }
@@ -377,6 +380,7 @@ public final class RawMemWatch {
             hprofFull = true;
             File dump = new File(dir, dumpName(now, used, rt.maxMemory()));
             long start = SystemClock.elapsedRealtime();
+            RawFreezeMonitor.pause(90_000);
             Debug.dumpHprofData(dump.getAbsolutePath());
             appendToReport(report, "\nдамп кучи: " + dump.getAbsolutePath() + " (" + (dump.length() >> 20) + " МБ, "
                     + (SystemClock.elapsedRealtime() - start) / 1000 + " с)\n"

@@ -44,6 +44,8 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
     private static final int RAW_MINIMIZE = 13;
     private static final int MEM_WATCH = 14;
     private static final int MEM_HPROF = 15;
+    private static final int SPEED_TIERS = 17;
+    private static final int FREEZE_MONITOR = 16;
     // values / actions
     private static final int ID_FORMAT = 20;
     private static final int OPEN_REQUEST_LOG = 21;
@@ -52,6 +54,7 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
     private static final int REQUEST_LOG_LIMIT = 24;
     private static final int OPEN_UPDATES_LOG = 25;
     private static final int UPDATES_LOG_LIMIT = 26;
+    private static final int FREEZE_THRESHOLD = 27;
 
     private static class Row {
         final int type;
@@ -126,12 +129,20 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
         value("Хранить апдейтов", UPDATES_LOG_LIMIT);
         info("То, что сервер присылает сам: новые сообщения, прочтения, изменения чатов. Лимит — сколько последних записей хранить.");
 
+        header("Сеть");
+        check("Быстрая передача файлов", SPEED_TIERS);
+        info("Скачивание идёт по 8 запросов с частями по 512 КБ вместо 4 по 128 КБ, отправка начинается с 14 запросов и частей по 512 КБ. "
+                + "Быстрее на хорошей связи, но занимает больше памяти. Действует на новые загрузки.");
+
         header("Диагностика");
         value("Журнал крашей", CRASH_LOG);
         check("Следить за памятью", MEM_WATCH);
         check("Дампы кучи по мере роста", MEM_HPROF);
+        check("Следить за зависаниями интерфейса", FREEZE_MONITOR);
+        value("Порог зависания", FREEZE_THRESHOLD);
         value("Конфиг сервера", SERVER_CONFIG);
         info("Конфиг сервера — настройки, которые сервер выдаёт текущему аккаунту: лимиты (обычные и Premium), дата-центры, флаги клиента.");
+        info("Слежение за зависаниями: если интерфейс не отвечает дольше порога, в журнал крашей попадает отчёт «зависание UI»: где застрял главный поток (снимки стека), экраны, сборки мусора, занятые потоки, подписки на события и число живых объектов. Постоянно работает отдельный поток, пока приложение на экране.");
         info("Слежение за памятью: если куча Java держится почти полной (так выглядит зависание перед вылетом по нехватке памяти), в журнал крашей попадает отчёт «память»: график кучи за последние минуты, открытые экраны, размеры кешей картинок, занятые потоки. Дамп кучи (сотни мегабайт) показывает, какие объекты её занимают. За один запуск снимается до трёх: при заполнении кучи на 50% и 70% и при нехватке памяти, по ним видно, что растёт. Старые удаляются, когда дампы занимают больше 8 ГБ или свободного места меньше 4 ГБ.");
     }
 
@@ -152,6 +163,8 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
             case NUMBER_IDS: return RawgramConfig.isNumberIds();
             case MEM_WATCH: return RawgramConfig.isMemWatch();
             case MEM_HPROF: return RawgramConfig.isMemHprof();
+            case SPEED_TIERS: return RawgramConfig.isSpeedTiers();
+            case FREEZE_MONITOR: return RawgramConfig.isFreezeMonitor();
             default: return false;
         }
     }
@@ -178,6 +191,11 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
                 }
                 break;
             case MEM_HPROF: RawgramConfig.setMemHprof(value); break;
+            case SPEED_TIERS: RawgramConfig.setSpeedTiers(value); break;
+            case FREEZE_MONITOR:
+                RawgramConfig.setFreezeMonitor(value);
+                RawFreezeMonitor.onSettingChanged();
+                break;
         }
     }
 
@@ -243,10 +261,32 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
                     adapter.notifyItemChanged(position);
                 });
                 break;
+            case FREEZE_THRESHOLD:
+                askThreshold("Порог зависания", THRESHOLDS, RawgramConfig.getFreezeThreshold(), "мс", v -> {
+                    RawgramConfig.setFreezeThreshold(v);
+                    adapter.notifyItemChanged(position);
+                });
+                break;
             case SERVER_CONFIG:
                 RawServerConfig.show(getParentActivity(), currentAccount, getResourceProvider());
                 break;
         }
+    }
+
+    private static final int[] THRESHOLDS = {300, 500, 700, 1000, 2000};
+
+    private void askThreshold(String title, int[] options, int current, String unit, org.telegram.messenger.Utilities.Callback<Integer> onChosen) {
+        if (getParentActivity() == null) {
+            return;
+        }
+        CharSequence[] items = new CharSequence[options.length];
+        for (int i = 0; i < options.length; i++) {
+            items[i] = (options[i] == current ? "● " : "") + options[i] + " " + unit;
+        }
+        new AlertDialog.Builder(getParentActivity(), getResourceProvider())
+                .setTitle(title)
+                .setItems(items, (d, which) -> onChosen.run(options[which]))
+                .show();
     }
 
     private static String idFormatName() {
@@ -312,6 +352,8 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
                 case TYPE_VALUE:
                     if (row.id == ID_FORMAT) {
                         ((TextSettingsCell) holder.itemView).setTextAndValue(row.text, idFormatName(), needDivider(position));
+                    } else if (row.id == FREEZE_THRESHOLD) {
+                        ((TextSettingsCell) holder.itemView).setTextAndValue(row.text, RawgramConfig.getFreezeThreshold() + " мс", needDivider(position));
                     } else if (row.id == REQUEST_LOG_LIMIT || row.id == UPDATES_LOG_LIMIT) {
                         int limit = row.id == REQUEST_LOG_LIMIT ? RawRequestLog.limit() : RawUpdatesLog.limit();
                         ((TextSettingsCell) holder.itemView).setTextAndValue(row.text, RawLogBuffer.limitText(limit), needDivider(position));

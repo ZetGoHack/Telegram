@@ -11,6 +11,9 @@ rawGram is free software distributed under the **GNU General Public License v3.0
 - **exteraGram** — exteraSquad (GPL-2.0-or-later) — https://github.com/exteraSquad/exteraGram
 - **exteraGram Zalgo filter** — `RawZalgoFilter` follows exteraGram's `ZalgoFilter` (GPL-2.0-or-later)
 - **exteraGram storage** — chunked per-dialog row deletion (`RawChunkedDelete`) follows `MessagesStorage.deleteDialogRowsChunked` (GPL-2.0-or-later)
+- **exteraGram debug monitors** — the UI freeze watchdog (`RawFreezeMonitor`), the load sampler (`RawLoadMonitor`) and the
+  frame metrics counters (`RawFrameStats`) follow exteraGram's `FreezeMonitor`, `LoadMonitor` and `FrameMetricsOverlayView`
+  (GPL-2.0-or-later), rewritten as plain Java
 - **AyuGram Desktop / TDesktop-x64** — the sticker set owner formula (GPL-3.0)
 - **Solar Icon Set** — 480 Design (CC BY 4.0) — https://www.figma.com/community/file/1166831539721848736;
   the optional "Solar" icon pack (`res/drawable/*_solar.xml`, `ayu_filter_*`, `ayu_input_attach`) and its
