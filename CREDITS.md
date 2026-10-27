@@ -8,7 +8,7 @@ rawGram is free software distributed under the **GNU General Public License v3.0
 - **NagramXF** — Keeperorowner and contributors (GPL-3.0, a Nagram fork) — https://github.com/Keeperorowner/NagramXF
 - **NekoX / Nekogram** — NekoX-Dev, Nekogram contributors (GPL-3.0) — https://github.com/NekoX-Dev/NekoX, https://gitlab.com/Nekogram/Nekogram
 - **AyuGram** — Radolyn Labs (GPL-2.0-or-later); code is used with credit as its authors ask — https://github.com/AyuGram
-- **exteraGram** — exteraSquad (GPL-2.0-or-later) — https://github.com/exteraSquad/exteraGram
+- **exteraGram** — exteraSquad (GPL-2.0-or-later) — https://github.com/exteraSquad/exteraGram; also the music player (MusicPlayerSheet, queue, lyrics, WavySeekBar, cover colours, rhythm background; `org.telegram.rawgram.player`), ported from exteraGram 13.1.1
 - **exteraGram HeapMonitor tweaks** — the garbage collection before a heap dump, the pause while the app is in the background and the pruning of old dumps in `RawMemWatch` follow exteraGram's `HeapMonitor` (GPL-2.0-or-later)
 - **exteraGram speed tiers** — the faster file transfer option (`updateParams` in `FileLoadOperation`, part sizes in `FileUploadOperation`) follows exteraGram (GPL-2.0-or-later)
 - **exteraGram Zalgo filter** — `RawZalgoFilter` follows exteraGram's `ZalgoFilter` (GPL-2.0-or-later)

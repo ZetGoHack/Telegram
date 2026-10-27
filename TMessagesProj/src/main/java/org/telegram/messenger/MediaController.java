@@ -3330,6 +3330,34 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         }
     }
 
+    // rawGram: used by the new music player (hold-to-rewind speed, removing a track from the queue)
+    public void setRewindPlaybackSpeed(float speed) {
+        if (audioPlayer != null) {
+            audioPlayer.setPlaybackSpeed(Math.round(speed * 10f) / 10f);
+        }
+    }
+
+    public void restoreMusicPlaybackSpeed() {
+        if (audioPlayer != null) {
+            audioPlayer.setPlaybackSpeed(Math.round(currentMusicPlaybackSpeed * 10f) / 10f, org.telegram.rawgram.player.RawPlayerConfig.tapeSpeed());
+        }
+    }
+
+    public void removeFromPlaylist(MessageObject messageObject) {
+        ArrayList<MessageObject> current = SharedConfig.shuffleMusic ? shuffledPlaylist : playlist;
+        int index = current.indexOf(messageObject);
+        playlist.remove(messageObject);
+        shuffledPlaylist.remove(messageObject);
+        if (index < 0) {
+            return;
+        }
+        if (messageObject == playingMessageObject) {
+            currentPlaylistNum = index - 1;
+        } else if (index < currentPlaylistNum) {
+            currentPlaylistNum--;
+        }
+    }
+
     public float getPlaybackSpeed(boolean music) {
         return music ? currentMusicPlaybackSpeed : currentPlaybackSpeed;
     }

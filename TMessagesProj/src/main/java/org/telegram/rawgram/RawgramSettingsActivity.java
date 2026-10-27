@@ -81,6 +81,8 @@ public class RawgramSettingsActivity extends RawPreferencesFragment {
                 "Главный экран, папки, аватарки, иконки", () -> presentFragment(new RawUiSettingsActivity()));
         category(R.drawable.msg_calc, "Калькулятор",
                 "Результат после «=» в поле ввода", () -> presentFragment(new RawCalcSettingsActivity()));
+        category(R.drawable.msg_voice_headphones, "Плеер",
+                "Окно музыки, тексты песен, цвета обложки", () -> presentFragment(new org.telegram.rawgram.player.RawPlayerSettingsActivity())); // rawGram player
         // Плагины (branch rawgram-plugins): add one line here, e.g.
         // category(R.drawable.msg_bots, "Плагины", "Установленные плагины", () -> presentFragment(new RawPluginsActivity()));
         category(R.drawable.settings_rawgram, "Инструменты разработчика",
