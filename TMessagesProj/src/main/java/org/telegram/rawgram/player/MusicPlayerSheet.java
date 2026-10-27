@@ -779,7 +779,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
 
         @Override
         public TextView createTextView() {
-            final TextView textView = new TextView(this.val$context);
+            final TextView textView = new TextView(getContext());
             textView.setTextSize(1, 15.0f);
             textView.setTypeface(org.telegram.rawgram.player.util.PlayerUtils.regular());
             textView.setPadding(AndroidUtilities.dp(6.0f), 0, AndroidUtilities.dp(6.0f), 0);
