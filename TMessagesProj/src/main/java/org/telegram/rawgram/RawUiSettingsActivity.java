@@ -129,6 +129,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
     private int fontBoldRow;
     private int motionRow;
     private int badgesRow;
+    private int zalgoRow;
     private int lookInfoRow;
 
     private int settingsHeaderRow;
@@ -215,6 +216,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
         hideDividersRow = rowCount++;
         motionRow = rowCount++;
         badgesRow = rowCount++;
+        zalgoRow = rowCount++;
         lookInfoRow = rowCount++;
 
         settingsHeaderRow = rowCount++;
@@ -297,6 +299,10 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
             } else {
                 RawCustomFont.pick(this, RawCustomFont.REQUEST_BOLD);
             }
+        } else if (position == zalgoRow) {
+            boolean v = !RawUiConfig.filterZalgo();
+            RawUiConfig.setFilterZalgo(v);
+            ((TextCheckCell) view).setChecked(v);
         } else if (position == badgesRow) {
             boolean v = !RawgramConfig.isExteraBadges();
             RawgramConfig.setExteraBadges(v);
@@ -795,7 +801,9 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                     } else if (position == motionRow) {
                         cell.setTextAndCheck("Анимации rawGram", RawMotion.isEnabled(), true);
                     } else if (position == badgesRow) {
-                        cell.setTextAndCheck("Бейджи exteraGram", RawgramConfig.isExteraBadges(), false);
+                        cell.setTextAndCheck("Бейджи exteraGram", RawgramConfig.isExteraBadges(), true);
+                    } else if (position == zalgoRow) {
+                        cell.setTextAndCheck("Фильтр «Zalgo»", RawUiConfig.filterZalgo(), false);
                     } else if (position == hidePremiumRow) {
                         cell.setTextAndCheck("Скрыть раздел Premium", RawUiConfig.hidePremiumSection(), true);
                     } else if (position == hideHelpRow) {
@@ -936,7 +944,8 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                                 + "Свой файл — .ttf или .otf; жирное начертание берётся из отдельного файла, из самого шрифта, если он переменный, или рисуется полужирным." + fontStatus + " Разделители — линии между пунктами и тени под разделами. "
                                 + "Анимации — плавные переходы в окнах и меню rawGram; в режиме энергосбережения они выключены. "
                                 + "Бейджи exteraGram — значки поддержавших exteraGram и его разработчиков рядом с именами в чатах, списках и профилях; "
-                                + "список загружается с сервера exteraGram раз в несколько часов.");
+                                + "список загружается с сервера exteraGram раз в несколько часов. "
+                                + "Фильтр «Zalgo» убирает из имён и сообщений наборы наложенных значков и символы смены направления текста.");
                     } else if (position == settingsInfoRow) {
                         cell.setText("Premium — Звёзды, TON, Business, подарки. Вместо номера будет «Номер скрыт» — удобно для скриншотов.");
                     }

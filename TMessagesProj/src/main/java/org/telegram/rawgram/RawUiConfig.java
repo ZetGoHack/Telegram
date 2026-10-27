@@ -65,6 +65,7 @@ public class RawUiConfig {
     private static boolean galleryHoldFrame;
     private static boolean galleryPrefetch;
     private static int imageCacheMb;
+    private static boolean filterZalgo;
 
     private static SharedPreferences prefs() {
         return ApplicationLoader.applicationContext.getSharedPreferences("rawgram_ui", Context.MODE_PRIVATE);
@@ -107,6 +108,7 @@ public class RawUiConfig {
             galleryHoldFrame = p.getBoolean("galleryHoldFrame", true);
             galleryPrefetch = p.getBoolean("galleryPrefetch", true);
             imageCacheMb = p.getInt("imageCacheMb", 0);
+            filterZalgo = p.getBoolean("filterZalgo", true);
             loaded = true;
         }
     }
@@ -125,6 +127,11 @@ public class RawUiConfig {
         }
         e.apply();
     }
+
+    // ---- text ----
+    /** Stacked combining marks and bidi-control characters are removed from displayed text (RawZalgoFilter). */
+    public static boolean filterZalgo() { ensureLoaded(); return filterZalgo; }
+    public static void setFilterZalgo(boolean v) { ensureLoaded(); filterZalgo = v; put("filterZalgo", v); }
 
     // ---- profile photos (RawAvatarGallery) ----
     /** While the next photo is still decoding, the gallery keeps the previous one instead of its blurred preview. */

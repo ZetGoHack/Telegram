@@ -587,6 +587,7 @@ public class Emoji {
     }
 
     public static CharSequence replaceEmoji(CharSequence cs, Paint.FontMetricsInt fontMetrics, boolean createNew, int[] emojiOnly, int alignment, float scale, int minusLimit) {
+        cs = org.telegram.rawgram.RawZalgoFilter.filter(cs); // rawGram: exteraGram's Zalgo filter
         if (SharedConfig.useSystemEmoji || cs == null || cs.length() == 0) {
             return cs;
         }

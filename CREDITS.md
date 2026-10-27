@@ -9,6 +9,7 @@ rawGram is free software distributed under the **GNU General Public License v3.0
 - **NekoX / Nekogram** — NekoX-Dev, Nekogram contributors (GPL-3.0) — https://github.com/NekoX-Dev/NekoX, https://gitlab.com/Nekogram/Nekogram
 - **AyuGram** — Radolyn Labs (GPL-2.0-or-later); code is used with credit as its authors ask — https://github.com/AyuGram
 - **exteraGram** — exteraSquad (GPL-2.0-or-later) — https://github.com/exteraSquad/exteraGram
+- **exteraGram Zalgo filter** — `RawZalgoFilter` follows exteraGram's `ZalgoFilter` (GPL-2.0-or-later)
 - **exteraGram storage** — chunked per-dialog row deletion (`RawChunkedDelete`) follows `MessagesStorage.deleteDialogRowsChunked` (GPL-2.0-or-later)
 - **AyuGram Desktop / TDesktop-x64** — the sticker set owner formula (GPL-3.0)
 - **Solar Icon Set** — 480 Design (CC BY 4.0) — https://www.figma.com/community/file/1166831539721848736;
