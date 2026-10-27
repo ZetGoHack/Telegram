@@ -44,7 +44,7 @@ public class RawDevSettingsActivity extends RawPreferencesFragment {
     private static final int RAW_MINIMIZE = 13;
     private static final int MEM_WATCH = 14;
     private static final int MEM_HPROF = 15;
-    private static final int SPEED_TIERS = 17;
+    private static final int SPEED_TIERS = 40;
     private static final int FREEZE_MONITOR = 16;
     // values / actions
     private static final int ID_FORMAT = 20;
