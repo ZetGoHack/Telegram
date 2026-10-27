@@ -717,6 +717,7 @@ public abstract class BaseFragment {
     }
 
     public boolean dismissDialogOnPause(Dialog dialog) {
+        if (org.telegram.rawgram.player.RawPlayer.keepOnPause(dialog)) return false; // rawGram
         return true;
     }
 

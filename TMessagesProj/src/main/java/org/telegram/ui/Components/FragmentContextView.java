@@ -766,9 +766,9 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                     if (messageObject.isMusic()) {
                         final Activity activity = AndroidUtilities.findActivity(getContext());
                         if (activity instanceof LaunchActivity) {
-                            new AudioPlayerAlert(activity, resourcesProvider).show();
+                            org.telegram.rawgram.player.RawPlayer.create(activity, resourcesProvider).show(); // rawGram
                         } else if (AndroidUtilities.isContextSafe(LaunchActivity.instance)) {
-                            new AudioPlayerAlert(LaunchActivity.instance, resourcesProvider).show();
+                            org.telegram.rawgram.player.RawPlayer.create(LaunchActivity.instance, resourcesProvider).show(); // rawGram
                         }
                     } else {
                         long dialogId = 0;
