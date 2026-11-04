@@ -618,7 +618,8 @@ public final class RawMotion {
         if (adapter == null) {
             return;
         }
-        if (!active() || oldKeys == null || oldKeys.isEmpty() || newKeys == null) {
+        // a diff of a long list marks every kept row as changed: the pending-update queue grows and the layout stalls
+        if (!active() || oldKeys == null || oldKeys.isEmpty() || newKeys == null || oldKeys.size() + newKeys.size() > 200) {
             adapter.notifyDataSetChanged();
             return;
         }
