@@ -16192,6 +16192,9 @@ public class MessagesController extends BaseController implements NotificationCe
         if (TextUtils.isEmpty(regid) || registeringForPush || getUserConfig().getClientUserId() == 0) {
             return;
         }
+        if (org.telegram.rawgram.RawPushDiag.registrationUnsupported()) { // rawGram: the server has no push key for this app
+            return;
+        }
         if (getUserConfig().registeredForPush && regid.equals(SharedConfig.pushString)) {
             return;
         }

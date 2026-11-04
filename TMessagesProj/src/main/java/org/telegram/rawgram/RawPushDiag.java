@@ -22,6 +22,7 @@ import androidx.core.app.NotificationManagerCompat;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationsService;
@@ -80,8 +81,20 @@ public class RawPushDiag {
         }
     }
 
+    /** The server has no push key for this app (every third-party client): registerDevice is not sent again. */
+    public static boolean registrationUnsupported() {
+        try {
+            return prefs().getInt("reg_unsupported_app", 0) == BuildVars.APP_ID;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
     public static void onRegisterResult(int account, int pushType, boolean ok, TLRPC.TL_error error) {
         try {
+            if (!ok && error != null && "APP_PUSH_APIKEY_MISSING".equals(error.text)) {
+                prefs().edit().putInt("reg_unsupported_app", BuildVars.APP_ID).apply();
+            }
             String result = "акк. " + account + ", token_type " + pushType + ": " + (ok ? "OK" : (error != null ? error.code + " " + error.text : "false"));
             prefs().edit().putString("reg_result", result).putLong("reg_time", System.currentTimeMillis()).apply();
         } catch (Throwable ignore) {
