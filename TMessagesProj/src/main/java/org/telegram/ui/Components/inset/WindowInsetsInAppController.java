@@ -14,4 +14,8 @@ public interface WindowInsetsInAppController {
 
     void requestInAppKeyboardHeight(int inAppKeyboardHeight);
     void resetInAppKeyboardHeight(boolean waitKeyboardOpen);
+
+    /** rawGram: predictive back for the emoji panel (exteraGram), the in-app keyboard inset shrinks by this share. */
+    default void setInAppKeyboardBackProgress(float progress) {
+    }
 }

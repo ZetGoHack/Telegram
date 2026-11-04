@@ -41,6 +41,7 @@ public class WindowInsetsStateHolder implements WindowInsetsProvider, WindowInse
                 boolean changed = false;
                 if (getAnimatedImeBottomInset() == 0 && inAppKeyboardState == IN_APP_IME_STATE_HIDE_AFTER_ANIMATION_END || inAppKeyboardState == IN_APP_IME_STATE_HIDE_AFTER_KEYBOARD_OPEN) {
                     inAppKeyboardState = IN_APP_IME_STATE_HIDDEN;
+                    inAppKeyboardBackProgress = 0; // rawGram: predictive back
                     changed = true;
                 }
                 if (finalFactor == 1f) {
@@ -100,6 +101,7 @@ public class WindowInsetsStateHolder implements WindowInsetsProvider, WindowInse
             insets.getInsetsIgnoringVisibility(insetsType)
         ) : Insets.NONE;
         final Insets imeInsets = insets != null ? insets.getInsets(WindowInsetsCompat.Type.ime()) : Insets.NONE;
+        systemBottomInset = systemInsets.bottom; // rawGram: predictive back
 
         final KeyboardState.State oldKeyboardState = keyboardState.getState();
         final KeyboardState.State newKeyboardState = keyboardState.setKeyboardVisibility(imeInsets.bottom > 0, !animated, false);
@@ -175,6 +177,9 @@ public class WindowInsetsStateHolder implements WindowInsetsProvider, WindowInse
 
     @Override
     public float getAnimatedMaxBottomInset() {
+        if (inAppKeyboardBackProgress > 0) { // rawGram: predictive back (exteraGram)
+            return Math.max(systemBottomInset, getAnimatedImeBottomInset());
+        }
         if (animatedInsetsProvider != null && activeAnimations > 0) {
             return Math.max(animatedImeInset, insetsMaxRect.getBottom());
         }
@@ -193,11 +198,24 @@ public class WindowInsetsStateHolder implements WindowInsetsProvider, WindowInse
 
     @Override
     public float getAnimatedImeBottomInset() {
+        final float bottom = insetsImeRect.getBottom() * (1f - inAppKeyboardBackProgress); // rawGram: predictive back (exteraGram)
         if (animatedInsetsProvider != null && activeAnimations > 0) {
-            return Math.max(animatedImeInset, insetsImeRect.getBottom());
+            return Math.max(animatedImeInset, bottom);
         }
 
-        return insetsImeRect.getBottom();
+        return bottom;
+    }
+
+    // rawGram: predictive back for the emoji panel (exteraGram)
+    private float inAppKeyboardBackProgress;
+    private int systemBottomInset;
+
+    @Override
+    public void setInAppKeyboardBackProgress(float progress) {
+        if (inAppKeyboardBackProgress != progress) {
+            inAppKeyboardBackProgress = progress;
+            onUpdateListener.run();
+        }
     }
 
     @Override
@@ -225,6 +243,7 @@ public class WindowInsetsStateHolder implements WindowInsetsProvider, WindowInse
 
             this.inAppKeyboardHeight = inAppKeyboardHeight;
             this.inAppKeyboardState = IN_APP_IME_STATE_VISIBLE;
+            this.inAppKeyboardBackProgress = 0; // rawGram: predictive back
 
             setInsets(lastInsets);
         }

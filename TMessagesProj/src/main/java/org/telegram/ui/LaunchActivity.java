@@ -761,8 +761,11 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                             onBackPressed();
                             return;
                         }
-                        if (!onBackPressed(true))
+                        if (!onBackPressed(true)) {
+                            org.telegram.rawgram.RawPredictiveBack.cancel(); // rawGram: predictive back
                             return;
+                        }
+                        if (org.telegram.rawgram.RawPredictiveBack.invoke()) return; // rawGram: predictive back
                         if (actionBarLayout != null) {
                             actionBarLayout.onBackInvoked();
                         } else {
@@ -775,11 +778,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         started = true;
                         invoked = false;
                         predictiveBackStarted = false;
+                        org.telegram.rawgram.RawPredictiveBack.reset(); // rawGram: predictive back
                     }
 
                     private void onBackStartedInternal(BackEvent backEvent) {
                         if (AndroidUtilities.isTablet()) return;
                         if (!onBackPressed(false)) return;
+                        if (org.telegram.rawgram.RawPredictiveBack.start(actionBarLayout)) return; // rawGram: predictive back
                         if (actionBarLayout != null) {
                             boolean started = actionBarLayout.onBackStarted(backEvent.getTouchX(), backEvent.getTouchY());
                             if (started && !locked) {
@@ -807,6 +812,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         org.telegram.rawgram.RawSideMenu.onBackProgress(fixedProgress); // rawGram
 
                         if (AndroidUtilities.isTablet()) return;
+                        if (org.telegram.rawgram.RawPredictiveBack.progress(fixedProgress)) return; // rawGram: predictive back
                         if (actionBarLayout != null) {
                             actionBarLayout.onBackProgress(fixedProgress);
                         }
@@ -823,6 +829,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         }
 
                         if (AndroidUtilities.isTablet()) return;
+                        if (org.telegram.rawgram.RawPredictiveBack.cancel()) return; // rawGram: predictive back
                         if (actionBarLayout != null) {
                             actionBarLayout.onBackCancelled();
                         }

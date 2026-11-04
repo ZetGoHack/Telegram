@@ -127,6 +127,7 @@ public class FilterCreateActivity extends BaseFragment {
     private CharSequence newFilterName;
     private boolean newFilterAnimations = true;
     private int newFilterFlags;
+    private int newRoleMode; // rawGram: folder roles
     private int newFilterColor;
     private ArrayList<Long> newAlwaysShow;
     private ArrayList<Long> newNeverShow;
@@ -208,6 +209,7 @@ public class FilterCreateActivity extends BaseFragment {
         newFilterAnimations = !filter.title_noanimate;
         AnimatedEmojiDrawable.toggleAnimations(currentAccount, newFilterAnimations);
         newFilterFlags = filter.flags;
+        newRoleMode = creatingNew ? 0 : org.telegram.rawgram.RawFolderRoles.getMode(currentAccount, filter.id); // rawGram: folder roles
         newFilterColor = filter.color;
         newAlwaysShow = new ArrayList<>(filter.alwaysShow);
         if (alwaysShow != null) {
@@ -309,6 +311,9 @@ public class FilterCreateActivity extends BaseFragment {
         }
         if ((newFilterFlags & MessagesController.DIALOG_FILTER_FLAG_BOTS) != 0) {
             items.add(ItemInner.asChat(true, LocaleController.getString(R.string.FilterBots), "bots", MessagesController.DIALOG_FILTER_FLAG_BOTS));
+        }
+        if (org.telegram.rawgram.RawFolderRoles.supportsFlags(newFilterFlags) && newRoleMode != 0) { // rawGram: folder roles
+            items.add(ItemInner.asChat(true, org.telegram.rawgram.RawFolderRoles.getChipText(newRoleMode), org.telegram.rawgram.RawFolderRoles.chatTypeOf(newRoleMode), 0));
         }
 
         if (!newAlwaysShow.isEmpty()) {
@@ -867,10 +872,11 @@ public class FilterCreateActivity extends BaseFragment {
 
     private void selectChatsFor(boolean include) {
         ArrayList<Long> arrayList = include ? newAlwaysShow : newNeverShow;
-        UsersSelectActivity fragment = new UsersSelectActivity(include, arrayList, newFilterFlags);
+        UsersSelectActivity fragment = new UsersSelectActivity(include, arrayList, org.telegram.rawgram.RawFolderRoles.pickerFlags(include, newFilterFlags, newRoleMode)); // rawGram: folder roles
         fragment.noChatTypes = filter.isChatlist();
         fragment.setDelegate((ids, flags) -> {
-            newFilterFlags = flags;
+            if (include) newRoleMode = org.telegram.rawgram.RawFolderRoles.fromPickerFlags(flags); // rawGram: folder roles
+            newFilterFlags = org.telegram.rawgram.RawFolderRoles.withPickerMode(flags, 0); // rawGram: folder roles
             if (include) {
                 onUpdate(true, newAlwaysShow, ids);
                 newAlwaysShow = ids;
@@ -1021,7 +1027,9 @@ public class FilterCreateActivity extends BaseFragment {
         }
         builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
         builder.setPositiveButton(LocaleController.getString(R.string.StickersRemove), (dialogInterface, i) -> {
-            if (item.flags > 0) {
+            if (org.telegram.rawgram.RawFolderRoles.modeOf(item.chatType) != 0) { // rawGram: folder roles
+                newRoleMode = 0;
+            } else if (item.flags > 0) {
                 newFilterFlags &=~ item.flags;
             } else {
                 (include ? newAlwaysShow : newNeverShow).remove((Long) item.did);
@@ -1069,6 +1077,7 @@ public class FilterCreateActivity extends BaseFragment {
             hasUserChanged = false;
             creatingNew = false;
             filter.flags = newFilterFlags;
+            org.telegram.rawgram.RawFolderRoles.setMode(currentAccount, filter.id, newFilterFlags, newRoleMode); // rawGram: folder roles
             checkDoneButton(true);
 
             getNotificationCenter().postNotificationName(NotificationCenter.dialogFiltersUpdated);
@@ -1267,7 +1276,7 @@ public class FilterCreateActivity extends BaseFragment {
         if (!TextUtils.equals(filter.name, newFilterName)) {
             return true;
         }
-        if (filter.flags != newFilterFlags) {
+        if (filter.flags != newFilterFlags || org.telegram.rawgram.RawFolderRoles.changed(currentAccount, filter.id, newFilterFlags, newRoleMode)) { // rawGram: folder roles
             return true;
         }
         return hasUserChanged;

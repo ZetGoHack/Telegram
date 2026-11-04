@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- rawGram folder filter «Моя роль» (ported from exteraGram). Russian like the other rawGram texts. -->
+<resources>
+    <string name="FolderRolesHeader">Моя роль</string>
+    <string name="FolderRolesAdmin">Администратор</string>
+    <string name="FolderRolesOwnerOnly">Только где я владелец</string>
+    <string name="FolderRolesAdminOnly">Только где я администратор</string>
+</resources>

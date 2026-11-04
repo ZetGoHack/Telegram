@@ -322,6 +322,10 @@ public class AvatarDrawable extends Drawable {
                 advancedGradient = new GradientTools();
             }
             advancedGradient.setColors(0xFF4D8DFF, 0xFF2BBFFF, 0xFF20E2CD, 0xFF0EE1F1);
+        } else if (org.telegram.rawgram.RawFolderRoles.isRoleAvatar(avatarType)) { // rawGram: folder roles
+            hasGradient = true;
+            color = getThemedColor(Theme.keys_avatar_background[getColorIndex(org.telegram.rawgram.RawFolderRoles.avatarColorIndex(avatarType))]);
+            color2 = getThemedColor(Theme.keys_avatar_background2[getColorIndex(org.telegram.rawgram.RawFolderRoles.avatarColorIndex(avatarType))]);
         } else {
             hasGradient = true;
             color = getThemedColor(Theme.keys_avatar_background[getColorIndex(4)]);
@@ -678,6 +682,8 @@ public class AvatarDrawable extends Drawable {
                 drawable = Theme.avatarDrawables[23];
             } else if (avatarType == AVATAR_TYPE_SUGGESTION) {
                 drawable = Theme.avatarDrawables[24];
+            } else if (org.telegram.rawgram.RawFolderRoles.isRoleAvatar(avatarType)) { // rawGram: folder roles
+                drawable = org.telegram.rawgram.RawFolderRoles.getAvatarIcon(avatarType);
             } else {
                 drawable = Theme.avatarDrawables[9];
             }

@@ -1214,7 +1214,7 @@ public class ChatEditActivity extends BaseFragment implements ImageUpdater.Image
             reactionsCell.setBackground(Theme.getSelectorDrawable(false));
             reactionsCell.setOnClickListener(v -> {
                 if (ChatObject.isChannelAndNotMegaGroup(currentChat)) {
-                    presentFragment(new ChatCustomReactionsEditActivity(chatId, info));
+                    presentFragment(org.telegram.rawgram.reactions.RawChannelReactionsEditActivity.create(chatId, info)); // rawGram: exteraGram reactions editor
                 } else {
                     Bundle args = new Bundle();
                     args.putLong(ChatReactionsEditActivity.KEY_CHAT_ID, chatId);

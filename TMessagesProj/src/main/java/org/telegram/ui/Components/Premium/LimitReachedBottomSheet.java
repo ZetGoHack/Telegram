@@ -1139,7 +1139,7 @@ public class LimitReachedBottomSheet extends BottomSheetWithRecyclerListView imp
             TLRPC.Chat chat = (TLRPC.Chat) args[0];
             boolean isGiveaway = (boolean) args[1];
             BaseFragment lastFragment = getBaseFragment().getParentLayout().getLastFragment();
-            if (lastFragment instanceof ChatCustomReactionsEditActivity) {
+            if (org.telegram.rawgram.reactions.RawChannelReactionsEditActivity.isEditor(lastFragment)) { // rawGram: exteraGram reactions editor
                 List<BaseFragment> fragmentStack = getBaseFragment().getParentLayout().getFragmentStack();
                 BaseFragment chatEditFragment = fragmentStack.size() >= 2 ? fragmentStack.get(fragmentStack.size() - 2) : null;
                 BaseFragment profileFragment = fragmentStack.size() >= 3 ? fragmentStack.get(fragmentStack.size() - 3) : null;
@@ -2013,6 +2013,7 @@ public class LimitReachedBottomSheet extends BottomSheetWithRecyclerListView imp
                 FrameLayout frameLayout = new FrameLayout(context);
                 ImageView imageView = new ImageView(context);
                 imageView.setImageDrawable(ContextCompat.getDrawable(getContext(), R.drawable.large_boosts));
+                imageView.setColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText), PorterDuff.Mode.SRC_IN); // rawGram: exteraGram fix
                 frameLayout.addView(imageView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER));
                 frameLayout.setBackground(Theme.createCircleDrawable(dp(79), Theme.getColor(Theme.key_featuredStickers_addButton)));
                 addView(frameLayout, LayoutHelper.createLinear(79, 79, Gravity.CENTER_HORIZONTAL, 0, 23, 0, 0));

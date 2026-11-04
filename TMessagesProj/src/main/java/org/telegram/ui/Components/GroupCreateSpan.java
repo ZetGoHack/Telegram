@@ -160,6 +160,12 @@ public class GroupCreateSpan extends View {
                     avatarDrawable.setColor(Theme.getColor(Theme.key_avatar_backgroundBlue, resourcesProvider), Theme.getColor(Theme.key_avatar_background2Blue, resourcesProvider));
                     firstName = LocaleController.getString(R.string.PrivacyMiniapps);
                     break;
+                case org.telegram.rawgram.RawFolderRoles.TYPE_OWNER: // rawGram: folder roles
+                case org.telegram.rawgram.RawFolderRoles.TYPE_ADMIN:
+                    avatarDrawable.setAvatarType(org.telegram.rawgram.RawFolderRoles.avatarTypeOf(str));
+                    uid = org.telegram.rawgram.RawFolderRoles.spanUidOf(org.telegram.rawgram.RawFolderRoles.modeOf(str));
+                    firstName = org.telegram.rawgram.RawFolderRoles.getName(str);
+                    break;
                 case "archived":
                 default:
                     avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_FILTER_ARCHIVED);

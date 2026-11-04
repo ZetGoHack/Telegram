@@ -385,6 +385,10 @@ public class GroupCreateUserCell extends FrameLayout {
                 case "archived":
                     avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_FILTER_ARCHIVED);
                     break;
+                case org.telegram.rawgram.RawFolderRoles.TYPE_OWNER: // rawGram: folder roles
+                case org.telegram.rawgram.RawFolderRoles.TYPE_ADMIN:
+                    avatarDrawable.setAvatarType(org.telegram.rawgram.RawFolderRoles.avatarTypeOf(str));
+                    break;
             }
             lastName = null;
             nameTextView.setText(currentName, true);

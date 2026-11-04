@@ -210,7 +210,7 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                     if (child == removingSpan) {
                         child.setTranslationX(AndroidUtilities.dp(13) + allCurrentLineWidth);
                         child.setTranslationY(allY);
-                    } else if (removingSpan != null) {
+                    } else if (removingSpan != null && child != addingSpan) { // rawGram: folder roles, add while removing
                         if (child.getTranslationX() != x) {
                             animators.add(ObjectAnimator.ofFloat(child, View.TRANSLATION_X, x));
                         }
@@ -285,7 +285,7 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
         public void addSpan(final GroupCreateSpan span, boolean animated) {
             allSpans.add(span);
             long uid = span.getUid();
-            if (uid > Long.MIN_VALUE + 7) {
+            if (uid > Long.MIN_VALUE + 7 && !org.telegram.rawgram.RawFolderRoles.isRoleSpanUid(uid)) { // rawGram: folder roles
                 selectedCount++;
             }
             selectedContacts.put(uid, span);
@@ -294,6 +294,14 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
             if (currentAnimation != null && currentAnimation.isRunning()) {
                 currentAnimation.setupEndValues();
                 currentAnimation.cancel();
+            }
+            if (animated && removingSpan != null) { // rawGram: folder roles, join the pending remove animation (exteraGram)
+                addingSpan = span;
+                animators.add(ObjectAnimator.ofFloat(span, View.SCALE_X, 0.01f, 1.0f));
+                animators.add(ObjectAnimator.ofFloat(span, View.SCALE_Y, 0.01f, 1.0f));
+                animators.add(ObjectAnimator.ofFloat(span, View.ALPHA, 0.0f, 1.0f));
+                addView(span);
+                return;
             }
             animationStarted = false;
             if (animated) {
@@ -320,7 +328,7 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
         public void removeSpan(final GroupCreateSpan span) {
             ignoreScrollEvent = true;
             long uid = span.getUid();
-            if (uid > Long.MIN_VALUE + 7) {
+            if (uid > Long.MIN_VALUE + 7 && !org.telegram.rawgram.RawFolderRoles.isRoleSpanUid(uid)) { // rawGram: folder roles
                 selectedCount--;
             }
             selectedContacts.remove(uid);
@@ -331,6 +339,10 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                 currentAnimation.setupEndValues();
                 currentAnimation.cancel();
             }
+            if (removingSpan != null) { // rawGram: folder roles, a second remove drops the first span at once (exteraGram)
+                removeView(removingSpan);
+                removingSpan = null;
+            }
             animationStarted = false;
             currentAnimation = new AnimatorSet();
             currentAnimation.addListener(new AnimatorListenerAdapter() {
@@ -338,6 +350,7 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                 public void onAnimationEnd(Animator animator) {
                     removeView(span);
                     removingSpan = null;
+                    addingSpan = null; // rawGram: folder roles
                     currentAnimation = null;
                     animationStarted = false;
                     editText.setAllowDrawCursor(true);
@@ -428,7 +441,10 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                     filterFlags &= ~MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_READ;
                 } else if (span.getUid() == Long.MIN_VALUE + 7) {
                     filterFlags &= ~MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_ARCHIVED;
+                } else if (org.telegram.rawgram.RawFolderRoles.isRoleSpanUid(span.getUid())) { // rawGram: folder roles
+                    filterFlags = org.telegram.rawgram.RawFolderRoles.withPickerMode(filterFlags, 0);
                 }
+                updateFolderRoleRows(); // rawGram: folder roles
             }
             updateHint();
             checkVisibleRows();
@@ -638,7 +654,10 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                                 filterFlags &= ~MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_READ;
                             } else if (span.getUid() == Long.MIN_VALUE + 7) {
                                 filterFlags &= ~MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_ARCHIVED;
+                            } else if (org.telegram.rawgram.RawFolderRoles.isRoleSpanUid(span.getUid())) { // rawGram: folder roles
+                                filterFlags = org.telegram.rawgram.RawFolderRoles.withPickerMode(filterFlags, 0);
                             }
+                            updateFolderRoleRows(); // rawGram: folder roles
                         }
                         updateHint();
                         checkVisibleRows();
@@ -715,6 +734,10 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                 Object object = cell.getObject();
                 long id;
                 if (object instanceof String) {
+                    if (org.telegram.rawgram.RawFolderRoles.modeOf((String) object) != 0) { // rawGram: folder roles
+                        toggleFolderRole(org.telegram.rawgram.RawFolderRoles.modeOf((String) object));
+                        return;
+                    }
                     int flag;
                     if (type == TYPE_PRIVATE) {
                         if (position == 1) {
@@ -764,6 +787,7 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                     } else {
                         filterFlags |= flag;
                     }
+                    updateFolderRoleRows(); // rawGram: folder roles
                 } else {
                     if (object instanceof TLRPC.User) {
                         id = ((TLRPC.User) object).id;
@@ -879,6 +903,11 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                 span.setOnClickListener(UsersSelectActivity.this);
             }
         }
+        if (org.telegram.rawgram.RawFolderRoles.fromPickerFlags(filterFlags) != 0) { // rawGram: folder roles
+            GroupCreateSpan span = new GroupCreateSpan(editText.getContext(), org.telegram.rawgram.RawFolderRoles.chatTypeOf(org.telegram.rawgram.RawFolderRoles.fromPickerFlags(filterFlags)));
+            spansContainer.addSpan(span, false);
+            span.setOnClickListener(UsersSelectActivity.this);
+        }
         if (initialIds != null && !initialIds.isEmpty()) {
             TLObject object;
             for (int a = 0, N = initialIds.size(); a < N; a++) {
@@ -988,6 +1017,12 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                         case "new_chats":
                             id = Long.MIN_VALUE + 8;
                             break;
+                        case org.telegram.rawgram.RawFolderRoles.TYPE_OWNER: // rawGram: folder roles
+                            id = org.telegram.rawgram.RawFolderRoles.SPAN_UID_OWNER;
+                            break;
+                        case org.telegram.rawgram.RawFolderRoles.TYPE_ADMIN: // rawGram: folder roles
+                            id = org.telegram.rawgram.RawFolderRoles.SPAN_UID_ADMIN;
+                            break;
                         case "archived":
                         default:
                             id = Long.MIN_VALUE + 7;
@@ -1008,6 +1043,53 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
         }
     }
 
+    /** rawGram: folder roles (exteraGram), a role row in the include picker; one role at a time. */
+    private void toggleFolderRole(int mode) {
+        if (!org.telegram.rawgram.RawFolderRoles.supportsFlags(filterFlags)) {
+            return;
+        }
+        int current = org.telegram.rawgram.RawFolderRoles.fromPickerFlags(filterFlags);
+        if (current != 0) {
+            GroupCreateSpan span = selectedContacts.get(org.telegram.rawgram.RawFolderRoles.spanUidOf(current));
+            if (span != null) {
+                spansContainer.removeSpan(span);
+            }
+        }
+        if (current == mode) {
+            mode = 0;
+        }
+        filterFlags = org.telegram.rawgram.RawFolderRoles.withPickerMode(filterFlags, mode);
+        if (mode != 0) {
+            GroupCreateSpan span = new GroupCreateSpan(editText.getContext(), org.telegram.rawgram.RawFolderRoles.chatTypeOf(mode));
+            spansContainer.addSpan(span, true);
+            span.setOnClickListener(this);
+        }
+        updateHint();
+        checkVisibleRows();
+        if (editText.length() > 0) {
+            editText.setText(null);
+        }
+    }
+
+    /** rawGram: folder roles (exteraGram), drops the role once groups and channels are both off and rebinds its rows. */
+    private void updateFolderRoleRows() {
+        if (adapter == null || adapter.roleRows == 0) {
+            return;
+        }
+        int mode = org.telegram.rawgram.RawFolderRoles.fromPickerFlags(filterFlags);
+        if (mode != 0 && !org.telegram.rawgram.RawFolderRoles.supportsFlags(filterFlags)) {
+            GroupCreateSpan span = selectedContacts.get(org.telegram.rawgram.RawFolderRoles.spanUidOf(mode));
+            if (span != null) {
+                spansContainer.removeSpan(span);
+            }
+            filterFlags = org.telegram.rawgram.RawFolderRoles.withPickerMode(filterFlags, 0);
+        }
+        if (searching) {
+            return;
+        }
+        adapter.notifyItemRangeChanged(org.telegram.rawgram.RawFolderRoles.PICKER_FIRST_ROW, 2, filterFlags);
+    }
+
     private boolean onDonePressed(boolean alert) {
         /*if (!doneButtonVisible || selectedContacts.size() == 0) {
             return false;
@@ -1015,7 +1097,7 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
         ArrayList<Long> result = new ArrayList<>();
         for (int a = 0; a < selectedContacts.size(); a++) {
             long uid = selectedContacts.keyAt(a);
-            if (uid <= Long.MIN_VALUE + 9) {
+            if (uid <= Long.MIN_VALUE + 9 || org.telegram.rawgram.RawFolderRoles.isRoleSpanUid(uid)) { // rawGram: folder roles
                 continue;
             }
             result.add(selectedContacts.keyAt(a));
@@ -1081,9 +1163,11 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
         private boolean searching;
         private ArrayList<TLObject> contacts = new ArrayList<>();
         private final int usersStartRow;
+        private final int roleRows; // rawGram: folder roles
 
         public GroupCreateAdapter(Context ctx) {
             context = ctx;
+            roleRows = type == TYPE_FILTER && isInclude && !noChatTypes ? org.telegram.rawgram.RawFolderRoles.PICKER_ROWS : 0; // rawGram: folder roles
 
             if (noChatTypes) {
                 usersStartRow = 0;
@@ -1091,7 +1175,7 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                 usersStartRow = 5 + (doNotNewChats ? 0 : 1);
             } else if (type == TYPE_FILTER) {
                 if (isInclude) {
-                    usersStartRow = 7;
+                    usersStartRow = 7 + roleRows; // rawGram: folder roles
                 } else {
                     usersStartRow = 5;
                 }
@@ -1175,7 +1259,7 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                     count = 3 + (doNotNewChats ? 0 : 1);
                 } else if (type == TYPE_FILTER) {
                     if (isInclude) {
-                        count = 7;
+                        count = 7 + roleRows; // rawGram: folder roles
                     } else {
                         count = 5;
                     }
@@ -1266,6 +1350,10 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                         }
                     } else {
                         if (position < usersStartRow) {
+                            if (roleRows > 0 && position >= org.telegram.rawgram.RawFolderRoles.PICKER_FIRST_ROW) { // rawGram: folder roles
+                                org.telegram.rawgram.RawFolderRoles.bindPickerRow(cell, position - org.telegram.rawgram.RawFolderRoles.PICKER_FIRST_ROW, filterFlags);
+                                return;
+                            }
                             int flag;
                             if (type == TYPE_PRIVATE) {
                                 if (position == 1) {
@@ -1322,6 +1410,7 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                                     flag = MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_ARCHIVED;
                                 }
                             }
+                            cell.setAlpha(1f); // rawGram: folder roles, the role rows may be dimmed
                             cell.setObject(object, name, null);
                             cell.setChecked((filterFlags & flag) == flag, false);
                             cell.setCheckBoxEnabled(true);
@@ -1401,6 +1490,8 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                     GraySectionCell cell = (GraySectionCell) holder.itemView;
                     if (position == 0 && !noChatTypes) {
                         cell.setText(getString(R.string.FilterChatTypes));
+                    } else if (position == org.telegram.rawgram.RawFolderRoles.PICKER_HEADER_ROW && roleRows > 0) { // rawGram: folder roles
+                        cell.setText(org.telegram.rawgram.RawFolderRoles.getPickerHeader());
                     } else {
                         cell.setText(getString(R.string.FilterChats));
                     }
@@ -1424,7 +1515,7 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                     }
                 } else if (type == TYPE_FILTER) {
                     if (isInclude) {
-                        if (position == 0 || position == 6) {
+                        if (position == 0 || position == 6 || roleRows > 0 && position == 6 + roleRows) { // rawGram: folder roles
                             return 2;
                         }
                     } else {

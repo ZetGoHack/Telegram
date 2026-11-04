@@ -1352,6 +1352,7 @@ public class MessagesController extends BaseController implements NotificationCe
             } else if (dialogId < 0) {
                 TLRPC.Chat chat = messagesController.getChat(-dialogId);
                 if (chat != null) {
+                    if (!org.telegram.rawgram.RawFolderRoles.allows(accountInstance.getCurrentAccount(), id, chat)) return false; // rawGram: folder roles
                     if (ChatObject.isCommunity(chat)) {
                         return (flags & DIALOG_FILTER_FLAG_ALL_CHATS) == DIALOG_FILTER_FLAG_ALL_CHATS;
                     } else if (ChatObject.isChatCollapsedInCommunity(accountInstance.getCurrentAccount(), chat)) {
@@ -2400,6 +2401,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     loadingRemoteFilters = false;
                     getNotificationCenter().postNotificationName(NotificationCenter.filterSettingsUpdated);
                 }
+                org.telegram.rawgram.RawFolderRoles.onFiltersChanged(currentAccount); // rawGram: folder roles
 
                 lockFiltersInternal();
 
@@ -2608,6 +2610,7 @@ public class MessagesController extends BaseController implements NotificationCe
     public void removeFilter(DialogFilter filter) {
         dialogFilters.remove(filter);
         dialogFiltersById.remove(filter.id);
+        org.telegram.rawgram.RawFolderRoles.onFiltersChanged(currentAccount); // rawGram: folder roles
         getNotificationCenter().postNotificationName(NotificationCenter.dialogFiltersUpdated);
     }
 
@@ -6438,6 +6441,7 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public void cleanup() {
+        org.telegram.rawgram.RawFolderRoles.clear(currentAccount); // rawGram: folder roles
         getContactsController().cleanup();
         MediaController.getInstance().cleanup();
         getNotificationsController().cleanup();

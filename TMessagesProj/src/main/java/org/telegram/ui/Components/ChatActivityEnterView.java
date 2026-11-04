@@ -13271,6 +13271,16 @@ public class ChatActivityEnterView extends FrameLayout implements
         return emojiViewVisible && !botKeyboardViewVisible;
     }
 
+    /** rawGram: predictive back for the emoji panel (exteraGram), RawPredictiveBack. */
+    public boolean rawgramCanHidePopupByBackGesture() {
+        return windowInsetsInAppController != null && smoothKeyboard && !keyboardVisible && !stickersExpanded && searchingType == 0 && panelAnimation == null && !overrideKeyboardAnimation && canHidePopupByBackButton();
+    }
+
+    /** rawGram: predictive back for the emoji panel. */
+    public WindowInsetsInAppController rawgramInAppController() {
+        return windowInsetsInAppController;
+    }
+
     public boolean canHidePopupByBackButton() {
         if (!isPopupShowing()) {
             return false;
