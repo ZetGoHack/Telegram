@@ -2579,7 +2579,7 @@ public class ReactionsContainerLayout extends FrameLayout implements Notificatio
                     if (type == TYPE_STORY || type == TYPE_STORY_LIKES || type == TYPE_STICKER_SET_EMOJI) {
                         customEmojiReactionsIconView.setColorFilter(new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.MULTIPLY));
                     } else {
-                        customEmojiReactionsIconView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_dialogBackground), PorterDuff.Mode.MULTIPLY));
+                        customEmojiReactionsIconView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.isCurrentThemeDark() ? Theme.key_actionBarDefaultSubmenuItemIcon : Theme.key_dialogBackground), PorterDuff.Mode.MULTIPLY)); // rawGram: exteraGram fix
                     }
                     customEmojiReactionsIconView.setBackground(Theme.createSimpleSelectorCircleDrawable(dp(28), Color.TRANSPARENT, ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_listSelector), 40)));
                     customEmojiReactionsIconView.setPadding(dp(2), dp(2), dp(2), dp(2));

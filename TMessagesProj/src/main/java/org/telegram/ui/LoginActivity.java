@@ -3971,6 +3971,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
                 openFragmentImageView = new RLottieImageView(context);
                 openFragmentImageView.setAnimation(R.raw.fragment, 36, 36);
+                openFragmentImageView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText), PorterDuff.Mode.SRC_IN)); // rawGram: exteraGram fix
                 openFragmentButton.addView(openFragmentImageView, LayoutHelper.createLinear(36, 36, Gravity.CENTER_VERTICAL, 0, 0, 2, 0));
 
                 openFragmentButtonText = new TextView(context);

@@ -202,7 +202,7 @@ public class MessagePrivateSeenView extends FrameLayout {
         imageView.setScaleType(ImageView.ScaleType.CENTER);
         imageView.setAnimation(lastSeen ? R.raw.large_lastseen : R.raw.large_readtime, 70, 70);
         imageView.playAnimation();
-        imageView.setColorFilter(new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN));
+        imageView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText, resourcesProvider), PorterDuff.Mode.SRC_IN)); // rawGram: exteraGram fix
         imageView.setBackground(Theme.createCircleDrawable(dp(80), Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider)));
         layout.addView(imageView, LayoutHelper.createLinear(80, 80, Gravity.CENTER_HORIZONTAL, 0, 16, 0, 16));
 

@@ -13,6 +13,7 @@ import android.text.TextWatcher;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -23,6 +24,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import org.telegram.rawgram.player.PlayerColors;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Locale;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.GenericProvider;
@@ -34,6 +36,7 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
@@ -67,6 +70,7 @@ public class PlayerQueueView extends FrameLayout {
     private ArrayList<MessageObject> searchResult;
     private Runnable searchRunnable;
     private boolean searchWas;
+    private static final long REVERSE_DURATION = 420;
     private int selectorColor;
     private int sideInset;
 
@@ -361,10 +365,13 @@ public class PlayerQueueView extends FrameLayout {
                 }
                 int adapterPosition = viewHolder.getAdapterPosition();
                 int adapterPosition2 = viewHolder2.getAdapterPosition();
-                if (adapterPosition < 0 || adapterPosition2 < 0) {
+                int size = savedMusicList.list.size();
+                if (adapterPosition < 0 || adapterPosition2 < 0 || adapterPosition >= size || adapterPosition2 >= size) {
                     return false;
                 }
-                savedMusicList.move(adapterPosition, adapterPosition2);
+                // the list shows the saved music in reverse when the order is reversed
+                boolean direct = PlayerQueueView.this.isDirectOrder();
+                savedMusicList.move(direct ? adapterPosition : size - adapterPosition - 1, direct ? adapterPosition2 : size - adapterPosition2 - 1);
                 ArrayList<MessageObject> playlist = MediaController.getInstance().getPlaylist();
                 playlist.clear();
                 playlist.addAll(savedMusicList.list);
@@ -462,6 +469,89 @@ public class PlayerQueueView extends FrameLayout {
         this.playlist = MediaController.getInstance().getPlaylist();
         this.adapter.notifyDataSetChanged();
         updateEmpty();
+    }
+
+    /**
+     * The order was reversed: rebinds, keeps the playing (or the middle) row where it is and slides the rows to their
+     * new places.
+     */
+    public void reverse() {
+        if (this.searchWas || this.listView.getChildCount() == 0 || !this.listView.isLaidOut()) {
+            update();
+            scrollToCurrent(false);
+            return;
+        }
+        MessageObject playingMessageObject = MediaController.getInstance().getPlayingMessageObject();
+        final HashMap<MessageObject, Float> oldY = new HashMap<>();
+        float middle = this.listView.getHeight() / 2.0f;
+        MessageObject anchor = null;
+        float anchorDistance = Float.MAX_VALUE;
+        boolean anchorIsCurrent = false;
+        int anchorTop = 0;
+        for (int i = 0; i < this.listView.getChildCount(); i++) {
+            View child = this.listView.getChildAt(i);
+            if (!(child instanceof PlayerQueueCell)) {
+                continue;
+            }
+            PlayerQueueCell cell = (PlayerQueueCell) child;
+            MessageObject messageObject = cell.getMessageObject();
+            if (messageObject == null) {
+                continue;
+            }
+            cell.animate().cancel();
+            oldY.put(messageObject, cell.getY());
+            if (anchorIsCurrent) {
+                continue;
+            }
+            if (isCurrent(messageObject, playingMessageObject)) {
+                anchorTop = cell.getTop();
+                anchorIsCurrent = true;
+                anchor = messageObject;
+            } else {
+                float distance = Math.abs(cell.getTop() + cell.getHeight() / 2.0f - middle);
+                if (distance < anchorDistance) {
+                    anchorTop = cell.getTop();
+                    anchor = messageObject;
+                    anchorDistance = distance;
+                }
+            }
+        }
+        update();
+        int position = anchor != null ? this.adapter.positionOf(anchor) : -1;
+        if (position < 0) {
+            scrollToCurrent(false);
+            return;
+        }
+        this.layoutManager.scrollToPositionWithOffset(position, anchorTop - this.listView.getPaddingTop());
+        final ViewTreeObserver observer = this.listView.getViewTreeObserver();
+        observer.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+            @Override
+            public boolean onPreDraw() {
+                if (observer.isAlive()) {
+                    observer.removeOnPreDrawListener(this);
+                }
+                listView.getViewTreeObserver().removeOnPreDrawListener(this);
+                for (int i = 0; i < listView.getChildCount(); i++) {
+                    View child = listView.getChildAt(i);
+                    if (!(child instanceof PlayerQueueCell)) {
+                        continue;
+                    }
+                    PlayerQueueCell cell = (PlayerQueueCell) child;
+                    if (cell.getMessageObject() == null) {
+                        continue;
+                    }
+                    Float y = oldY.get(cell.getMessageObject());
+                    if (y != null) {
+                        cell.setTranslationY(y - cell.getTop());
+                        cell.animate().translationY(0.0f).setDuration(REVERSE_DURATION).setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT).start();
+                    } else {
+                        cell.setAlpha(0.0f);
+                        cell.animate().alpha(1.0f).setDuration(REVERSE_DURATION).setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT).start();
+                    }
+                }
+                return true;
+            }
+        });
     }
 
     public void updateCells() {
@@ -675,6 +765,9 @@ public class PlayerQueueView extends FrameLayout {
         @SuppressLint({"ClickableViewAccessibility"})
         public void onBindViewHolder(RecyclerView.ViewHolder viewHolder, int i) {
             final PlayerQueueCell playerQueueCell = (PlayerQueueCell) viewHolder.itemView;
+            playerQueueCell.animate().cancel();
+            playerQueueCell.setTranslationY(0.0f);
+            playerQueueCell.setAlpha(1.0f);
             final MessageObject item = getItem(i);
             if (item == null) {
                 return;

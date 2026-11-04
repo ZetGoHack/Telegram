@@ -9690,6 +9690,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         videoPlayerSeekbar = new VideoPlayerSeekBar(videoPlayerSeekbarView);
         videoPlayerSeekbar.setHorizontalPadding(dp(2));
         videoPlayerSeekbar.setColors(0x33ffffff, 0x33ffffff, Color.WHITE, Color.WHITE, Color.WHITE, 0x59ffffff);
+        videoPlayerSeekbar.setWavy(org.telegram.rawgram.player.RawPlayerConfig.getNewPlayerStyle()); // rawGram: exteraGram's wavy bar
         videoPlayerSeekbar.setDelegate(seekBarDelegate);
 
         videoPreviewFrame = new VideoSeekPreviewImage(containerView.getContext(), () -> {
@@ -10216,6 +10217,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         if (videoPlayer == null && (photoViewerWebView == null || !photoViewerWebView.isControllable())) {
             return;
         }
+        videoPlayerSeekbar.setWavyPlaying(playWhenReady && playbackState == ExoPlayer.STATE_READY); // rawGram
         if (ads != null) {
             ads.setWaitingPaused(!playWhenReady || playbackState != ExoPlayer.STATE_READY);
         }

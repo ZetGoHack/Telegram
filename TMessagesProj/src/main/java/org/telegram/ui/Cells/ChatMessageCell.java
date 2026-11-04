@@ -1976,6 +1976,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             }
         };
         seekBar.setDelegate(this);
+        seekBar.setWavy(org.telegram.rawgram.player.RawPlayerConfig.getNewPlayerStyle()); // rawGram: exteraGram's wavy bar for music
         seekBarWaveform = new SeekBarWaveform(context);
         seekBarWaveform.setDelegate(this);
         seekBarWaveform.setParentView(this);
@@ -2262,7 +2263,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     }
 
     private boolean checkNameStatusMotionEvent(MotionEvent event) {
-        if (org.telegram.rawgram.RawBadges.onBubbleBadgeTouch(event, getEventX(event), getEventY(event), currentNameEmojiStatusDrawable, currentUser, currentNameBotVerificationId)) return true; // rawGram: badge in the left slot
+        if (org.telegram.rawgram.RawBadges.onBubbleBadgeTouch(this, event, getEventX(event), getEventY(event), currentNameEmojiStatusDrawable, currentUser, currentNameBotVerificationId)) return true; // rawGram: badge in the left slot
         if (!drawNameLayout || nameLayout == null || nameLayoutSelector == null || currentUser == null && currentChat == null || currentNameStatus == null || currentNameStatusDrawable == null) {
             nameStatusPressed = false;
             return false;
@@ -17419,6 +17420,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         if (currentMessageObject == null) {
             return;
         }
+        seekBar.setWavyPlaying(MediaController.getInstance().isPlayingMessage(currentMessageObject) && !MediaController.getInstance().isMessagePaused(), animated); // rawGram
         if (currentMessageObject.type == MessageObject.TYPE_STORY && currentMessageObject.isVideoStory()) {
             buttonState = 2;
             getIconForCurrentState();

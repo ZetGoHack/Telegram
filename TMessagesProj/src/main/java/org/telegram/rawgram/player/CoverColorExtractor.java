@@ -2,6 +2,7 @@ package org.telegram.rawgram.player;
 
 import android.graphics.Bitmap;
 import android.os.Build;
+import android.text.TextUtils;
 import android.util.LruCache;
 import androidx.core.graphics.ColorUtils;
 import androidx.palette.graphics.Palette;
@@ -25,8 +26,11 @@ public abstract class CoverColorExtractor {
     private static final LruCache<String, Integer> cache = new LruCache<>(96);
     private static final LruCache<String, int[]> glowCache = new LruCache<>(96);
     private static final LruCache<String, Integer> sourceSizes = new LruCache<>(96);
+    /** Image key (without the filter) of the bitmap each cached colour came from. */
+    private static final LruCache<String, String> sourceKeys = new LruCache<>(96);
     private static final HashMap<String, ArrayList<Utilities.Callback<Integer>>> pending = new HashMap<>();
     private static final HashMap<String, Integer> pendingSizes = new HashMap<>();
+    private static final HashMap<String, String> pendingKeys = new HashMap<>();
 
     public static String getKey(MessageObject messageObject) {
         if (messageObject == null) {
@@ -66,13 +70,19 @@ public abstract class CoverColorExtractor {
             return;
         }
         final int iMax = Math.max(bitmapSafe.getWidth(), bitmapSafe.getHeight());
+        String imageKey = bitmapSafe.getKey();
+        int filterAt = imageKey != null ? imageKey.indexOf('@') : -1;
+        if (filterAt >= 0) {
+            imageKey = imageKey.substring(0, filterAt);
+        }
+        final String sourceKey = imageKey;
         Integer num = cache.get(key);
         Integer num2 = sourceSizes.get(key);
         HashMap<String, ArrayList<Utilities.Callback<Integer>>> map = pending;
         ArrayList<Utilities.Callback<Integer>> arrayList = map.get(key);
         HashMap<String, Integer> map2 = pendingSizes;
         Integer num3 = map2.get(key);
-        if (arrayList == null && num != null && (num2 == null || iMax <= num2.intValue() * 1.5f)) {
+        if (arrayList == null && num != null && (num2 == null || !isUpgrade(iMax, sourceKey, num2.intValue(), sourceKeys.get(key)))) {
             bitmapSafe.release();
             if (callback != null) {
                 callback.run(num);
@@ -80,7 +90,7 @@ public abstract class CoverColorExtractor {
             }
             return;
         }
-        if (arrayList != null && num3 != null && iMax <= num3.intValue() * 1.5f) {
+        if (arrayList != null && num3 != null && !isUpgrade(iMax, sourceKey, num3.intValue(), pendingKeys.get(key))) {
             bitmapSafe.release();
             if (callback != null) {
                 arrayList.add(callback);
@@ -96,10 +106,11 @@ public abstract class CoverColorExtractor {
             arrayList.add(callback);
         }
         map2.put(key, Integer.valueOf(iMax));
-        Utilities.globalQueue.postRunnable(() -> extractOnQueue(bitmapSafe, key, iMax));
+        pendingKeys.put(key, sourceKey);
+        Utilities.globalQueue.postRunnable(() -> extractOnQueue(bitmapSafe, key, iMax, sourceKey));
     }
 
-    private static void extractOnQueue(final ImageReceiver.BitmapHolder holder, final String key, final int sourceSize) {
+    private static void extractOnQueue(final ImageReceiver.BitmapHolder holder, final String key, final int sourceSize, final String sourceKey) {
         int seed = 0;
         int[] glow = null;
         Bitmap sample = null;
@@ -119,16 +130,21 @@ public abstract class CoverColorExtractor {
         }
         final int resultSeed = seed;
         final int[] resultGlow = glow;
-        AndroidUtilities.runOnUIThread(() -> applyResult(holder, key, sourceSize, resultSeed, resultGlow));
+        AndroidUtilities.runOnUIThread(() -> applyResult(holder, key, sourceSize, resultSeed, sourceKey, resultGlow));
     }
 
-    private static void applyResult(ImageReceiver.BitmapHolder bitmapHolder, String str, int i, int i2, int[] iArr) {
+    private static void applyResult(ImageReceiver.BitmapHolder bitmapHolder, String str, int i, int i2, String sourceKey, int[] iArr) {
         bitmapHolder.release();
         LruCache<String, Integer> lruCache = sourceSizes;
         Integer num = lruCache.get(str);
         if (num == null || i >= num.intValue()) {
             cache.put(str, Integer.valueOf(i2));
             lruCache.put(str, Integer.valueOf(i));
+            if (sourceKey != null) {
+                sourceKeys.put(str, sourceKey);
+            } else {
+                sourceKeys.remove(str);
+            }
             if (iArr != null) {
                 glowCache.put(str, iArr);
             } else {
@@ -140,7 +156,12 @@ public abstract class CoverColorExtractor {
         if (num2 == null || num2.intValue() != i) {
             return;
         }
+        // Only the newest pending job answers the callbacks, so an old thumbnail's colour can't win over the cover's.
+        if (!TextUtils.equals(pendingKeys.get(str), sourceKey)) {
+            return;
+        }
         map.remove(str);
+        pendingKeys.remove(str);
         ArrayList<Utilities.Callback<Integer>> arrayListRemove = pending.remove(str);
         Integer num3 = cache.get(str);
         if (arrayListRemove == null || num3 == null) {
@@ -153,6 +174,14 @@ public abstract class CoverColorExtractor {
             i3++;
             callback.run(num3);
         }
+    }
+
+    /** A larger bitmap, or one of the same size or larger that shows another image. */
+    private static boolean isUpgrade(int size, String sourceKey, int oldSize, String oldSourceKey) {
+        if (size > oldSize * 1.5f) {
+            return true;
+        }
+        return size >= oldSize && sourceKey != null && !sourceKey.equals(oldSourceKey);
     }
 
     private static Bitmap createSample(Bitmap bitmap) {

@@ -77,6 +77,7 @@ public class StealthModeAlert extends BottomSheet {
         imageView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         imageView.setBackground(Theme.createCircleDrawable(AndroidUtilities.dp(80), Theme.getColor(Theme.key_featuredStickers_addButton)));
         imageView.setImageResource(R.drawable.large_stealth);
+        imageView.setColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText), PorterDuff.Mode.SRC_IN); // rawGram: exteraGram fix
         frameLayout.addView(imageView, LayoutHelper.createFrame(80, 80, Gravity.CENTER_HORIZONTAL, 0, 18, 0, 0));
 
         LinearLayout linearLayout = new LinearLayout(getContext());

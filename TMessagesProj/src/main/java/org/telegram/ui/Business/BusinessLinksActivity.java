@@ -492,7 +492,7 @@ public class BusinessLinksActivity extends UniversalFragment implements Notifica
             imageView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
             imageView.setImageResource(R.drawable.msg_limit_links);
             imageView.setPadding(dp(9), dp(9), dp(9), dp(9));
-            imageView.setColorFilter(new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN));
+            imageView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText), PorterDuff.Mode.SRC_IN)); // rawGram: exteraGram fix
             imageView.setBackground(Theme.createCircleDrawable(dp(36), Theme.getColor(Theme.key_featuredStickers_addButton)));
             imageView.setOnClickListener(view -> {
                 if (businessLink != null) {

@@ -30901,11 +30901,19 @@ public class ChatActivity extends BaseFragment implements
 
     private void fixLayout() {
         if (avatarContainer != null) {
-            avatarContainer.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+            // rawGram: exteraGram fix (remove the listener from the observer it was added to; skip a dead fragment)
+            final ViewTreeObserver observer = avatarContainer.getViewTreeObserver();
+            observer.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
                 @Override
                 public boolean onPreDraw() {
+                    if (observer.isAlive()) {
+                        observer.removeOnPreDrawListener(this);
+                    }
                     if (avatarContainer != null) {
                         avatarContainer.getViewTreeObserver().removeOnPreDrawListener(this);
+                    }
+                    if (isFinished || fragmentView == null || chatListView == null) {
+                        return true;
                     }
                     return fixLayoutInternal();
                 }
@@ -35125,7 +35133,7 @@ public class ChatActivity extends BaseFragment implements
             if (invoked) clearSelectionMode();
             return false;
         } else if (chatActivityEnterView != null && chatActivityEnterView.canHidePopupByBackButton()) {
-            if (invoked) chatActivityEnterView.hidePopup(true);
+            if (invoked) chatActivityEnterView.hidePopup(true); else org.telegram.rawgram.RawPredictiveBack.onPopupBackChecked(); // rawGram: predictive back
             return false;
 //        } else if (chatActivityEnterView != null && chatActivityEnterView.hasBotWebView() && chatActivityEnterView.botCommandsMenuIsShowing() && chatActivityEnterView.onBotWebViewBackPressed()) {
 //            return false;
@@ -40106,7 +40114,7 @@ public class ChatActivity extends BaseFragment implements
             if (cell == null) {
                 return;
             }
-            if (org.telegram.rawgram.RawBadges.onChatStatusPressed(ChatActivity.this, user)) return; // rawGram: exteraGram badge info
+            if (org.telegram.rawgram.RawBadges.onChatStatusPressed(ChatActivity.this, cell, user)) return; // rawGram: exteraGram badge info
             if (!TextUtils.isEmpty(giftSlug)) {
                 Browser.openUrl(getContext(), "https://" + getMessagesController().linkPrefix + "/nft/" + giftSlug);
                 return;
@@ -41365,6 +41373,9 @@ public class ChatActivity extends BaseFragment implements
         @Override
         public void didPressWebPage(ChatMessageCell cell, TLRPC.WebPage webpage, String url, boolean safe) {
             if (url == null) {
+                return;
+            }
+            if (cell != null && webpage != null && webpage.document != null && org.telegram.rawgram.RawPdfViewer.openWebPageDocument(ChatActivity.this, cell.getMessageObject())) { // rawGram: PDF previews in the built-in viewer
                 return;
             }
             Uri uri = Uri.parse(url);

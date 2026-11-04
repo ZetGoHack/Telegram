@@ -1649,6 +1649,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
         final RLottieImageView imageView = new RLottieImageView(context);
         imageView.setScaleType(ImageView.ScaleType.CENTER);
         imageView.setAnimation(R.raw.timer_3, 42, 42);
+        imageView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText, resourcesProvider), PorterDuff.Mode.SRC_IN)); // rawGram: exteraGram fix
         topView.addView(imageView, LayoutHelper.createLinear(64, 64, Gravity.CENTER));
         imageView.playAnimation();
 

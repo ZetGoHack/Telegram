@@ -339,6 +339,19 @@ public class VideoPlayerSeekBar {
         });
     }
 
+    private org.telegram.rawgram.player.ui.EmbeddedWavySeekBar wavy; // rawGram
+
+    /** rawGram: the wavy bar of the new player style (stays stock when that style is off). */
+    public void setWavy(boolean wavy) {
+        this.wavy = wavy ? org.telegram.rawgram.player.ui.EmbeddedWavySeekBar.createForVideo(parentView) : null;
+    }
+
+    public void setWavyPlaying(boolean playing) {
+        if (wavy != null) {
+            wavy.setPlaying(playing, 1f, true);
+        }
+    }
+
     public void draw(Canvas canvas, View view) {
         rect.left = horizontalPadding + AndroidUtilities.lerp(thumbWidth / 2f, 0, transitionProgress);
         rect.top = AndroidUtilities.lerp((height - lineHeight) / 2f, height - AndroidUtilities.dp(3) - smallLineHeight, transitionProgress);
@@ -367,6 +380,13 @@ public class VideoPlayerSeekBar {
         float loopBack = animateThumbLoopBackProgress.set(0);
         if (pressed) {
             loopBack = 0;
+        }
+
+        if (wavy != null && (timestamps == null || timestamps.isEmpty())) { // rawGram: exteraGram's wavy bar
+            wavy.drawInVideoSeekBar(canvas, (pressed ? draggingThumbX : currentThumbX) / (float) Math.max(1, width - thumbWidth), pressed, transitionProgress, width, height, thumbWidth,
+                    lineHeight, smallLineHeight, parentView.getWidth(), horizontalPadding, progressColor, smallLineColor,
+                    selected ? backgroundSelectedColor : backgroundColor, selected ? backgroundSelectedColor : cacheColor, bufferedProgress, rect, strokePaint);
+            return;
         }
 
         // background

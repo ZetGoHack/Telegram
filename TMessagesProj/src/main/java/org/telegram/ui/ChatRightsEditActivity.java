@@ -1959,7 +1959,7 @@ public class ChatRightsEditActivity extends BaseFragment implements Notification
                     addBotButton = new FrameLayout(mContext);
                     addBotButtonText = new AnimatedTextView(mContext, true, false, false);
                     addBotButtonText.setTypeface(AndroidUtilities.bold());
-                    addBotButtonText.setTextColor(0xffffffff);
+                    addBotButtonText.setTextColor(Theme.getColor(Theme.key_featuredStickers_buttonText)); // rawGram: exteraGram fix
                     addBotButtonText.setTextSize(AndroidUtilities.dp(14));
                     addBotButtonText.setGravity(Gravity.CENTER);
                     addBotButtonText.setText(LocaleController.getString(R.string.AddBotButton) + " " + (asAdmin ? LocaleController.getString(R.string.AddBotButtonAsAdmin) : LocaleController.getString(R.string.AddBotButtonAsMember)));

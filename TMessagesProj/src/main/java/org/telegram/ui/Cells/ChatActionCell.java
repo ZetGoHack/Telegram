@@ -3413,8 +3413,7 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
                 canvas.save();
                 float s = 1f - progressToProgress;
                 canvas.scale(s, s, giftButtonRect.centerX(), giftButtonRect.centerY());
-                canvas.translate(x, giftButtonRect.top + dp(7));
-                canvas.translate((giftRectSize - dp(16) - giftPremiumButtonLayout.getWidth()) / 2f, 0);
+                canvas.translate(giftButtonRect.centerX() - giftPremiumButtonLayout.getWidth() / 2f, giftButtonRect.top + dp(7)); // rawGram: exteraGram fix (centre on the button)
                 giftPremiumButtonLayout.draw(canvas);
                 canvas.restore();
             }

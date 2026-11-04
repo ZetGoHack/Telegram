@@ -987,6 +987,7 @@ public class ChannelAffiliateProgramsFragment extends GradientHeaderActivity imp
         ImageView linkFgView = new ImageView(context);
         linkFgView.setScaleType(ImageView.ScaleType.CENTER);
         linkFgView.setImageResource(bot.revoked ? R.drawable.msg_link_2 : R.drawable.msg_limit_links);
+        linkFgView.setColorFilter(bot.revoked ? null : new PorterDuffColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText, resourcesProvider), PorterDuff.Mode.SRC_IN)); // rawGram: exteraGram fix
         linkFgView.setScaleX(bot.revoked ? 2 : 1.8f);
         linkFgView.setScaleY(bot.revoked ? 2 : 1.8f);
         topView.addView(linkFgView, LayoutHelper.createFrame(80, 80, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 0, 0, 0));

@@ -63,6 +63,7 @@ import org.telegram.messenger.ImageReceiver;
 import org.telegram.messenger.LiteMode;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaController;
+import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
@@ -115,6 +116,9 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
     private final CoverColorsWait coverColorsWait;
     private final PlayerCoverView coverView;
     private final int currentAccount;
+    /** The chat whose music count (from the server) is the «of N» in the header; 0 for saved music and global search. */
+    private long musicCountDialogId;
+    private int musicCount;
     private boolean currentAudioFinishedLoading;
     private String currentFile;
     private final TextView durationView;
@@ -674,7 +678,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
             }
         });
         setupCast(context);
-        this.observers = NotificationCenter.getInstance(i).createObserversGroup(this).add(NotificationCenter.messagePlayingDidReset).add(NotificationCenter.messagePlayingPlayStateChanged).add(NotificationCenter.messagePlayingDidStart).add(NotificationCenter.messagePlayingProgressDidChanged).add(NotificationCenter.messagePlayingDidSeek).add(NotificationCenter.fileLoaded).add(NotificationCenter.fileLoadProgressChanged).add(NotificationCenter.musicDidLoad).add(NotificationCenter.moreMusicDidLoad).add(NotificationCenter.musicIdsLoaded).addGlobal(NotificationCenter.messagePlayingSpeedChanged);
+        this.observers = NotificationCenter.getInstance(i).createObserversGroup(this).add(NotificationCenter.messagePlayingDidReset).add(NotificationCenter.messagePlayingPlayStateChanged).add(NotificationCenter.messagePlayingDidStart).add(NotificationCenter.messagePlayingProgressDidChanged).add(NotificationCenter.messagePlayingDidSeek).add(NotificationCenter.fileLoaded).add(NotificationCenter.fileLoadProgressChanged).add(NotificationCenter.musicDidLoad).add(NotificationCenter.moreMusicDidLoad).add(NotificationCenter.musicIdsLoaded).add(NotificationCenter.mediaCountDidLoad).addGlobal(NotificationCenter.messagePlayingSpeedChanged);
         ExpressiveStateDrawable[] expressiveStateDrawableArr = {expressiveStateDrawableCreateToggle, expressiveStateDrawableCreateToggle2, expressiveStateDrawableCreateToggle3, inset};
         for (int i9 = 0; i9 < 4; i9++) {
             expressiveStateDrawableArr[i9].setOnProgressChanged(new Runnable() {
@@ -729,8 +733,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
         public void onReverseOrder() {
             MediaController.getInstance().setPlaybackOrderType(!SharedConfig.playOrderReversed ? 1 : 0);
             MusicPlayerSheet.this.updateOrderButtons(true);
-            MusicPlayerSheet.this.queueView.update();
-            MusicPlayerSheet.this.queueView.scrollToCurrent(false);
+            MusicPlayerSheet.this.queueView.reverse();
         }
 
         @Override
@@ -960,8 +963,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
             return null;
         }
         int i2 = 0;
-        boolean reversed = mediaController.currentSavedMusicList != null ? !SharedConfig.playOrderReversed : SharedConfig.playOrderReversed; // as MediaController.playNextMessageWithoutOrder
-        int i3 = playingMessageObjectNum + ((i > 0) != reversed ? -1 : 1);
+        int i3 = playingMessageObjectNum + (i > 0 ? 1 : -1) * mediaController.getNextTrackDirection();
         if (i3 < size) {
             i2 = i3 < 0 ? size - 1 : i3;
         }
@@ -1354,7 +1356,7 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
     private void lambda$showOrderMenu$28() {
         MediaController.getInstance().setPlaybackOrderType(!SharedConfig.playOrderReversed ? 1 : 0);
         updateOrderButtons(true);
-        this.queueView.update();
+        this.queueView.reverse();
     }
 
     private void showMenu() {
@@ -2278,10 +2280,26 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
             string2 = chatTitle;
         }
         this.headerTitle.setText(string2);
-        if (playingMessageObject == null || (iIndexOf = (playlist = MediaController.getInstance().getPlaylist()).indexOf(playingMessageObject)) < 0 || playlist.size() <= 1) {
+        if (playingMessageObject == null) {
             string = null;
         } else {
-            string = RawPlayerText.format(R.string.PlayerTrackOf, Integer.valueOf((savedMusicList == null) == SharedConfig.playOrderReversed ? iIndexOf + 1 : playlist.size() - iIndexOf), Integer.valueOf(playlist.size()));
+            playlist = MediaController.getInstance().getPlaylist();
+            iIndexOf = playlist.indexOf(playingMessageObject);
+            long dialogId = (savedMusicList != null || MediaController.getInstance().currentPlaylistIsGlobalSearch()) ? 0L : playingMessageObject.getDialogId();
+            if (dialogId != this.musicCountDialogId) {
+                this.musicCountDialogId = dialogId;
+                this.musicCount = 0;
+                if (dialogId != 0) {
+                    MediaDataController.getInstance(this.currentAccount).getMediaCount(dialogId, 0L, MediaDataController.MEDIA_MUSIC, 0, false);
+                }
+            }
+            int total = Math.max(playlist.size(), this.musicCount);
+            if (iIndexOf < 0 || total <= 1) {
+                string = null;
+            } else {
+                // the playlist holds the newest tracks loaded so far; the count covers the whole chat
+                string = RawPlayerText.format(R.string.PlayerTrackOf, Integer.valueOf((savedMusicList == null) == SharedConfig.playOrderReversed ? total - playlist.size() + iIndexOf + 1 : playlist.size() - iIndexOf), Integer.valueOf(total));
+            }
         }
         this.headerSubtitle.setText(string);
         int i = TextUtils.isEmpty(string) ? 8 : 0;
@@ -2627,6 +2645,9 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
         if (i == NotificationCenter.fileLoaded) {
             String str = (String) objArr[0];
             if (str == null || !str.equals(this.currentFile)) {
+                if (str != null) {
+                    PlayerCovers.onFileLoaded(str);
+                }
                 return;
             }
             this.currentAudioFinishedLoading = true;
@@ -2654,6 +2675,14 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
         }
         if (i == NotificationCenter.musicIdsLoaded) {
             updateProfileState(true);
+            return;
+        }
+        if (i == NotificationCenter.mediaCountDidLoad) {
+            long dialogId = (Long) objArr[0];
+            if (dialogId == this.musicCountDialogId && dialogId != 0 && (Long) objArr[1] == 0 && (Integer) objArr[4] == MediaDataController.MEDIA_MUSIC) {
+                this.musicCount = (Integer) objArr[2];
+                updateHeader();
+            }
         }
     }
 

@@ -402,6 +402,7 @@ public class BotDownloads {
         imageView.setScaleType(ImageView.ScaleType.CENTER);
         imageView.setBackground(Theme.createCircleDrawable(dp(44), Theme.getColor(Theme.key_featuredStickers_addButton)));
         imageView.setImageResource(R.drawable.msg_round_file_s);
+        imageView.setColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText)); // rawGram: exteraGram fix
         layout.addView(imageView, LayoutHelper.createLinear(44, 44, Gravity.LEFT | Gravity.CENTER_VERTICAL, 0, 0, 10, 0));
 
         final LinearLayout textLayout = new LinearLayout(context);

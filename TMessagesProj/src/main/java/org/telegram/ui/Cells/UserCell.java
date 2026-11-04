@@ -597,6 +597,10 @@ public class UserCell extends FrameLayout implements NotificationCenter.Notifica
                 case "existing_chats":
                     avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_EXISTING_CHATS);
                     break;
+                case org.telegram.rawgram.RawFolderRoles.TYPE_OWNER: // rawGram: folder roles
+                case org.telegram.rawgram.RawFolderRoles.TYPE_ADMIN:
+                    avatarDrawable.setAvatarType(org.telegram.rawgram.RawFolderRoles.avatarTypeOf(str));
+                    break;
             }
             avatarImageView.setImage(null, "50_50", avatarDrawable);
             currentStatus = "";

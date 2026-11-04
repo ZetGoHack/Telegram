@@ -193,12 +193,32 @@ public class SeekBar {
         lineHeight = value;
     }
 
+    private org.telegram.rawgram.player.ui.EmbeddedWavySeekBar wavy; // rawGram
+
+    /** rawGram: the wavy bar of the new player style (null-safe: stays stock when that style is off). */
+    public void setWavy(boolean wavy) {
+        this.wavy = wavy ? org.telegram.rawgram.player.ui.EmbeddedWavySeekBar.createForMessage(parentView) : null;
+    }
+
+    public void setWavyPlaying(boolean playing, boolean animated) {
+        if (wavy != null) {
+            wavy.setPlaying(playing, 1f, animated);
+        }
+    }
+
     public void draw(Canvas canvas) {
         if (alpha <= 0) {
             return;
         }
         if (alpha < 1) {
             canvas.saveLayerAlpha(0, 0, width, height, (int) (255 * alpha), Canvas.ALL_SAVE_FLAG);
+        }
+        if (wavy != null && (timestamps == null || timestamps.isEmpty())) { // rawGram: exteraGram's wavy bar
+            wavy.drawInSeekBar(canvas, width, height, thumbWidth, pressed ? draggingThumbX : thumbX, pressed, bufferedProgress, progressColor, selected ? backgroundSelectedColor : backgroundColor, selected ? backgroundSelectedColor : cacheColor);
+            if (alpha < 1) {
+                canvas.restore();
+            }
+            return;
         }
         rect.set(thumbWidth / 2, height / 2 - lineHeight / 2, width - thumbWidth / 2, height / 2 + lineHeight / 2);
         paint.setColor(selected ? backgroundSelectedColor : backgroundColor);

@@ -921,7 +921,7 @@ public class UserSelectorBottomSheet extends BottomSheetWithRecyclerListView imp
             if (includeMyGiftsOption && type == TYPE_TRANSFER) {
                 if (myGiftsIcon == null) {
                     final Drawable drawable = getContext().getResources().getDrawable(R.drawable.filled_gift_send).mutate();
-                    drawable.setColorFilter(new PorterDuffColorFilter(0xFFFFFFFF, PorterDuff.Mode.SRC_IN));
+                    drawable.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText, resourcesProvider), PorterDuff.Mode.SRC_IN)); // rawGram: exteraGram fix
                     final CombinedDrawable icon = new CombinedDrawable(Theme.createCircleDrawable(dp(40), Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider)), drawable);
                     icon.setIconSize(dp(24), dp(24));
                     myGiftsIcon = icon;
@@ -931,7 +931,7 @@ public class UserSelectorBottomSheet extends BottomSheetWithRecyclerListView imp
             if (includeTonOption && type == TYPE_TRANSFER && MessagesController.getInstance(currentAccount).config.walletAvailable.get()) {
                 if (myWalletIcon == null) {
                     final Drawable drawable = getContext().getResources().getDrawable(R.drawable.filled_wallet_move).mutate();
-                    drawable.setColorFilter(new PorterDuffColorFilter(0xFFFFFFFF, PorterDuff.Mode.SRC_IN));
+                    drawable.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText, resourcesProvider), PorterDuff.Mode.SRC_IN)); // rawGram: exteraGram fix
                     final CombinedDrawable icon = new CombinedDrawable(Theme.createCircleDrawable(dp(40), Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider)), drawable);
                     icon.setIconSize(dp(24), dp(24));
                     myWalletIcon = icon;

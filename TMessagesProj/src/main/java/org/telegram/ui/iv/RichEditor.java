@@ -2575,6 +2575,7 @@ public class RichEditor extends BaseFragment implements NotificationCenter.Notif
 
         final ImageView topIcon = new ImageView(context);
         topIcon.setImageResource(R.drawable.large_article);
+        topIcon.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText, resourcesProvider), PorterDuff.Mode.SRC_IN)); // rawGram: exteraGram fix
         topIcon.setScaleType(ImageView.ScaleType.CENTER);
         topIcon.setBackground(Theme.createCircleDrawable(dp(80), Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider)));
         layout.addView(topIcon, LayoutHelper.createLinear(80, 80, Gravity.CENTER_HORIZONTAL, 0, 18, 0, 0));

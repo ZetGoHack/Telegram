@@ -2,12 +2,14 @@ package org.telegram.rawgram.player.ui;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Camera;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.RectF;
+import android.graphics.Matrix;
 import android.graphics.drawable.Drawable;
 import android.os.SystemClock;
 import android.text.TextUtils;
@@ -76,6 +78,15 @@ public class PlayerCoverView extends View {
     private final int touchSlop;
     private boolean tracking;
     private VelocityTracker velocityTracker;
+    /** 3D tilt (degrees around Y) while a cover is swiped, from the swipe velocity (exteraGram). */
+    private float swipeTilt;
+    private final SpringAnimation tiltSpring;
+    private final Camera camera = new Camera();
+    private final Matrix tiltMatrix = new Matrix();
+    private final Runnable settleTilt = () -> setSwipeTiltVelocity(0.0f);
+    private static final float TILT_MAX_DEGREES = 10.0f;
+    private static final float TILT_FULL_VELOCITY_DP = 2400.0f;
+    private static final long TILT_SETTLE_DELAY = 60;
 
     public interface Delegate {
         boolean canDrag();
@@ -157,6 +168,18 @@ public class PlayerCoverView extends View {
                 PlayerCoverView.this.lambda$new$6((Float) obj);
             }
         });
+        this.tiltSpring = Material3Tokens.createSpring(0.45f, 260.0f, 0.02f, value -> {
+            this.swipeTilt = value;
+            invalidate();
+        });
+    }
+
+    private void setSwipeTiltVelocity(float velocity) {
+        float target = Utilities.clamp(velocity / AndroidUtilities.dpf2(TILT_FULL_VELOCITY_DP), 1.0f, -1.0f) * TILT_MAX_DEGREES;
+        if (this.tiltSpring.getSpring().getFinalPosition() == target && (this.tiltSpring.isRunning() || this.swipeTilt == target)) {
+            return;
+        }
+        this.tiltSpring.animateToFinalPosition(target);
     }
 
     private void lambda$new$0(int i, ImageReceiver imageReceiver, boolean z, boolean z2, boolean z3) {
@@ -173,6 +196,7 @@ public class PlayerCoverView extends View {
     private void lambda$new$2(DynamicAnimation dynamicAnimation, float f, float f2) {
         this.offset = f;
         this.offsetVelocity = f2;
+        setSwipeTiltVelocity(f2);
         invalidate();
     }
 
@@ -180,6 +204,7 @@ public class PlayerCoverView extends View {
         if (z) {
             return;
         }
+        setSwipeTiltVelocity(0.0f);
         onOffsetSettled();
     }
 
@@ -204,6 +229,7 @@ public class PlayerCoverView extends View {
         this.offsetSpring.cancel();
         this.offsetSpring.setStartValue(this.offset);
         this.offsetSpring.setStartVelocity(f2);
+        this.offsetVelocity = f2;
         this.offsetSpring.getSpring().setFinalPosition(f);
         this.offsetSpring.start();
     }
@@ -632,6 +658,9 @@ public class PlayerCoverView extends View {
         this.offsetSpring.cancel();
         this.swapSpring.cancel();
         this.pauseSpring.cancel();
+        this.tiltSpring.cancel();
+        removeCallbacks(this.settleTilt);
+        this.swipeTilt = 0.0f;
         this.awaitingDirection = 0;
         this.offset = 0.0f;
         this.swap = 1.0f;
@@ -712,6 +741,19 @@ public class PlayerCoverView extends View {
             this.drawRect.inset(fWidth, fWidth);
         }
         float fMin = Math.min(this.radius * f2, this.drawRect.width() / 2.0f);
+        float tilt = this.swipeTilt * (1.0f - this.compact);
+        boolean tilted = tilt != 0.0f;
+        if (tilted) {
+            this.camera.save();
+            this.camera.setLocation(0.0f, 0.0f, -Math.max(8.0f, this.drawRect.width() * 4.0f / 72.0f));
+            this.camera.rotateY(tilt);
+            this.camera.getMatrix(this.tiltMatrix);
+            this.camera.restore();
+            this.tiltMatrix.preTranslate(-this.drawRect.centerX(), -this.drawRect.centerY());
+            this.tiltMatrix.postTranslate(this.drawRect.centerX(), this.drawRect.centerY());
+            canvas.save();
+            canvas.concat(this.tiltMatrix);
+        }
         ImageReceiver imageReceiver = this.receivers[i];
         boolean z = !this.placeholders[i] && imageReceiver.hasBitmapImage();
         if (!z || imageReceiver.getCurrentAlpha() < 1.0f) {
@@ -743,6 +785,9 @@ public class PlayerCoverView extends View {
             imageReceiver2.setImageCoords(rectF3.left, rectF3.top, rectF3.width(), this.drawRect.height());
             imageReceiver2.setAlpha(f3 * motionAlpha);
             imageReceiver2.draw(canvas);
+        }
+        if (tilted) {
+            canvas.restore();
         }
     }
 
@@ -794,6 +839,13 @@ public class PlayerCoverView extends View {
                 }
                 if (this.dragging) {
                     setDragOffset((this.dragStartOffset + motionEvent.getX()) - this.downX);
+                    VelocityTracker tracker = this.velocityTracker;
+                    if (tracker != null) {
+                        tracker.computeCurrentVelocity(1000);
+                        setSwipeTiltVelocity(tracker.getXVelocity());
+                    }
+                    removeCallbacks(this.settleTilt);
+                    postDelayed(this.settleTilt, TILT_SETTLE_DELAY);
                 }
                 return true;
             }
@@ -805,6 +857,7 @@ public class PlayerCoverView extends View {
             return false;
         }
         this.tracking = false;
+        removeCallbacks(this.settleTilt);
         if (this.dragging) {
             this.dragging = false;
             getParent().requestDisallowInterceptTouchEvent(false);

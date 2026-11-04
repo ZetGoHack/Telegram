@@ -574,6 +574,7 @@ public class GalleryListView extends FrameLayout implements NotificationCenter.N
             selectButton = new ImageView(context);
             selectButton.setScaleType(ImageView.ScaleType.CENTER);
             selectButton.setImageResource(R.drawable.floating_check);
+            selectButton.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText, resourcesProvider), PorterDuff.Mode.SRC_IN)); // rawGram: exteraGram fix
             selectButton.setBackground(Theme.createCircleDrawable(dp(56), Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider)));
             ScaleStateListAnimator.apply(selectButton, 0.1f, 1.5f);
             addView(selectButton, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM | Gravity.RIGHT, 0, 0, 14, 14));

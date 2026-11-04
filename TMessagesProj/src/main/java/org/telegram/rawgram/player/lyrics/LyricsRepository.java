@@ -24,6 +24,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.regex.Pattern;
 
 /**
  * Lyrics lookup: tags of the playing file, then the disk cache, then lrclib.net and, when lrclib has no synced text,
@@ -48,6 +49,13 @@ public final class LyricsRepository {
     private static final int CACHE_VERSION = 1;
     private static final int SOURCE_ONLINE = 1;
     private static final int MAX_RESPONSE = 2 * 1024 * 1024;
+    /** Unsynced tag lyrics with fewer text lines than this are ignored, so the online lookup runs instead. */
+    private static final int MIN_TAG_LINES = 4;
+    private static final int LRCLIB_ATTEMPTS = 3;
+    private static final long RETRY_MAX_DELAY = 2000L;
+    private static final long RETRY_BASE_DELAY = 500L;
+    /** Lines of tag lyrics that advertise a site or a channel. */
+    private static final Pattern PROMO = Pattern.compile("https?://|www\\.|t\\.me/|\\b[\\w-]+\\.(?:com|net|org|ru|su|ua|by|kz|io|me|to|fm|cc|co|lc|ly|gg|tv|info|biz|xyz|club|top|site|online|pro|app|link|music)\\b|(?:^|\\s)@\\w{3,}", Pattern.CASE_INSENSITIVE);
 
     private static final LruCache<String, Lyrics> memory = new LruCache<>(24);
     private static final LruCache<String, Boolean> missing = new LruCache<>(64);
@@ -64,7 +72,34 @@ public final class LyricsRepository {
         if (info == null) {
             return null;
         }
-        return Lyrics.parse(info.getLyrics(), 0);
+        Lyrics lyrics = Lyrics.parse(stripPromo(info.getLyrics()), 0);
+        if (lyrics == null || !lyrics.synced && textLines(lyrics) < MIN_TAG_LINES) {
+            return null;
+        }
+        return lyrics;
+    }
+
+    private static String stripPromo(String text) {
+        if (TextUtils.isEmpty(text)) {
+            return text;
+        }
+        StringBuilder result = new StringBuilder(text.length());
+        for (String line : text.split("\r\n|\r|\n", -1)) {
+            if (!PROMO.matcher(line).find()) {
+                result.append(line).append('\n');
+            }
+        }
+        return result.toString();
+    }
+
+    private static int textLines(Lyrics lyrics) {
+        int count = 0;
+        for (Lyrics.Line line : lyrics.lines) {
+            if (!line.text.isEmpty()) {
+                count++;
+            }
+        }
+        return count;
     }
 
     public static Lyrics getCached(TrackQuery query) {
@@ -152,6 +187,7 @@ public final class LyricsRepository {
     }
 
     private static Lyrics requestLrclib(TrackQuery query) throws Exception {
+        Exception error = null;
         if (!TextUtils.isEmpty(query.artist())) {
             Uri.Builder get = Uri.parse("https://lrclib.net/api/get").buildUpon()
                     .appendQueryParameter("artist_name", query.artist())
@@ -162,20 +198,33 @@ public final class LyricsRepository {
             if (query.duration() > 0) {
                 get.appendQueryParameter("duration", String.valueOf(query.duration()));
             }
-            String body = get(get.build().toString());
-            if (body != null) {
-                Lyrics exact = fromLrclib(new JSONObject(body));
-                if (exact != null) {
-                    return exact;
+            try {
+                String body = get(get.build().toString(), LRCLIB_ATTEMPTS);
+                if (body != null) {
+                    Lyrics exact = fromLrclib(new JSONObject(body));
+                    if (exact != null) {
+                        return exact;
+                    }
                 }
+            } catch (Exception e) {
+                error = e;
+                FileLog.e(e);
             }
         }
+        Lyrics found = searchLrclib(query);
+        if (found != null || error == null) {
+            return found;
+        }
+        throw error;
+    }
+
+    private static Lyrics searchLrclib(TrackQuery query) throws Exception {
         Uri.Builder search = Uri.parse("https://lrclib.net/api/search").buildUpon()
                 .appendQueryParameter("track_name", query.title());
         if (!TextUtils.isEmpty(query.artist())) {
             search.appendQueryParameter("artist_name", query.artist());
         }
-        String body = get(search.build().toString());
+        String body = get(search.build().toString(), LRCLIB_ATTEMPTS);
         if (body == null) {
             return null;
         }
@@ -373,33 +422,59 @@ public final class LyricsRepository {
 
     /** Null on 404, an exception on other failures. */
     private static String get(String url) throws Exception {
-        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-        try {
-            connection.setConnectTimeout(10000);
-            connection.setReadTimeout(15000);
-            connection.setRequestProperty("User-Agent", "rawGram/" + BuildVars.BUILD_VERSION_STRING);
-            connection.setRequestProperty("Accept", "application/json");
-            int code = connection.getResponseCode();
-            if (code == 404) {
-                return null;
-            }
-            if (code < 200 || code >= 300) {
-                throw new IllegalStateException("lyrics http " + code);
-            }
-            try (InputStream in = connection.getInputStream()) {
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                byte[] buffer = new byte[8192];
-                int read;
-                while ((read = in.read(buffer)) > 0) {
-                    out.write(buffer, 0, read);
-                    if (out.size() > MAX_RESPONSE) {
-                        throw new IllegalStateException("lyrics response too large");
-                    }
+        return get(url, 1);
+    }
+
+    /** Like {@link #get(String)}, but 429 and 503 are retried up to {@code attempts} times in all. */
+    private static String get(String url, int attempts) throws Exception {
+        for (int attempt = 1; ; attempt++) {
+            HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+            long delay;
+            try {
+                connection.setConnectTimeout(10000);
+                connection.setReadTimeout(15000);
+                connection.setRequestProperty("User-Agent", "rawGram/" + BuildVars.BUILD_VERSION_STRING);
+                connection.setRequestProperty("Accept", "application/json");
+                int code = connection.getResponseCode();
+                if (code == 404) {
+                    return null;
                 }
-                return out.toString("UTF-8");
+                if (code >= 200 && code < 300) {
+                    return readBody(connection);
+                }
+                if (code != 429 && code != 503 || attempt >= attempts) {
+                    throw new IllegalStateException("lyrics http " + code);
+                }
+                delay = retryDelay(connection.getHeaderField("Retry-After"), attempt);
+            } finally {
+                connection.disconnect();
             }
-        } finally {
-            connection.disconnect();
+            Thread.sleep(delay);
+        }
+    }
+
+    private static long retryDelay(String retryAfter, int attempt) {
+        if (retryAfter != null) {
+            try {
+                return Math.min(Long.parseLong(retryAfter.trim()) * 1000, RETRY_MAX_DELAY);
+            } catch (NumberFormatException ignore) {
+            }
+        }
+        return Math.min(RETRY_BASE_DELAY << (attempt - 1), RETRY_MAX_DELAY);
+    }
+
+    private static String readBody(HttpURLConnection connection) throws Exception {
+        try (InputStream in = connection.getInputStream()) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = in.read(buffer)) > 0) {
+                out.write(buffer, 0, read);
+                if (out.size() > MAX_RESPONSE) {
+                    throw new IllegalStateException("lyrics response too large");
+                }
+            }
+            return out.toString("UTF-8");
         }
     }
 

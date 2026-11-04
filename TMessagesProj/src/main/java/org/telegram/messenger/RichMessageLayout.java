@@ -214,6 +214,9 @@ public class RichMessageLayout {
         this.messageObject = messageObject;
         this.maxWidth = maxWidth;
         this.currentAccount = messageObject.currentAccount;
+        if (prev != null) {
+            this.resourcesProvider = prev.resourcesProvider; // rawGram: exteraGram fix (keep the theme on re-layout)
+        }
         layout(prev);
     }
 

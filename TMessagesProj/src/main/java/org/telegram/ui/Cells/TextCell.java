@@ -334,6 +334,7 @@ public class TextCell extends FrameLayout {
     }
 
     private CharSequence valueText;
+    private int valueAvailableWidth; // rawGram: exteraGram fix (setValue ellipsizes to the width left by the title)
 
     public void setText(CharSequence text, boolean divider) {
         imageLeft = 16;
@@ -423,6 +424,7 @@ public class TextCell extends FrameLayout {
         imageLeft = 18;
         textView.setText(text);
         textView.setRightDrawable(null);
+        valueAvailableWidth = 0; // rawGram
         valueTextView.setText(valueText = value, false);
         imageView.setColorFilter(null);
         if (drawable instanceof RLottieDrawable) {
@@ -459,6 +461,7 @@ public class TextCell extends FrameLayout {
         textView.setText(text);
         textView.setRightDrawable(null);
         valueText = value;
+        valueAvailableWidth = 0; // rawGram
         valueTextView.setText(valueText == null ? null : TextUtils.ellipsize(valueText, valueTextView.getPaint(), AndroidUtilities.displaySize.x / 2.5f, TextUtils.TruncateAt.END), animated);
         valueTextView.setVisibility(VISIBLE);
         valueSpoilersTextView.setVisibility(GONE);
@@ -475,7 +478,7 @@ public class TextCell extends FrameLayout {
     }
 
     public void setValue(CharSequence value, boolean animated) {
-        valueTextView.setText(value == null ? "" : TextUtils.ellipsize(valueText = value, valueTextView.getPaint(), AndroidUtilities.displaySize.x / 2.5f, TextUtils.TruncateAt.END), animated);
+        valueTextView.setText(value == null ? "" : TextUtils.ellipsize(valueText = value, valueTextView.getPaint(), valueAvailableWidth > 0 ? valueAvailableWidth : AndroidUtilities.displaySize.x / 2.5f, TextUtils.TruncateAt.END), animated); // rawGram: exteraGram fix
     }
 
     public void setTextAndValueAndColorfulIcon(String text, CharSequence value, boolean animated, int resId, int colorTop, int colorBottom, boolean divider) {
@@ -483,6 +486,7 @@ public class TextCell extends FrameLayout {
         offsetFromImage = getOffsetFromImage(false);
         textView.setText(text);
         textView.setRightDrawable(null);
+        valueAvailableWidth = 0; // rawGram
         valueTextView.setText(value == null ? "" : TextUtils.ellipsize(valueText = value, valueTextView.getPaint(), AndroidUtilities.displaySize.x / 2.5f, TextUtils.TruncateAt.END), animated);
         valueTextView.setVisibility(VISIBLE);
         valueSpoilersTextView.setVisibility(GONE);
@@ -577,9 +581,9 @@ public class TextCell extends FrameLayout {
         textView.setText(text);
         textView.setRightDrawable(null);
         imageView.setVisibility(VISIBLE);
+        valueAvailableWidth = (int) Math.max(1, AndroidUtilities.displaySize.x - (dp(offsetFromImage) + HintView2.measureCorrectly(text, textView.getTextPaint()) + dp(16))); // rawGram: exteraGram fix
         if (value != null) {
-            int availableWidth = (int) Math.max(1, AndroidUtilities.displaySize.x - (dp(offsetFromImage) + HintView2.measureCorrectly(text, textView.getTextPaint()) + dp(16)));
-            valueTextView.setText(value == null ? "" : TextUtils.ellipsize(valueText = value, valueTextView.getPaint(), availableWidth, TextUtils.TruncateAt.END), animated);
+            valueTextView.setText(value == null ? "" : TextUtils.ellipsize(valueText = value, valueTextView.getPaint(), valueAvailableWidth, TextUtils.TruncateAt.END), animated);
         } else {
             valueTextView.setText("", animated);
         }

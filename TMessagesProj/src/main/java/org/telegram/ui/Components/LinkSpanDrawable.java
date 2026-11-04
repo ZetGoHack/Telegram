@@ -782,7 +782,9 @@ public class LinkSpanDrawable<S extends CharacterStyle> {
         @Override
         public void setText(CharSequence text, TextView.BufferType type) {
             super.setText(text, type);
-            stack = AnimatedEmojiSpan.update(emojiCacheType(), this, stack, getLayout());
+            if (isAttachedToWindow()) { // rawGram: exteraGram fix (a detached view must not hold animated emoji)
+                stack = AnimatedEmojiSpan.update(emojiCacheType(), this, stack, getLayout());
+            }
         }
 
         @Override
@@ -791,7 +793,9 @@ public class LinkSpanDrawable<S extends CharacterStyle> {
                 widthMeasureSpec = MeasureSpec.makeMeasureSpec(Math.min(maxWidth, MeasureSpec.getSize(widthMeasureSpec)), MeasureSpec.getMode(widthMeasureSpec));
             }
             super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-            stack = AnimatedEmojiSpan.update(emojiCacheType(), this, stack, getLayout());
+            if (isAttachedToWindow()) { // rawGram: exteraGram fix
+                stack = AnimatedEmojiSpan.update(emojiCacheType(), this, stack, getLayout());
+            }
         }
 
         @Override

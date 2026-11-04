@@ -2505,6 +2505,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
 
             if (!CastSync.isActive() && audioPlayer.isPlaying() && playingMessageObject != null && !playingMessageObject.isVoice()) {
                 VideoPlayer playerFinal = audioPlayer;
+                org.telegram.rawgram.player.PlayerSwitching.onFadeOutStart(playerFinal); // rawGram
                 ValueAnimator valueAnimator = ValueAnimator.ofFloat(audioVolume, 0);
                 valueAnimator.addUpdateListener(valueAnimator1 -> {
                     float volume;
@@ -2519,7 +2520,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                     @Override
                     public void onAnimationEnd(Animator animation) {
                         try {
-                            playerFinal.releasePlayer(true);
+                            org.telegram.rawgram.player.PlayerSwitching.release(playerFinal); // rawGram
                         } catch (Exception e) {
                             FileLog.e(e);
                         }
@@ -2529,7 +2530,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 valueAnimator.start();
             } else {
                 try {
-                    audioPlayer.releasePlayer(true);
+                    org.telegram.rawgram.player.PlayerSwitching.release(audioPlayer); // rawGram
                 } catch (Exception e) {
                     FileLog.e(e);
                 }
@@ -3002,8 +3003,8 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             return;
         }
 
-        final boolean reversed = currentSavedMusicList != null ? !SharedConfig.playOrderReversed : SharedConfig.playOrderReversed; // 13.2 backport
-        boolean last = traversePlaylist(currentPlayList, reversed ? +1 : -1);
+        org.telegram.rawgram.player.PlayerSwitching.preloadAhead(this, playlist, playingMessageObject, currentSavedMusicList != null, SharedConfig.playOrderReversed); // rawGram
+        boolean last = traversePlaylist(currentPlayList, getNextTrackDirection()); // rawGram: shuffle fix via getNextTrackDirection
         if (last && byStop && SharedConfig.repeatMode == 0 && !forceLoopCurrentPlaylist) {
             if (audioPlayer != null || videoPlayer != null) {
                 if (audioPlayer != null) {
@@ -3064,8 +3065,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             return;
         }
 
-        final boolean reversed = currentSavedMusicList != null ? !SharedConfig.playOrderReversed : SharedConfig.playOrderReversed; // 13.2 backport
-        traversePlaylist(currentPlayList, reversed ? -1 : 1);
+        traversePlaylist(currentPlayList, -getNextTrackDirection()); // rawGram: shuffle fix via getNextTrackDirection
         if (currentPlaylistNum >= currentPlayList.size()) {
             return;
         }
@@ -3073,6 +3073,17 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         playMessage(currentPlayList.get(currentPlaylistNum));
     }
     
+    /**
+     * rawGram: from exteraGram. The step to the next track: saved music and reversed order as in 13.2; the shuffled
+     * list ends with the playing track, so shuffle always steps back (otherwise shuffle + another order stopped after one track).
+     */
+    public int getNextTrackDirection() {
+        if (SharedConfig.shuffleMusic) {
+            return -1;
+        }
+        return (currentSavedMusicList == null) == SharedConfig.playOrderReversed ? 1 : -1;
+    }
+
     private boolean traversePlaylist(ArrayList<MessageObject> playlist, int direction) {
         boolean last = false;
         final int wasCurrentPlaylistNum = currentPlaylistNum;
@@ -3142,7 +3153,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             return;
         }
         int nextIndex;
-        if (currentSavedMusicList != null ? !SharedConfig.playOrderReversed : SharedConfig.playOrderReversed) { // 13.2 backport
+        if (getNextTrackDirection() > 0) { // 13.2 backport; rawGram: shuffle fix
             nextIndex = currentPlaylistNum + 1;
             if (nextIndex >= currentPlayList.size()) {
                 nextIndex = 0;
@@ -4028,7 +4039,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                     }
                 } else {
                     try {
-                        audioInfo = AudioInfo.getAudioInfo(cacheFile);
+                        audioInfo = org.telegram.rawgram.player.AudioInfoCache.get(cacheFile); // rawGram: tags parsed ahead by the new player
                     } catch (Exception e) {
                         FileLog.e(e);
                     }

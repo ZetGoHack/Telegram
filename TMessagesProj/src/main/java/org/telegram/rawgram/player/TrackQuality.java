@@ -161,8 +161,9 @@ public abstract class TrackQuality {
             case "audio/mp4":
                 return "AAC";
             case "audio/x-wav":
-            case "audio/raw":
             case "audio/wav":
+            case "audio/vnd.wave":
+            case "audio/wave":
                 return "WAV";
             case "audio/ac3":
                 return "AC3";
@@ -192,7 +193,8 @@ public abstract class TrackQuality {
                     MediaFormat trackFormat = mediaExtractor.getTrackFormat(i);
                     String string = trackFormat.getString("mime");
                     if (string != null && string.startsWith("audio/")) {
-                        probe.format = formatFromMime(string);
+                        // MediaExtractor reports decoded PCM for FLAC/AIFF on some devices: look at the file itself.
+                        probe.format = "audio/raw".equals(string) ? formatFromHeader(file) : formatFromMime(string);
                         if (trackFormat.containsKey("sample-rate")) {
                             probe.sampleRate = trackFormat.getInteger("sample-rate");
                         }
@@ -215,6 +217,27 @@ public abstract class TrackQuality {
             mediaExtractor.release();
             throw th;
         }
+    }
+
+    private static String formatFromHeader(File file) {
+        try (FileInputStream in = new FileInputStream(file)) {
+            byte[] h = new byte[12];
+            if (in.read(h) != 12) {
+                return null;
+            }
+            if (h[0] == 'f' && h[1] == 'L' && h[2] == 'a' && h[3] == 'C') {
+                return "FLAC";
+            }
+            if (h[0] == 'R' && h[1] == 'I' && h[2] == 'F' && h[3] == 'F' && h[8] == 'W' && h[9] == 'A' && h[10] == 'V' && h[11] == 'E') {
+                return "WAV";
+            }
+            if (h[0] == 'F' && h[1] == 'O' && h[2] == 'R' && h[3] == 'M' && h[8] == 'A' && h[9] == 'I' && h[10] == 'F') {
+                return "AIFF";
+            }
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+        return null;
     }
 
     private static int readFlacBitsPerSample(File file) {

@@ -155,6 +155,7 @@ public class GroupCallSheet {
         imageBackgroundView.setBackground(Theme.createCircleDrawable(dp(80), Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider)));
         final ImageView imageView = new ImageView(context);
         imageView.setImageResource(R.drawable.filled_calls_users);
+        imageView.setColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText, resourcesProvider)); // rawGram: exteraGram fix
         imageBackgroundView.addView(imageView, LayoutHelper.createFrame(56, 56, Gravity.CENTER));
         linearLayout.addView(imageBackgroundView, LayoutHelper.createLinear(80, 80, Gravity.CENTER_HORIZONTAL, 2, 21, 2, 13));
 

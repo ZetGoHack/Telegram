@@ -1581,6 +1581,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
         ImageView imageView = new ImageView(context);
         imageView.setScaleType(ImageView.ScaleType.CENTER);
         imageView.setImageResource(R.drawable.filled_verify_age);
+        imageView.setColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText, resourcesProvider)); // rawGram: exteraGram fix
         topView.addView(imageView, LayoutHelper.createFrame(50, 50, Gravity.CENTER));
         layout.addView(topView, LayoutHelper.createLinear(80, 80, Gravity.CENTER_HORIZONTAL, 0, 20, 0, 8));
 

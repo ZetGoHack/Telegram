@@ -158,7 +158,7 @@ public abstract class PlayerCovers {
         org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
             Bitmap cover = null;
             try {
-                AudioInfo info = AudioInfo.getAudioInfo(file);
+                AudioInfo info = AudioInfoCache.get(file);
                 cover = info != null ? info.getCover() : null;
             } catch (Throwable ignore) {
             }
@@ -184,22 +184,39 @@ public abstract class PlayerCovers {
     }
 
     public static void preloadNeighbors(int i) {
+        forEachNeighbor(messageObject -> preload(i, messageObject));
+    }
+
+    /** A neighbour of the playing track finished downloading: parse its tags ahead of time. */
+    public static void onFileLoaded(String fileName) {
+        forEachNeighbor(messageObject -> {
+            if (fileName.equals(FileLoader.getAttachFileName(messageObject.getDocument()))) {
+                AudioInfoCache.preload(messageObject);
+            }
+        });
+    }
+
+    private static void forEachNeighbor(org.telegram.messenger.Utilities.Callback<MessageObject> callback) {
         int playingMessageObjectNum;
         MediaController mediaController = MediaController.getInstance();
         ArrayList<MessageObject> playlist = mediaController.getPlaylist();
         if (playlist.size() > 1 && (playingMessageObjectNum = mediaController.getPlayingMessageObjectNum()) >= 0 && playingMessageObjectNum < playlist.size()) {
             int size = (playingMessageObjectNum + 1) % playlist.size();
             int size2 = ((playingMessageObjectNum - 1) + playlist.size()) % playlist.size();
-            preload(i, playlist.get(size));
+            callback.run(playlist.get(size));
             if (size2 != size) {
-                preload(i, playlist.get(size2));
+                callback.run(playlist.get(size2));
             }
         }
     }
 
     private static void preload(int i, MessageObject messageObject) {
-        ImageLocation thumbLocation;
-        if (messageObject == null || (thumbLocation = getThumbLocation(messageObject)) == null) {
+        if (messageObject == null) {
+            return;
+        }
+        AudioInfoCache.preload(messageObject);
+        ImageLocation thumbLocation = getThumbLocation(messageObject);
+        if (thumbLocation == null) {
             return;
         }
         if (thumbLocation.path != null) {

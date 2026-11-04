@@ -34,6 +34,7 @@ public class OtherAudioInfo extends AudioInfo {
             tracks = getShort(MediaMetadataRetriever.METADATA_KEY_NUM_TRACKS);
             disc = getShort(MediaMetadataRetriever.METADATA_KEY_DISC_NUMBER);
             composer = getString(MediaMetadataRetriever.METADATA_KEY_COMPOSER);
+            lyrics = org.telegram.rawgram.player.lyrics.VorbisComments.readLyricsForPlayer(file); // rawGram: FLAC/OGG/Opus lyrics
             byte[] coverBytes = r.getEmbeddedPicture();
             if (coverBytes != null) {
                 cover = org.telegram.rawgram.player.CoverDecoder.decodeOr(coverBytes, null); // rawGram: full-size cover for the new player

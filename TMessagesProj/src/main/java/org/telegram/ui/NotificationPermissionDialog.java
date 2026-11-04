@@ -57,6 +57,7 @@ public class NotificationPermissionDialog extends BottomSheet implements Notific
         rLottieImageView = new RLottieImageView(context);
         rLottieImageView.setScaleType(ImageView.ScaleType.CENTER);
         rLottieImageView.setAnimation(R.raw.silent_unmute, 46, 46);
+        rLottieImageView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText), PorterDuff.Mode.SRC_IN)); // rawGram: exteraGram fix
         rLottieImageView.playAnimation();
         rLottieImageView.setBackground(Theme.createCircleDrawable(AndroidUtilities.dp(72), Theme.getColor(Theme.key_featuredStickers_addButton)));
         block.addView(rLottieImageView, LayoutHelper.createFrame(72, 72, Gravity.CENTER));

@@ -70,7 +70,7 @@ public class FragmentUsernameBottomSheet {
         int sz = type == TYPE_USERNAME ? 70 : 78;
         imageView.setAnimation(type == TYPE_USERNAME ? R.raw.fragment_username : R.raw.fragment, sz, sz);
         imageView.playAnimation();
-        imageView.setColorFilter(new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN));
+        imageView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_featuredStickers_buttonText, resourcesProvider), PorterDuff.Mode.SRC_IN)); // rawGram: exteraGram fix
         if (type == TYPE_USERNAME) {
             imageView.setScaleX(0.86f);
             imageView.setScaleY(0.86f);
