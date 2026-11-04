@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- rawGram: exteraGram supporter badges (sheets, hint, transfer), ported from exteraGram. Russian like the other rawGram texts. -->
+<resources>
+    <string name="RawSupporterWelcomeTitle">Спасибо за поддержку!</string>
+    <string name="RawSupporterWelcomeInfoNoNumber">Вот что у тебя теперь есть:</string>
+    <string name="RawSupporterWelcomeInfo">Бейдж **%1$s** — вот что ты получаешь:</string>
+    <string name="RawSupporterPerksTitle">Твои бонусы</string>
+    <string name="RawSupporterOtherTitle">**%1$s** поддерживает exteraGram</string>
+    <string name="RawSupporterOtherSubtitle">Что получают поддержавшие:</string>
+    <string name="RawSupporterPerkBadge">Номерной бейдж</string>
+    <string name="RawSupporterPerkBadgeInfo">Бейдж с твоим номером рядом с именем, его видят все в exteraGram.</string>
+    <string name="RawSupporterPerkNowPlaying">Сейчас играет</string>
+    <string name="RawSupporterPerkNowPlayingInfo">Трек, который играет у тебя в Last.fm или stats.fm, виден в профиле.</string>
+    <string name="RawSupporterPerkRegDate">Даты регистрации</string>
+    <string name="RawSupporterPerkRegDateInfo">Более точные даты создания аккаунтов в профилях.</string>
+    <string name="RawSupporterPerkEarlyBuilds">Ранние сборки</string>
+    <string name="RawSupporterPerkEarlyBuildsInfo">Закрытый канал с тестовыми версиями до их выхода.</string>
+    <string name="RawSupporterJoinChannel">Канал ранних сборок</string>
+    <string name="RawSupporterBadgeName">Бейдж-стрелка %1$s</string>
+    <string name="RawSupporterBadgeNameCustom">Бейдж %1$s</string>
+    <string name="RawSupporterTransfer">Передать другому аккаунту</string>
+    <string name="RawSupporterTransferTitle">Передача бейджа</string>
+    <string name="RawSupporterTransferOtherAccount">Другой аккаунт…</string>
+    <string name="RawSupporterTransferConfirm">Передать бейдж **%1$s** аккаунту **%2$s**? Этот аккаунт его потеряет, а следующая передача станет доступна через 30 дней.</string>
+    <string name="RawSupporterTransferDone">Бейдж передан аккаунту **%1$s**</string>
+    <string name="RawSupporterTransferCooldown">Следующая передача будет доступна **%1$s**</string>
+    <string name="RawSupporterTransferTargetHasBadge">У этого аккаунта уже есть бейдж</string>
+    <string name="RawSupporterTransferFailed">Не удалось передать бейдж. Попробуй позже.</string>
+</resources>

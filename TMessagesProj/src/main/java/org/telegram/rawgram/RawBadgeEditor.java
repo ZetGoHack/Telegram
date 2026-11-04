@@ -188,7 +188,8 @@ public final class RawBadgeEditor {
         sendBotRequest(account, query, callback);
     }
 
-    private static void sendBotRequest(int account, String query, Utilities.Callback<String> callback) {
+    /** Inline query to the exteraGram API bot; {@code callback} gets the first result's message text, or null (UI thread). */
+    public static void sendBotRequest(int account, String query, Utilities.Callback<String> callback) {
         MessagesController controller = MessagesController.getInstance(account);
         TLRPC.User bot = controller.getUser(API_BOT_ID);
         if (bot != null) {

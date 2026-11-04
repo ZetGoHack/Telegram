@@ -114,6 +114,9 @@ public class RawDebugActivity extends RawPreferencesFragment {
         header("Интерфейс");
         button("Буфер обмена: коды символов", this::showClipboard);
         button("Галерея компонентов", () -> presentFragment(new RawDebugGalleryActivity()));
+        button("Бейдж: приветствие", () -> org.telegram.rawgram.badges.RawSupporterWelcomeSheet.show(this, org.telegram.rawgram.badges.RawSupporterWelcomeSheet.MODE_WELCOME));
+        button("Бейдж: твои бонусы", () -> org.telegram.rawgram.badges.RawSupporterWelcomeSheet.show(this, org.telegram.rawgram.badges.RawSupporterWelcomeSheet.MODE_PERKS));
+        button("Бейдж: окно поддержавшего", () -> showDialog(new org.telegram.rawgram.badges.RawSupporterInfoSheet(this, null, getResourceProvider())));
         button("Raw-окно с примером", () -> {
             if (getParentActivity() != null) {
                 new RawObjectSheet(getParentActivity(), currentAccount, "Пример", RawDebugChecks.sampleUser(), getResourceProvider()).show();

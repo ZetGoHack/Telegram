@@ -251,8 +251,11 @@ final class RawDrawerHeaderView extends FrameLayout {
             badgeDrawable.set(badge.documentId, true);
             badgeDrawable.setColor(Theme.getColor(COLOR_KEY_STATUS));
             nameView.setRightDrawable2(badgeDrawable);
+            // exteraGram's DrawerContainer.showBadgeSelect: the badge editor, or «Твои бонусы»
+            org.telegram.rawgram.RawBadges.setSecondSlotClick(nameView, v -> org.telegram.rawgram.badges.RawSupporters.onOwnBadgeTap((SimpleTextView) v));
         } else {
             nameView.setRightDrawable2(null);
+            org.telegram.rawgram.RawBadges.setSecondSlotClick(nameView, null);
         }
         updateProxyStatus();
     }

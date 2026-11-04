@@ -185,6 +185,25 @@ public final class RawBadges {
         return e == null || e.badge == null ? 0 : e.number;
     }
 
+    /** Status of a profile id ({@code STATUS_*}) whatever its type; {@link #STATUS_DEFAULT} when unknown or off. */
+    public static int status(long id) {
+        if (!enabled() || id == 0) {
+            return STATUS_DEFAULT;
+        }
+        maybeSync();
+        Entry e = entries.get(id);
+        return e == null ? STATUS_DEFAULT : e.status;
+    }
+
+    /** The list's {@code number} for an id, without any checks (see RawSupporters.getNumber), or 0. */
+    public static int rawNumber(long id) {
+        if (!enabled() || id == 0) {
+            return 0;
+        }
+        Entry e = entries.get(id);
+        return e == null ? 0 : e.number;
+    }
+
     public static boolean isDeveloper(long id, int type) {
         Entry e = entry(id, type);
         return e != null && e.status == STATUS_DEVELOPER;
@@ -289,7 +308,7 @@ public final class RawBadges {
      * used when the sender has an emoji status) shows the badge bulletin. {@code slot} is that drawable, its bounds
      * set while drawing, in the cell's coordinates.
      */
-    public static boolean onBubbleBadgeTouch(android.view.MotionEvent ev, float x, float y, android.graphics.drawable.Drawable slot, TLRPC.User user, long slotId) {
+    public static boolean onBubbleBadgeTouch(org.telegram.ui.Cells.ChatMessageCell cell, android.view.MotionEvent ev, float x, float y, android.graphics.drawable.Drawable slot, TLRPC.User user, long slotId) {
         if (slot == null || user == null || slotId == 0 || slotId != secondaryDocumentId(user)) {
             bubbleBadgeDown = false;
             return false;
@@ -305,7 +324,11 @@ public final class RawBadges {
                 if (bubbleBadgeDown) {
                     bubbleBadgeDown = false;
                     if (inside) {
-                        showInfo(org.telegram.ui.LaunchActivity.getLastFragment(), user);
+                        BaseFragment fragment = org.telegram.ui.LaunchActivity.getLastFragment();
+                        if (fragment != null) {
+                            org.telegram.rawgram.badges.RawSupporters.openProfileBadge(fragment, user, fragment.getResourceProvider(),
+                                    org.telegram.rawgram.badges.RawSupporterEnterFrom.ofSecondary(cell));
+                        }
                     }
                     return true;
                 }
@@ -319,11 +342,13 @@ public final class RawBadges {
         }
     }
 
-    public static boolean onChatStatusPressed(BaseFragment fragment, TLRPC.User user) {
+    /** Tap on the badge in the status slot after a sender name: what exteraGram opens for it. */
+    public static boolean onChatStatusPressed(BaseFragment fragment, org.telegram.ui.Cells.ChatMessageCell cell, TLRPC.User user) {
         if (chatStatus(user) == null) {
             return false;
         }
-        showInfo(fragment, user);
+        org.telegram.rawgram.badges.RawSupporters.openProfileBadge(fragment, user, fragment.getResourceProvider(),
+                org.telegram.rawgram.badges.RawSupporterEnterFrom.of(cell));
         return true;
     }
 
@@ -367,6 +392,23 @@ public final class RawBadges {
     /** The badge drawable of a profile name view, if one was created (for the editor's fly-in animation). */
     static AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable profileDrawable(SimpleTextView view) {
         return cachedNameDrawable(view);
+    }
+
+    /** The badge drawable of a profile name view, or null (supporter tag and fly-in animations). */
+    public static AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable profileBadgeDrawable(SimpleTextView view) {
+        return view == null ? null : cachedNameDrawable(view);
+    }
+
+    /** A click on the badge in a name's second right slot (e.g. the side menu header); null removes it. */
+    public static void setSecondSlotClick(SimpleTextView view, View.OnClickListener click) {
+        if (view == null) {
+            return;
+        }
+        if (click == null) {
+            drawable2Clicks.remove(view);
+        } else {
+            drawable2Clicks.put(view, click);
+        }
     }
 
     /**
@@ -434,8 +476,11 @@ public final class RawBadges {
                 RawBadgeEditor.show(fragment, view);
                 return;
             }
+            org.telegram.rawgram.badges.RawSupporters.openProfileBadge(fragment, user, fragment.getResourceProvider(),
+                    org.telegram.rawgram.badges.RawSupporterEnterFrom.of(view, cachedNameDrawable(view)));
+        } else if (peer instanceof TLRPC.Chat) {
+            org.telegram.rawgram.badges.RawSupporters.openChatBadge(fragment, (TLRPC.Chat) peer, fragment.getResourceProvider());
         }
-        showInfo(fragment, peer);
     }
 
     private static SimpleTextView touchView;
@@ -499,6 +544,11 @@ public final class RawBadges {
      * OfficialChannel strings).
      */
     public static void showInfo(BaseFragment fragment, TLObject peer) {
+        showInfo(fragment, peer, null);
+    }
+
+    /** {@link #showInfo(BaseFragment, TLObject)} with a «Подробнее» button (exteraGram: to the supporter sheet). */
+    public static void showInfo(BaseFragment fragment, TLObject peer, Runnable onButton) {
         Badge badge = get(peer);
         if (fragment == null || badge == null) {
             return;
@@ -516,10 +566,12 @@ public final class RawBadges {
                     ? "**" + chat.title + "** — официальный ресурс **exteraGram**."
                     : "**" + chat.title + "** поддержал(а) разработку **exteraGram** и получил(а) уникальный бейдж.";
         }
-        SpannableStringBuilder text = new SpannableStringBuilder(badge.text != null ? linkUsernames(badge.text, fragment) : fallback);
-        int number = number(peer);
+        String holder = peer instanceof TLRPC.User ? UserObject.getUserName((TLRPC.User) peer) : ((TLRPC.Chat) peer).title;
+        SpannableStringBuilder text = new SpannableStringBuilder(badge.text != null
+                ? linkUsernames(badge.text.replace("{name}", holder == null ? "" : holder), fragment) : fallback);
+        int number = org.telegram.rawgram.badges.RawSupporters.getNumber(peer);
         if (number > 0) {
-            text.append("\nБейдж **№").append(String.valueOf(number)).append("**");
+            text.append("\nБейдж **").append(org.telegram.rawgram.badges.RawSupporters.formatNumber(number)).append("**");
         }
         CharSequence shown = text;
         if (text.toString().contains("**")) {
@@ -528,17 +580,32 @@ public final class RawBadges {
         }
         TLRPC.Document document = AnimatedEmojiDrawable.findDocument(fragment.getCurrentAccount(), badge.documentId);
         Bulletin bulletin;
+        CharSequence button = onButton == null ? null : org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.FragmentUsernameOpen);
         if (document != null) {
-            bulletin = BulletinFactory.of(fragment).createEmojiBulletin(document, shown);
+            bulletin = onButton == null ? BulletinFactory.of(fragment).createEmojiBulletin(document, shown)
+                    : BulletinFactory.of(fragment).createEmojiBulletin(document, shown, button, onButton);
+        } else if (onButton != null) {
+            bulletin = BulletinFactory.of(fragment).createSimpleBulletin(org.telegram.messenger.R.raw.info, shown, button, onButton);
         } else {
             bulletin = BulletinFactory.of(fragment).createSimpleBulletin(org.telegram.messenger.R.raw.info, shown);
         }
-        bulletin.wrapContent();
+        if (number > 0 && bulletin.getLayout() instanceof Bulletin.LottieLayout) {
+            // the emoji bulletin stops at 3 lines; the caption plus the number line needs more
+            ((Bulletin.LottieLayout) bulletin.getLayout()).textView.setMaxLines(5);
+        }
+        if (onButton == null) {
+            bulletin.wrapContent();
+        }
         bulletin.show();
     }
 
     /** Makes {@code @username} mentions in a caption clickable (exteraGram's LocaleUtils.formatWithUsernames). */
     static CharSequence linkUsernames(CharSequence text, BaseFragment fragment) {
+        return linkUsernames(text, fragment, null);
+    }
+
+    /** Same, running {@code onClick} (e.g. closing a sheet) before the profile opens. */
+    public static CharSequence linkUsernames(CharSequence text, BaseFragment fragment, Runnable onClick) {
         SpannableStringBuilder sb = new SpannableStringBuilder(text);
         int start = -1;
         for (int i = 0; i < text.length(); i++) {
@@ -558,6 +625,9 @@ public final class RawBadges {
                     sb.setSpan(new URLSpanNoUnderline("@" + username) {
                         @Override
                         public void onClick(View widget) {
+                            if (onClick != null) {
+                                onClick.run();
+                            }
                             if (fragment != null) {
                                 fragment.getMessagesController().openByUserName(username, fragment, 1);
                             }
@@ -584,6 +654,16 @@ public final class RawBadges {
     }
 
     // ---------------------------------------------------------------- sync
+
+    /** Fetches changes now (after a badge transfer), ignoring the sync interval. */
+    public static void requestSync() {
+        if (!enabled() || ApplicationLoader.applicationContext == null) {
+            return;
+        }
+        prefs().edit().remove(KEY_LAST_SYNC).remove(KEY_LAST_FAILURE).apply();
+        lastCheck = 0;
+        maybeSync();
+    }
 
     /** Called when the switch changes: redraw, and fetch if it was turned on. */
     public static void onSwitchChanged() {
@@ -882,6 +962,7 @@ public final class RawBadges {
                     NotificationCenter.getInstance(a).postNotificationName(NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_EMOJI_STATUS);
                 }
             }
+            org.telegram.rawgram.badges.RawSupporterWelcome.check();
         });
     }
 }

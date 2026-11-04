@@ -475,6 +475,23 @@ public class RawgramConfig {
         RawBadges.onSwitchChanged();
     }
 
+    // exteraGram «Now Playing» profile card (rawgram/nowplaying): asks the exteraGram API for badge holders' tracks
+    private static final Flag nowPlaying = new Flag("featNowPlaying", false);
+
+    /** The «Сейчас играет» card in profiles; needs the badges switch too, since only badge holders have it. */
+    public static boolean isNowPlaying() {
+        return nowPlaying.get() && isExteraBadges();
+    }
+
+    /** The switch itself, regardless of the badges switch (settings screen). */
+    public static boolean isNowPlayingSwitch() {
+        return nowPlaying.get();
+    }
+
+    public static void setNowPlaying(boolean value) {
+        nowPlaying.set(value);
+    }
+
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }

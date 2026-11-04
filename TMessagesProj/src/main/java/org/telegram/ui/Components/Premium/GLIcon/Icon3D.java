@@ -95,9 +95,15 @@ public class Icon3D {
     public static final int TYPE_GOLDEN_STAR = 2;
     public static final int TYPE_DEAL = 3;
     public static final int TYPE_DIAMOND = 4;
+    public static final int TYPE_EXTERA_ARROW = 5; // rawGram: exteraGram supporter arrow
+
+    public org.telegram.rawgram.badges.RawArrowEngraving engraving; // rawGram: number engraved on the arrow
 
     private static final String[] starModel = new String[] {
         "models/star.binobj"
+    };
+    private static final String[] exteraArrowModel = new String[] { // rawGram
+        "models/extera_arrow.binobj"
     };
     private static final String[] coinModel = new String[] {
         "models/coin_outer.binobj",
@@ -130,6 +136,10 @@ public class Icon3D {
             modelPaths = dealModel;
         } else if (type == TYPE_STAR || type == TYPE_GOLDEN_STAR) {
             modelPaths = starModel;
+        } else if (type == TYPE_EXTERA_ARROW) { // rawGram
+            modelPaths = exteraArrowModel;
+            normalSpec = 0.04f;
+            engraving = new org.telegram.rawgram.badges.RawArrowEngraving();
         } else {
             modelPaths = new String[0];
         }
@@ -165,7 +175,9 @@ public class Icon3D {
         int[] linked = new int[1];
 
         String fragmentShaderSource;
-        if (type == TYPE_STAR || type == TYPE_GOLDEN_STAR) {
+        if (type == TYPE_EXTERA_ARROW) { // rawGram
+            fragmentShaderSource = "shaders/fragment_extera_arrow.glsl";
+        } else if (type == TYPE_STAR || type == TYPE_GOLDEN_STAR) {
             fragmentShaderSource = "shaders/fragment4.glsl";
         } else {
             fragmentShaderSource = "shaders/fragment3.glsl";
@@ -218,6 +230,7 @@ public class Icon3D {
         typeHandle = GLES20.glGetUniformLocation(mProgramObject, "type");
         nightHandle = GLES20.glGetUniformLocation(mProgramObject, "night");
         timeHandle = GLES20.glGetUniformLocation(mProgramObject, "time");
+        if (engraving != null) engraving.init(mProgramObject); // rawGram
 
         buffers = new int[3 * N];
         GLES20.glGenBuffers(3 * N, buffers, 0);
@@ -278,6 +291,9 @@ public class Icon3D {
             bitmap = getBitmapFromAsset(context, "models/coin_border.png");
         } else if (type == TYPE_DEAL) {
             bitmap = getBitmapFromAsset(context, "models/deal_border.png");
+        } else if (type == TYPE_EXTERA_ARROW) { // rawGram: plain white specular texture
+            bitmap = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888);
+            bitmap.eraseColor(Color.WHITE);
         }
         if (bitmap != null) {
             final int[] texture = new int[1];
@@ -337,6 +353,7 @@ public class Icon3D {
             GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, backgroundBitmap, 0);
             backgroundBitmap = null;
         }
+        if (engraving != null) engraving.apply(); // rawGram
         GLES20.glUniform1i(mTextureUniformHandle, 0);
         GLES20.glUniform1f(xOffsetHandle, xOffset);
         GLES20.glUniform1f(alphaHandle, enterAlpha);
@@ -451,6 +468,7 @@ public class Icon3D {
             diamondRenderer.destroy();
             diamondRenderer = null;
         } else {
+            if (engraving != null) engraving.destroy(); // rawGram
             GLES20.glDeleteProgram(mProgramObject);
         }
     }

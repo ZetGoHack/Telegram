@@ -130,6 +130,8 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
     private int fontBoldRow;
     private int motionRow;
     private int badgesRow;
+    private int nowPlayingRow;
+    private int nowPlayingSetupRow;
     private int zalgoRow;
     private int lookInfoRow;
 
@@ -218,6 +220,8 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
         hideDividersRow = rowCount++;
         motionRow = rowCount++;
         badgesRow = rowCount++;
+        nowPlayingRow = RawgramConfig.isExteraBadges() ? rowCount++ : -1;
+        nowPlayingSetupRow = RawgramConfig.isNowPlaying() && hasOwnBadge() ? rowCount++ : -1;
         zalgoRow = rowCount++;
         lookInfoRow = rowCount++;
 
@@ -309,6 +313,16 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
             boolean v = !RawgramConfig.isExteraBadges();
             RawgramConfig.setExteraBadges(v);
             ((TextCheckCell) view).setChecked(v);
+            updateRows();
+            if (adapter != null) adapter.notifyDataSetChanged();
+        } else if (position == nowPlayingRow) {
+            boolean v = !RawgramConfig.isNowPlayingSwitch();
+            RawgramConfig.setNowPlaying(v);
+            ((TextCheckCell) view).setChecked(v);
+            updateRows();
+            if (adapter != null) adapter.notifyDataSetChanged();
+        } else if (position == nowPlayingSetupRow) {
+            presentFragment(new org.telegram.rawgram.nowplaying.SetupNowPlayingActivity());
         } else if (position == motionRow) {
             // affects only rawGram's own sheets and menus: no rebuild of other screens needed
             boolean v = !RawMotion.isEnabled();
@@ -437,6 +451,35 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
             editCustomTitle();
         } else if (position == snowRow) {
             choose("Снег на главном экране", new CharSequence[]{"По дате (как в Telegram)", "Всегда", "Выключен"}, RawUiConfig::setSnowMode);
+        }
+    }
+
+    /** Linking a scrobbling service is for exteraGram badge holders only (the API bot refuses others). */
+    private boolean hasOwnBadge() {
+        return RawBadges.get(getUserConfig().getClientUserId()) != null;
+    }
+
+    private boolean nowPlayingInfoRequested;
+
+    /** Linked service for the «Сервис скробблинга» row; loaded once from the exteraGram API if not stored yet. */
+    private String nowPlayingServiceName() {
+        org.telegram.rawgram.nowplaying.NowPlayingController.Info info = org.telegram.rawgram.nowplaying.NowPlayingController.getCachedInfo();
+        if (info == null && !nowPlayingInfoRequested) {
+            nowPlayingInfoRequested = true;
+            org.telegram.rawgram.nowplaying.NowPlayingController.getNowPlayingInfo(loaded -> {
+                if (loaded != null && adapter != null && nowPlayingSetupRow != -1) {
+                    adapter.notifyItemChanged(nowPlayingSetupRow);
+                }
+            });
+        }
+        return info == null ? "" : info.serviceType.getDisplayName();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (adapter != null && nowPlayingSetupRow != -1) {
+            adapter.notifyItemChanged(nowPlayingSetupRow);
         }
     }
 
@@ -724,7 +767,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                     || position == iconHeaderRow || position == switchHeaderRow) {
                 return TYPE_HEADER;
             }
-            if (position == systemFontRow || position == fontFileRow || position == fontBoldRow || position == tabsOrderRow || position == tabsTitleTypeRow || position == titleModeRow || position == customTitleRow || position == snowRow) {
+            if (position == systemFontRow || position == fontFileRow || position == fontBoldRow || position == tabsOrderRow || position == tabsTitleTypeRow || position == titleModeRow || position == customTitleRow || position == snowRow || position == nowPlayingSetupRow) {
                 return TYPE_VALUE;
             }
             if (position == avatarSliderRow || position == imageCacheRow) {
@@ -817,6 +860,8 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                         cell.setTextAndCheck("Анимации rawGram", RawMotion.isEnabled(), true);
                     } else if (position == badgesRow) {
                         cell.setTextAndCheck("Бейджи exteraGram", RawgramConfig.isExteraBadges(), true);
+                    } else if (position == nowPlayingRow) {
+                        cell.setTextAndCheck("Сейчас играет", RawgramConfig.isNowPlayingSwitch(), true);
                     } else if (position == zalgoRow) {
                         cell.setTextAndCheck("Фильтр «Zalgo»", RawUiConfig.filterZalgo(), false);
                     } else if (position == hidePremiumRow) {
@@ -897,6 +942,8 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                     } else if (position == snowRow) {
                         int s = RawUiConfig.snowMode();
                         cell.setTextAndValue("Снег", s == RawUiConfig.SNOW_ALWAYS ? "Всегда" : s == RawUiConfig.SNOW_OFF ? "Выключен" : "По дате", false);
+                    } else if (position == nowPlayingSetupRow) {
+                        cell.setTextAndValue("Сервис скробблинга", nowPlayingServiceName(), true);
                     }
                     break;
                 }
@@ -963,6 +1010,8 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                                 + "Анимации — плавные переходы в окнах и меню rawGram; в режиме энергосбережения они выключены. "
                                 + "Бейджи exteraGram — значки поддержавших exteraGram и его разработчиков рядом с именами в чатах, списках и профилях; "
                                 + "список загружается с сервера exteraGram раз в несколько часов. "
+                                + "Сейчас играет — карточка с треком, который владелец бейджа слушает в Last.fm или stats.fm, в его профиле; "
+                                + "пока профиль открыт, трек запрашивается у сервера exteraGram каждые 15 секунд. "
                                 + "Фильтр «Zalgo» убирает из имён и сообщений наборы наложенных значков и символы смены направления текста.");
                     } else if (position == settingsInfoRow) {
                         cell.setText("Premium — Звёзды, TON, Business, подарки. Вместо номера будет «Номер скрыт» — удобно для скриншотов.");

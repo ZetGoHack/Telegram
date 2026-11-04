@@ -66,6 +66,10 @@ public class GLIconRenderer implements GLSurfaceView.Renderer {
     public final static int FRAGMENT_STYLE = 0;
     public final static int DIALOG_STYLE = 1;
     public boolean isDarkBackground;
+    // rawGram: exteraGram's supporter arrow (custom colours, theme of the sheet, engraved number)
+    public Theme.ResourcesProvider resourcesProvider;
+    private boolean customColors;
+    private Bitmap engravingMask;
 
     public GLIconRenderer(Context context, int style, int type) {
         this.context = context;
@@ -115,6 +119,7 @@ public class GLIconRenderer implements GLSurfaceView.Renderer {
         if (backgroundBitmap != null) {
             model.setBackground(backgroundBitmap);
         }
+        if (engravingMask != null && model.engraving != null) model.engraving.set(engravingMask); // rawGram
         if (isDarkBackground) {
             model.spec1 = 1f;
             model.spec2 = 0.2f;
@@ -178,10 +183,28 @@ public class GLIconRenderer implements GLSurfaceView.Renderer {
         backgroundBitmap = gradientTextureBitmap;
     }
 
+    /** rawGram: number mask for the supporter arrow ({@link org.telegram.rawgram.badges.RawArrowEngraving}). */
+    public void setEngraving(Bitmap mask) {
+        engravingMask = mask;
+        if (model != null && model.engraving != null) {
+            model.engraving.set(mask);
+        }
+    }
+
+    /** rawGram: fixed gradient colours that {@link #updateColors()} keeps. */
+    public void setColors(int color1, int color2) {
+        customColors = true;
+        this.color1 = color1;
+        this.color2 = color2;
+        updateColors();
+    }
+
     public void updateColors() {
-        night = forceNight || ColorUtils.calculateLuminance(Theme.getColor(Theme.key_dialogBackground)) < 0.5f;
-        color1 = ColorUtils.blendARGB(Theme.getColor(colorKey1), Theme.getColor(goldenColorKey1), golden);
-        color2 = ColorUtils.blendARGB(Theme.getColor(colorKey2), Theme.getColor(goldenColorKey2), golden);
-        isDarkBackground = style == DIALOG_STYLE && ColorUtils.calculateLuminance(Theme.getColor(Theme.key_dialogBackground)) < 0.5f;
+        night = forceNight || ColorUtils.calculateLuminance(Theme.getColor(Theme.key_dialogBackground, resourcesProvider)) < 0.5f;
+        if (!customColors) { // rawGram
+            color1 = ColorUtils.blendARGB(Theme.getColor(colorKey1, resourcesProvider), Theme.getColor(goldenColorKey1, resourcesProvider), golden);
+            color2 = ColorUtils.blendARGB(Theme.getColor(colorKey2, resourcesProvider), Theme.getColor(goldenColorKey2, resourcesProvider), golden);
+        }
+        isDarkBackground = style == DIALOG_STYLE && ColorUtils.calculateLuminance(Theme.getColor(Theme.key_dialogBackground, resourcesProvider)) < 0.5f;
     }
 }

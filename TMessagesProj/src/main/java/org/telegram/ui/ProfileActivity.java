@@ -692,6 +692,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int botAppRow;
     private int unofficialSecurityRiskRow;
     private int unofficialSecurityRiskDividerRow;
+    private int rawNowPlayingRow = -1, rawNowPlayingSectionRow = -1; // rawGram: «Сейчас играет» card
+    private final org.telegram.rawgram.nowplaying.NowPlayingProfile rawNowPlaying = new org.telegram.rawgram.nowplaying.NowPlayingProfile(this, () -> this.userId, () -> this.userInfo, () -> this.myProfile, () -> updateListAnimated(false), () -> { if (this.musicView != null) this.musicView.performClick(); }); // rawGram
 
     private int linkedCommunityRow;
     private int linkedCommunityDividerRow;
@@ -2376,6 +2378,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
+        rawNowPlaying.onFragmentDestroy(); // rawGram
         if (sharedMediaLayout != null) {
             sharedMediaLayout.onDestroy();
         }
@@ -9335,6 +9338,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 updateAutoDeleteItem();
                 updateTtlIcon();
+                rawNowPlaying.check(true); // rawGram
                 if (profileChannelMessageFetcher == null && !isSettings()) {
                     profileChannelMessageFetcher = new ProfileChannelCell.ChannelMessageFetcher(currentAccount);
                     profileChannelMessageFetcher.subscribe(() -> updateListAnimated(false));
@@ -9476,6 +9480,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (newUserInfo != null) {
                     userInfo = newUserInfo;
                 }
+                rawNowPlaying.check(false); // rawGram
                 updateRowsIds();
                 updateSelectedMediaTabText();
                 if (listView != null && listView.isComputingLayout()) {
@@ -9640,6 +9645,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         }
 
         updateProfileData(true);
+        rawNowPlaying.onResume(); // rawGram
         fixLayout();
         if (nameTextView[1] != null) {
             setParentActivityTitle(nameTextView[1].getText());
@@ -9672,6 +9678,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         if (undoView != null) {
             undoView.hide(true, 0);
         }
+        rawNowPlaying.onPause(); // rawGram
         if (imageUpdater != null) {
             imageUpdater.onPause();
         }
@@ -9777,6 +9784,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         if (isOpen && actionsView != null) {
             actionsView.startAnimatedActions();
         }
+        if (isOpen && !backward) org.telegram.rawgram.badges.RawSupporterLanding.start(this, userId, nameTextView[1]); // rawGram: arrow from the welcome sheet lands in the name
 
         if (!isOpen && callToActionItem != null && callToActionItem.getTag() != null) {
             if (callToActionItem.getTag() instanceof ActionBarMenuItem) {
@@ -9791,6 +9799,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (collectibleHint != null) {
                     collectibleHint.hide(true);
                 }
+                org.telegram.rawgram.badges.RawSupporterHint.hide(this); // rawGram
             }
         }
         if (isOpen) {
@@ -10583,6 +10592,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         botPermissionsDivider = -1;
         unofficialSecurityRiskRow = -1;
         unofficialSecurityRiskDividerRow = -1;
+        rawNowPlayingRow = rawNowPlayingSectionRow = -1; // rawGram
         linkedCommunityRow = -1;
         linkedCommunityDividerRow = -1;
 
@@ -10775,6 +10785,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 boolean hasInfo = userInfo != null && !TextUtils.isEmpty(userInfo.about) || user != null && !TextUtils.isEmpty(username);
                 boolean hasPhone = user != null && (!TextUtils.isEmpty(user.phone) || !TextUtils.isEmpty(vcardPhone));
 
+                if (rawNowPlaying.shouldShowRow()) { rawNowPlayingRow = rowCount++; rawNowPlayingSectionRow = rowCount++; } // rawGram
                 if (!isBot && userInfo != null && userInfo.unofficial_security_risk) {
                     unofficialSecurityRiskRow = rowCount++;
                     unofficialSecurityRiskDividerRow = rowCount++;
@@ -11415,7 +11426,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (ratingView != null) {
                 ratingView.updateColors(peerColor);
             }
-            setCollectibleGiftStatus(user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible ? (TLRPC.TL_emojiStatusCollectible) user.emoji_status : null);
+            setCollectibleGiftStatus(!org.telegram.rawgram.badges.RawSupporterHint.hasNumber(user) && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible ? (TLRPC.TL_emojiStatusCollectible) user.emoji_status : null); // rawGram: supporter tag replaces the gift one
+            org.telegram.rawgram.badges.RawSupporterHint.set(this, avatarContainer2, currentAccount, user); // rawGram: «Бейдж-стрелка #N» tag
 
 
             final ImageLocation imageLocation = ImageLocation.getForUserOrChat(user, ImageLocation.TYPE_BIG);
@@ -13465,6 +13477,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         }
                     };
                     break;
+                case org.telegram.rawgram.nowplaying.NowPlayingProfile.VIEW_TYPE: view = rawNowPlaying.createView(mContext, resourcesProvider); break; // rawGram
                 case VIEW_TYPE_BOT_APP:
                     FrameLayout frameLayout = new FrameLayout(mContext);
                     ButtonWithCounterView button = new ButtonWithCounterView(mContext, resourcesProvider);
@@ -14287,6 +14300,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     break;
                 case VIEW_TYPE_MUSIC:
                     break;
+                case org.telegram.rawgram.nowplaying.NowPlayingProfile.VIEW_TYPE: rawNowPlaying.bind(holder.itemView); break; // rawGram
             }
         }
 
@@ -14417,7 +14431,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             int type = holder.getItemViewType();
             return type != VIEW_TYPE_HEADER && type != VIEW_TYPE_DIVIDER && type != VIEW_TYPE_SHADOW &&
                     type != VIEW_TYPE_EMPTY && type != VIEW_TYPE_EMPTY2 && type != VIEW_TYPE_HEADER_EMPTY && type != VIEW_TYPE_BOTTOM_PADDING && type != VIEW_TYPE_SHARED_MEDIA &&
-                    type != 9 && type != 10 && type != VIEW_TYPE_BOT_APP && type != VIEW_TYPE_TEXT2; // These are legacy ones, left for compatibility
+                    type != 9 && type != 10 && type != VIEW_TYPE_BOT_APP && type != VIEW_TYPE_TEXT2 && // These are legacy ones, left for compatibility
+                    type != org.telegram.rawgram.nowplaying.NowPlayingProfile.VIEW_TYPE; // rawGram: the card handles its own taps
         }
 
         @Override
@@ -14427,6 +14442,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
         @Override
         public int getItemViewType(int position) {
+            if (position == rawNowPlayingRow) return org.telegram.rawgram.nowplaying.NowPlayingProfile.VIEW_TYPE; // rawGram
+            if (position == rawNowPlayingSectionRow) return VIEW_TYPE_SHADOW; // rawGram
             if (position == infoHeaderRow || position == membersHeaderRow || position == settingsSectionRow2 ||
                     position == numberSectionRow || position == helpHeaderRow || position == debugHeaderRow || position == botPermissionsHeader) {
                 return VIEW_TYPE_HEADER;
@@ -15789,6 +15806,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             int pointer = 0;
             put(++pointer, setAvatarRow, sparseIntArray);
             put(++pointer, setAvatarSectionRow, sparseIntArray);
+            put(++pointer, rawNowPlayingRow, sparseIntArray); // rawGram
+            put(++pointer, rawNowPlayingSectionRow, sparseIntArray); // rawGram
             put(++pointer, numberSectionRow, sparseIntArray);
             put(++pointer, numberRow, sparseIntArray);
             put(++pointer, setUsernameRow, sparseIntArray);
@@ -16759,6 +16778,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     }
 
     public void updateCollectibleHint() {
+        org.telegram.rawgram.badges.RawSupporterHint.update(this, nameTextView[1], AndroidUtilities.lerp(expandAnimatorValues, currentExpanAnimatorFracture), extraHeight >= dp(82)); // rawGram
         if (collectibleHint == null) return;
         collectibleHint.setJointPx(0, -collectibleHint.getPaddingLeft() + nameTextView[1].getX() + nameTextView[1].getRightDrawableX() * nameTextView[1].getScaleX());
         final float expanded = AndroidUtilities.lerp(expandAnimatorValues, currentExpanAnimatorFracture);
