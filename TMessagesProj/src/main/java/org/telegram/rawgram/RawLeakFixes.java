@@ -56,6 +56,82 @@ public final class RawLeakFixes {
         });
     }
 
+    /**
+     * Keeps a drawable that registers itself in a global cache (AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable) registered
+     * only while its view is on the window. Cells re-bind messages after they were detached and call attach() again, which
+     * nobody undoes, so the cache kept the cell and its closed chat. The guard detaches the drawable when its view leaves the
+     * window, puts it back when the view returns, and postpones an attach() made while the view is away. A view that was
+     * never on a window (drawn by someone else) is left as it was.
+     */
+    public static final class AttachGuard implements View.OnAttachStateChangeListener {
+        public interface Target {
+            boolean isAttached();
+
+            void attach();
+
+            void detach();
+        }
+
+        private final Target target;
+        private View view;
+        private boolean seen;    // the view has been on a window
+        private boolean wanted;  // attach() was called and not undone by detach()
+        private boolean inner;   // the guard itself is calling attach()/detach()
+
+        public AttachGuard(Target target) {
+            this.target = target;
+        }
+
+        public void setView(View v) {
+            if (view == v) {
+                return;
+            }
+            if (view != null) {
+                view.removeOnAttachStateChangeListener(this);
+            }
+            view = v;
+            seen = v != null && v.isAttachedToWindow();
+            if (v != null) {
+                v.addOnAttachStateChangeListener(this);
+            }
+        }
+
+        /** Call first in attach(); true means the attach is postponed until the view is back on the window. */
+        public boolean postponeAttach() {
+            if (inner) {
+                return false;
+            }
+            wanted = true;
+            return view != null && seen && !view.isAttachedToWindow();
+        }
+
+        /** Call first in detach(). */
+        public void onDetach() {
+            if (!inner) {
+                wanted = false;
+            }
+        }
+
+        @Override
+        public void onViewAttachedToWindow(View v) {
+            seen = true;
+            if (wanted && !target.isAttached()) {
+                inner = true;
+                target.attach();
+                inner = false;
+            }
+        }
+
+        @Override
+        public void onViewDetachedFromWindow(View v) {
+            if (target.isAttached()) {
+                inner = true;
+                target.detach();
+                inner = false;
+            }
+        }
+    }
+
     /** A copy of the text with its spans but without the watchers that tie an Editable to its TextView. */
     public static CharSequence detachedText(CharSequence text) {
         if (!(text instanceof Spanned) || text instanceof String) {

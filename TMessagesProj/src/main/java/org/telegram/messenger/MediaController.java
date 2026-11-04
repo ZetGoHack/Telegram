@@ -958,6 +958,13 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
     private Sensor gravitySensor;
     private boolean raiseToEarRecord;
     private ChatActivity raiseChat;
+
+    /** rawGram: a closed chat must not stay here (stopRaiseToEarSensors returns early when the sensors are off). */
+    public void clearRaiseChat(ChatActivity chatActivity) {
+        if (raiseChat == chatActivity) {
+            raiseChat = null;
+        }
+    }
     private boolean accelerometerVertical;
     private long lastAccelerometerDetected;
     private int raisedToTop;

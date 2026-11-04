@@ -19381,7 +19381,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                         }
                         currentReplyPhoto = photoSize;
                         if (photoImageLocation != null) {
-                            replyImageReceiver.setImage(photoImageLocation, "50_50", photoImageThumb, 0, null, messageObject.replyMessageObject, cacheType);
+                            replyImageReceiver.setImage(photoImageLocation, loopStickers() ? "50_50" : "50_50_firstframe", photoImageThumb, 0, null, messageObject.replyMessageObject, cacheType); // rawGram (from exteraGram): still with sticker animation off
                         } else {
                             replyImageReceiver.setImage(ImageLocation.getForObject(photoSize, photoObject), hasReplySpoiler ? "5_5_b" : "50_50", ImageLocation.getForObject(thumbPhotoSize, photoObject), hasReplySpoiler ? "50_50_b4" : "50_50_b", size, null, messageObject.replyMessageObject, cacheType);
                         }

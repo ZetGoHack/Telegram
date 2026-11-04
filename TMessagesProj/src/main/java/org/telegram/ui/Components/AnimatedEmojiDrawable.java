@@ -1155,6 +1155,7 @@ public class AnimatedEmojiDrawable extends Drawable {
         public SwapAnimatedEmojiDrawable(View parentView, boolean invalidateParent, int size, int cacheType) {
             changeProgress.setParent(this.parentView = parentView);
             particlesAlpha.setParent(this.parentView = parentView);
+            rawAttachGuard.setView(parentView); // rawGram
             this.size = size;
             this.cacheType = cacheType;
             this.invalidateParent = invalidateParent;
@@ -1169,6 +1170,7 @@ public class AnimatedEmojiDrawable extends Drawable {
             changeProgress.setParent(parentView);
             particlesAlpha.setParent(parentView);
             this.parentView = parentView;
+            rawAttachGuard.setView(parentView); // rawGram
         }
 
         public void play() {
@@ -1463,7 +1465,26 @@ public class AnimatedEmojiDrawable extends Drawable {
             invalidate();
         }
 
+        // rawGram: registered in the global cache only while parentView is on the window (closed chats stayed in memory)
+        private final org.telegram.rawgram.RawLeakFixes.AttachGuard rawAttachGuard = new org.telegram.rawgram.RawLeakFixes.AttachGuard(new org.telegram.rawgram.RawLeakFixes.AttachGuard.Target() {
+            @Override
+            public boolean isAttached() {
+                return attached;
+            }
+
+            @Override
+            public void attach() {
+                SwapAnimatedEmojiDrawable.this.attach();
+            }
+
+            @Override
+            public void detach() {
+                SwapAnimatedEmojiDrawable.this.detach();
+            }
+        });
+
         public void detach() {
+            rawAttachGuard.onDetach(); // rawGram
             if (!attached) {
                 return;
             }
@@ -1477,6 +1498,7 @@ public class AnimatedEmojiDrawable extends Drawable {
         }
 
         public void attach() {
+            if (rawAttachGuard.postponeAttach()) return; // rawGram
             if (attached) {
                 return;
             }

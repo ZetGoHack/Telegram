@@ -4599,13 +4599,18 @@ public class EmojiView extends FrameLayout implements
 
     private void invalidateBlurCaptures(int flags) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && scrollableViewNoiseSuppressor != null) {
-            ViewPositionWatcher.computeRectInParent(typeTabs, this, blurredRectF);
+            // rawGram (from exteraGram): when the tabs are not in the hierarchy the old rect was inset again on every frame and grew
+            View blurAnchor = typeTabs != null ? typeTabs : bottomTabContainer;
+            if (blurAnchor != null && ViewPositionWatcher.computeRectInParent(blurAnchor, this, blurredRectF)) {
             blurredRectF.inset(
                 LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0 : -dp(48),
                 LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0 : -dp(48)
             );
             blurredRectF.right = getMeasuredWidth();
             blurredRectF.bottom = Math.min(blurredRectF.bottom, getMeasuredHeight());
+            } else {
+                blurredRectF.setEmpty();
+            }
 
             scrollableViewNoiseSuppressor.setupRenderNodes(blurredRectList, blurredRectF.isEmpty() ? 0 : 1);
             scrollableViewNoiseSuppressor.invalidateResultRenderNodes(blurCaptureMethod, getWidth(), getHeight());

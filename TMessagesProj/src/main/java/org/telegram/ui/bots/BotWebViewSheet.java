@@ -193,6 +193,7 @@ public class BotWebViewSheet extends Dialog implements NotificationCenter.Notifi
     private int keyboardInset = 0;
     
     private BottomSheetTabs bottomTabs;
+    private Runnable tabsInvalidate, tabsRelayout; // rawGram
     private BottomSheetTabs.ClipTools bottomTabsClip;
 
     private long lastSwipeTime;
@@ -1013,7 +1014,7 @@ public class BotWebViewSheet extends Dialog implements NotificationCenter.Notifi
 
         bottomTabs = LaunchActivity.instance != null ? LaunchActivity.instance.getBottomSheetTabs() : null;
         if (bottomTabs != null) {
-            bottomTabs.listen(windowView::invalidate, this::relayout);
+            bottomTabs.listen(tabsInvalidate = windowView::invalidate, tabsRelayout = this::relayout); // rawGram: kept to stop listening
             bottomTabsClip = new BottomSheetTabs.ClipTools(bottomTabs);
         }
     }
@@ -1035,6 +1036,7 @@ public class BotWebViewSheet extends Dialog implements NotificationCenter.Notifi
     @Override
     protected void onStart() {
         super.onStart();
+        if (bottomTabs != null && tabsRelayout != null) bottomTabs.listen(tabsInvalidate, tabsRelayout); // rawGram: see onStop
 
         Context context = getContext();
         if (context instanceof ContextWrapper && !(context instanceof LaunchActivity)) {
@@ -1048,6 +1050,7 @@ public class BotWebViewSheet extends Dialog implements NotificationCenter.Notifi
     @Override
     protected void onStop() {
         super.onStop();
+        if (bottomTabs != null) bottomTabs.stopListening(tabsInvalidate, tabsRelayout); // rawGram: the tabs outlive the sheet and kept it with its chat
 
         Context context = getContext();
         if (context instanceof ContextWrapper && !(context instanceof LaunchActivity)) {

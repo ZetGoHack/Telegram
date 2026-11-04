@@ -428,6 +428,10 @@ public class ConnectionsManager extends BaseController {
                         buff.reused = true;
                         responseSize = buff.limit();
                         int magic = buff.readInt32(true);
+                        if (magic == 0xcd78e586) { // rawGram (from exteraGram): rpc_answer_dropped_running, the answer to a cancelled request, not a parse error
+                            onRequestClear(currentAccount, requestToken, true);
+                            return;
+                        }
                         try {
                             resp = object.deserializeResponse(buff, magic, true);
                         } catch (Exception e2) {

@@ -226,7 +226,7 @@ public class FileLoader extends BaseController {
     private FileLoaderDelegate delegate = null;
 
     private int lastReferenceId;
-    private final ConcurrentHashMap<Integer, Object> parentObjectReferences = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, java.lang.ref.WeakReference<Object>> parentObjectReferences = new ConcurrentHashMap<>(); // rawGram: weak, every streamed file added a message that was never removed
 
     private static final FileLoader[] Instance = new FileLoader[UserConfig.MAX_ACCOUNT_COUNT];
 
@@ -280,12 +280,15 @@ public class FileLoader extends BaseController {
 
     public int getFileReference(Object parentObject) {
         int reference = lastReferenceId++;
-        parentObjectReferences.put(reference, parentObject);
+        if (parentObject != null) parentObjectReferences.put(reference, new java.lang.ref.WeakReference<>(parentObject)); // rawGram
         return reference;
     }
 
     public Object getParentObject(int reference) {
-        return parentObjectReferences.get(reference);
+        java.lang.ref.WeakReference<Object> ref = parentObjectReferences.get(reference); // rawGram
+        Object parentObject = ref == null ? null : ref.get();
+        if (ref != null && parentObject == null) parentObjectReferences.remove(reference);
+        return parentObject;
     }
 
     public void setLoadingVideoInternal(TLRPC.Document document, boolean player) {

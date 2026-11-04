@@ -25,7 +25,7 @@ public class AudioVisualizerDrawable {
 
     private final Paint p1;
 
-    private View parentView;
+    private java.lang.ref.WeakReference<View> parentViewRef; // rawGram: weak, a static Theme drawable kept the last playing cell and its chat
     private final Random random = new Random();
 
     public float IDLE_RADIUS = AndroidUtilities.dp(6) * 0.33f;
@@ -99,7 +99,7 @@ public class AudioVisualizerDrawable {
             } else {
                 animateTo[i] = waveform[i];
             }
-            if (parentView == null) {
+            if (getParentView() == null) {
                 current[i] = animateTo[i];
             } else if (i == 6) {
                 dt[i] = (animateTo[i] - current[i]) / (ANIMATION_DURATION + 80);
@@ -161,7 +161,8 @@ public class AudioVisualizerDrawable {
                 if ((dt[i] > 0 && current[i] > animateTo[i]) || (dt[i] < 0 && current[i] < animateTo[i])) {
                     current[i] = animateTo[i];
                 }
-                parentView.invalidate();
+                View parentView = getParentView();
+                if (parentView != null) parentView.invalidate();
             }
         }
 
@@ -221,11 +222,11 @@ public class AudioVisualizerDrawable {
     }
 
     public void setParentView(View parentView) {
-        this.parentView = parentView;
+        this.parentViewRef = parentView == null ? null : new java.lang.ref.WeakReference<>(parentView);
     }
 
     public View getParentView() {
-        return parentView;
+        return parentViewRef == null ? null : parentViewRef.get();
     }
 
     public void setColor(int color) {
