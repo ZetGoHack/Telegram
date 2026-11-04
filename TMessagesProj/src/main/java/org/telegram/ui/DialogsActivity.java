@@ -3701,7 +3701,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     if (tabId < 0 || tabId >= dialogFilters.size()) {
                         return 0;
                     }
-                    return getMessagesController().getDialogFilters().get(tabId).unreadCount;
+                    return org.telegram.rawgram.RawFolderCounters.getInstance(currentAccount).getUnreadCount(dialogFilters.get(tabId)); // rawGram: folder roles
                 }
 
                 @Override
@@ -10724,6 +10724,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             updateVisibleRows(MessagesController.UPDATE_MASK_SELECT_DIALOG);
         } else if (id == NotificationCenter.notificationsSettingsUpdated) {
             updateVisibleRows(0);
+            org.telegram.rawgram.RawFolderCounters.getInstance(currentAccount).scheduleRecount(); // rawGram: folder roles
         } else if (id == NotificationCenter.messageReceivedByAck || id == NotificationCenter.messageReceivedByServer || id == NotificationCenter.messageSendError) {
             updateVisibleRows(MessagesController.UPDATE_MASK_SEND_STATE);
         } else if (id == NotificationCenter.didSetPasscode) {

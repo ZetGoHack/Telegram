@@ -2926,6 +2926,7 @@ public class MessagesStorage extends BaseController {
                     FileLog.d("bots = " + bots[b][0] + ", " + bots[b][1]);
                 }
             }*/
+            org.telegram.rawgram.RawFolderCounters.getInstance(currentAccount).update(dialogFilters, usersDict, encUsersDict, encryptedChatsByUsersCount, chatsDict, mutedDialogs, archivedDialogs, dialogsWithMentions); // rawGram: folder roles
             for (int a = 0, N = dialogFilters.size(); a < N + 2; a++) {
                 final boolean isFilter = a < N;
                 final boolean isMain = a == N;
@@ -6694,6 +6695,7 @@ public class MessagesStorage extends BaseController {
             mainUnreadCount = pendingMainUnreadCount;
             archiveUnreadCount = pendingArchiveUnreadCount;
         });
+        org.telegram.rawgram.RawFolderCounters.getInstance(currentAccount).scheduleRecount(); // rawGram: folder roles
     }
 
     private boolean isUserCollapsedInCommunity(LongSparseArray<TLRPC.Chat> chatsDict, TLRPC.User user) {

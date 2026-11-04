@@ -113,6 +113,11 @@ public final class RawFolderRoles {
         return modesOf(account).get(filterId, MODE_NONE);
     }
 
+    /** Some folder of this account has a role (the folder counters' fast path). */
+    public static boolean hasAny(int account) {
+        return modesOf(account).size() > 0;
+    }
+
     /** The dialog filter check: false hides a chat the folder includes by type. */
     public static boolean allows(int account, int filterId, TLRPC.Chat chat) {
         int mode = getMode(account, filterId);
