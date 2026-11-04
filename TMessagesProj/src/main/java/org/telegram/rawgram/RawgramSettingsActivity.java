@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.pm.PackageInfoCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.ApplicationLoader;
@@ -155,7 +156,7 @@ public class RawgramSettingsActivity extends RawPreferencesFragment {
         try {
             Context context = ApplicationLoader.applicationContext;
             PackageInfo info = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
-            text.append(" (").append(info.versionCode).append(")");
+            text.append(" (").append(PackageInfoCompat.getLongVersionCode(info)).append(")");
         } catch (Exception ignore) {
         }
         return text.toString();

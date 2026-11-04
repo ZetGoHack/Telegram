@@ -176,7 +176,7 @@ public class RawChatUiConfig {
     /** Chat header without the call icon (calls stay in the chat's ⋮ menu and in the profile). */
     public static final Flag hideCallButton = new Flag("hideCallButton", false);
 
-    /** Chats list ⋮ menu: hide Telegram's «Кошелёк» entry (13.0, shown when the server enables the wallet). */
+    /** Chats list ⋮ menu and the side menu: hide Telegram's «Кошелёк» entry (13.0, shown when the server enables the wallet). */
     public static final Flag hideWalletMenu = new Flag("hideWalletMenu", false);
 
     /** Round video messages: which camera starts (RawRoundCamera); front and main every time, or asked on each round. */

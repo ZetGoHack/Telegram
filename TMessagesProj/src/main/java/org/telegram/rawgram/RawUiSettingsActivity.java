@@ -88,6 +88,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
     private int tabsOrderRow;
     private int tabsSearchRow;
     private int sideMenuRow;
+    private int sideMenuImmersiveRow;
     private int hideArchiveRow;
     private int previewAvatarsRow;
     private int foldersInfoRow;
@@ -188,6 +189,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
         tabsOrderRow = rowCount++;
         tabsSearchRow = rowCount++;
         sideMenuRow = rowCount++;
+        sideMenuImmersiveRow = RawUiConfig.sideMenu() ? rowCount++ : -1;
         bottomTabsInfoRow = rowCount++;
 
         // exteraGram's avatar corners card: the titled slider first, the live preview under it
@@ -372,7 +374,20 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
             boolean v = !RawUiConfig.sideMenu();
             RawUiConfig.setSideMenu(v);
             toggled(view, v);
+            updateRows();
+            if (adapter != null) {
+                adapter.notifyItemChanged(sideMenuRow);
+                if (v) {
+                    adapter.notifyItemInserted(sideMenuImmersiveRow);
+                } else {
+                    adapter.notifyItemRemoved(sideMenuRow + 1);
+                }
+            }
             showRestartNotice(this);
+        } else if (position == sideMenuImmersiveRow) {
+            boolean v = !RawUiConfig.sideMenuImmersive();
+            RawUiConfig.setSideMenuImmersive(v);
+            toggled(view, v);
         } else if (position == hideArchiveRow) {
             boolean v = !RawUiConfig.hideArchive();
             RawUiConfig.setHideArchive(v);
@@ -841,7 +856,9 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                     } else if (position == tabsSearchRow) {
                         cell.setTextAndCheck("Кнопка поиска", RawUiConfig.mainTabsSearch(), true);
                     } else if (position == sideMenuRow) {
-                        cell.setTextAndCheck("Боковое меню", RawUiConfig.sideMenu(), false);
+                        cell.setTextAndCheck("Боковое меню", RawUiConfig.sideMenu(), sideMenuImmersiveRow != -1);
+                    } else if (position == sideMenuImmersiveRow) {
+                        cell.setTextAndCheck("Погружающая анимация", RawUiConfig.sideMenuImmersive(), false);
                     } else if (position == hideArchiveRow) {
                         cell.setTextAndCheck("Скрыть архив", RawUiConfig.hideArchive(), true);
                     } else if (position == foldersBottomRow) {
@@ -919,11 +936,12 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                                 + "Без историй пропадают их кольца на аватарках, строка над чатами и вкладка в профиле. Истории — после перезапуска. "
                                 + "Скрытый архив открывается из бокового меню. Архив открывается, если потянуть список вниз до конца. Свайп в архиве не возвращает чат в общий список. "
                                 + "Значок загрузок виден в шапке, даже когда ничего не скачивается. "
-                                + "«Кошелёк» — пункт в меню ⋮ над списком чатов. "
+                                + "«Кошелёк» — пункт в меню ⋮ над списком чатов и в боковом меню. "
                                 + "Аватарки отправителей — маленькое фото автора последнего сообщения в группах, перед его именем.");
                     } else if (position == bottomTabsInfoRow) {
                         cell.setText("Кнопка поиска — круглая кнопка справа от вкладок, открывает поиск по чатам. "
                                 + "Боковое меню — аккаунты, ночной режим и быстрые пункты; открывается кнопкой ☰ в списке чатов или свайпом от левого края. "
+                                + "Погружающая анимация — экран уезжает вправо целиком и растворяется в цвете меню. "
                                 + "Скрытие «Контактов», порядок вкладок, кнопка поиска и боковое меню применяются после перезапуска.");
                     } else if (position == avatarInfoRow) {
                         cell.setText("100% — круглые, как в Telegram. Действует в списке чатов, группах и шапке чата.");

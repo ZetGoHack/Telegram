@@ -526,6 +526,7 @@ public final class RawIcons {
         put(m, R.drawable.msg_online, R.drawable.msg_online_solar);
         put(m, R.drawable.msg_link_folder, R.drawable.msg_link2_solar);
         put(m, R.drawable.msg_bot, R.drawable.msg_bots_solar);
+        put(m, R.drawable.menu_wallet, R.drawable.menu_wallet_solar);
         put(m, R.drawable.msg_brightness_high, R.drawable.msg_brightness_high_solar);
         put(m, R.drawable.msg_brightness_low, R.drawable.msg_brightness_low_solar);
         put(m, R.drawable.msg_header_share, R.drawable.msg_share_filled_solar);

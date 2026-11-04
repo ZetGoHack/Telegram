@@ -8,6 +8,7 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
+import org.telegram.rawgram.RawChatUiConfig;
 import org.telegram.rawgram.RawgramSettingsActivity;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
@@ -19,6 +20,7 @@ import org.telegram.ui.DialogsActivity;
 import org.telegram.ui.GroupCreateActivity;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.SettingsActivity;
+import org.telegram.ui.Wallet.WalletActivity;
 import org.telegram.ui.WebAppDisclaimerAlert;
 import org.telegram.ui.bots.BotWebViewSheet;
 
@@ -26,8 +28,9 @@ import java.util.ArrayList;
 
 /**
  * The rows of the side menu (rawGram's stand-in for exteraGram's MainMenuHelper / main menu layout): new group,
- * new channel, contacts, calls, saved messages, archive (with its unread counter), the bots that ask for a place in
- * the side menu, then settings and rawGram. A {@code null} entry is a divider.
+ * new channel, contacts, calls, saved messages, archive (with its unread counter), Telegram's wallet when the server
+ * enables it (as in exteraGram, unless hidden with «Скрыть «Кошелёк» в меню»), the bots that ask for a place in the
+ * side menu, then settings and rawGram. A {@code null} entry is a divider.
  */
 final class RawDrawerItems {
 
@@ -67,6 +70,9 @@ final class RawDrawerItems {
         }
     }
 
+    /** The {@code @wallet} bot: exteraGram gives it a wallet icon instead of the generic bot one. */
+    private static final long WALLET_BOT_ID = 1985737506L;
+
     private RawDrawerItems() {
     }
 
@@ -94,6 +100,13 @@ final class RawDrawerItems {
             args.putInt("folderId", 1);
             host.present(new DialogsActivity(args));
         }, null, a -> MessagesStorage.getInstance(a).getArchiveUnreadCount()));
+        if (MessagesController.getInstance(account).config.walletAvailable.get() && !RawChatUiConfig.hideWalletMenu.get()) {
+            items.add(new Item(R.drawable.ic_gram, "Кошелёк", () -> {
+                WalletActivity wallet = new WalletActivity();
+                wallet.setCurrentAccount(account);
+                host.present(wallet);
+            }));
+        }
         addSideMenuBots(items, host, account);
         items.add(null);
         items.add(new Item(R.drawable.msg_settings_old, "Настройки", () -> host.present(new SettingsActivity())));
@@ -111,7 +124,7 @@ final class RawDrawerItems {
             if (!bot.show_in_side_menu) {
                 continue;
             }
-            items.add(new Item(R.drawable.msg_bot, bot.short_name, () -> {
+            items.add(new Item(bot.bot_id == WALLET_BOT_ID ? R.drawable.menu_wallet : R.drawable.msg_bot, bot.short_name, () -> {
                 host.close();
                 openSideMenuBot(host.activity(), account, bot);
             }, () -> BotWebViewSheet.deleteBot(account, bot.bot_id, null), null));

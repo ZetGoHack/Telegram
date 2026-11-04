@@ -37,6 +37,7 @@ import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.rawgram.RawMotion;
+import org.telegram.rawgram.RawUiConfig;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_stars;
 import org.telegram.ui.ActionBar.BaseFragment;
@@ -84,6 +85,8 @@ public final class RawDrawerContainer extends FrameLayout implements Notificatio
     private static final float APP_SHIFT = 0.3f;
     /** Dim over the app with the open menu (0x66 of 0xff). */
     private static final int SCRIM_ALPHA = 102;
+    /** Immersive animation: the app fades into the menu colour instead of dimming (0xa0 of 0xff). */
+    private static final int SCRIM_ALPHA_IMMERSIVE = 160;
     private static final float SPRING_STIFFNESS = 950f, SPRING_STIFFNESS_FAST = 1500f;
     private static final long PRESENT_DELAY = 200;
 
@@ -472,7 +475,7 @@ public final class RawDrawerContainer extends FrameLayout implements Notificatio
             return;
         }
         drawerPanel.setTranslationX(-drawerWidth * (1f - progress));
-        shiftApp(progress <= OPEN_EPSILON ? 0 : drawerWidth * progress * APP_SHIFT);
+        shiftApp(progress <= OPEN_EPSILON ? 0 : drawerWidth * progress * (isImmersive() ? 1f : APP_SHIFT));
         if (getVisibility() != VISIBLE) {
             super.setVisibility(VISIBLE);
         }
@@ -496,7 +499,15 @@ public final class RawDrawerContainer extends FrameLayout implements Notificatio
         setProgress(drawerWidth != 0 ? MathUtils.clamp(offset, 0f, drawerWidth) / drawerWidth : 0f);
     }
 
-    /** Moves the app (the fragment stack) a little to the right with the menu; not on tablets. */
+    /**
+     * exteraGram's «Immersive Animation» (rawGram switch «Погружающая анимация»): the app moves out by the whole menu
+     * width, fades into the menu colour and the panel has square corners. Not on tablets, where the app stays put.
+     */
+    private static boolean isImmersive() {
+        return RawUiConfig.sideMenuImmersive() && !AndroidUtilities.isTablet();
+    }
+
+    /** Moves the app (the fragment stack) to the right with the menu; not on tablets. */
     private void shiftApp(float translationX) {
         INavigationLayout layout = activity.getActionBarLayout();
         View target = AndroidUtilities.isTablet() || layout == null ? null : layout.getView();
@@ -576,17 +587,23 @@ public final class RawDrawerContainer extends FrameLayout implements Notificatio
     @Override
     protected void dispatchDraw(@NonNull Canvas canvas) {
         if (progress > 0) {
-            scrimPaint.setColor(Color.argb((int) (MathUtils.clamp(progress, 0f, 1f) * SCRIM_ALPHA), 0, 0, 0));
+            float amount = MathUtils.clamp(progress, 0f, 1f);
+            if (isImmersive()) {
+                int color = Theme.getColor(COLOR_KEY_BACKGROUND);
+                scrimPaint.setColor(Color.argb((int) (amount * SCRIM_ALPHA_IMMERSIVE), Color.red(color), Color.green(color), Color.blue(color)));
+            } else {
+                scrimPaint.setColor(Color.argb((int) (amount * SCRIM_ALPHA), 0, 0, 0));
+            }
             canvas.drawRect(0, 0, getWidth(), getHeight(), scrimPaint);
         }
         super.dispatchDraw(canvas);
         drawPreviewAbove(canvas);
     }
 
-    /** Rounds the outer corners of the panel like the screen's own corners (at least 24dp). */
+    /** Rounds the outer corners of the panel like the screen's own corners (at least 24dp); square when immersive. */
     @Override
     protected boolean drawChild(@NonNull Canvas canvas, View child, long drawingTime) {
-        if (child != drawerPanel) {
+        if (child != drawerPanel || isImmersive()) {
             return super.drawChild(canvas, child, drawingTime);
         }
         float top = topRightRadius >= 0 ? topRightRadius : dp(CORNER_RADIUS_DP);
