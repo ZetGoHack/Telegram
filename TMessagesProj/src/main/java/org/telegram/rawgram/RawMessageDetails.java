@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.text.TextUtils;
+import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 
@@ -112,6 +113,9 @@ public class RawMessageDetails {
         for (Row r : mediaRows) {
             rows.addView(row(context, r, rp, onClose), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         }
+        if (!mediaRows.isEmpty()) {
+            addPlatformRow(context, rows, currentAccount, message, rp);
+        }
         ScrollView scroll = new ScrollView(context) {
             @Override
             protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
@@ -175,6 +179,49 @@ public class RawMessageDetails {
             return true;
         });
         return item;
+    }
+
+    /**
+     * «Отправлено с»: the app that recorded the voice message / round video or encoded the photo, guessed from the
+     * already downloaded file ({@link RawMediaPlatform}, after exteraGram). Hidden until known; long press copies the
+     * raw fingerprint.
+     */
+    private static void addPlatformRow(Context context, LinearLayout rows, int account, MessageObject message, Theme.ResourcesProvider rp) {
+        if (!RawMediaPlatform.supports(message)) {
+            return;
+        }
+        File file = mediaFile(account, message);
+        if (file == null) {
+            return;
+        }
+        ActionBarMenuSubItem item = new ActionBarMenuSubItem(context, false, false, rp);
+        item.setTextAndIcon("Отправлено с", R.drawable.menu_devices);
+        item.setSubtext(" "); // creates subtextView; the platform replaces it when known
+        item.getTextView().setMaxWidth(AndroidUtilities.dp(260));
+        item.subtextView.setMaxWidth(AndroidUtilities.dp(260));
+        item.setVisibility(View.GONE);
+        rows.addView(item, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+        Utilities.globalQueue.postRunnable(() -> {
+            RawMediaPlatform.Result result = RawMediaPlatform.detect(message, file);
+            if (result == null) {
+                return;
+            }
+            AndroidUtilities.runOnUIThread(() -> {
+                item.setSubtext(result.platform);
+                item.setVisibility(View.VISIBLE);
+                item.setOnClickListener(v -> {
+                    AndroidUtilities.addToClipboard(result.platform);
+                    RawNotify.show(R.drawable.msg_copy, "Скопировано");
+                    RawMotion.copied(v);
+                });
+                item.setOnLongClickListener(v -> {
+                    AndroidUtilities.addToClipboard(result.fingerprint);
+                    RawNotify.show(R.drawable.msg_copy, "Отпечаток файла скопирован");
+                    RawMotion.copied(v);
+                    return true;
+                });
+            });
+        });
     }
 
     private static void copy(Row r) {
