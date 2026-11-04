@@ -144,7 +144,7 @@ public class ID3v2Info extends AudioInfo {
                                 }
                             }
                             opts.inJustDecodeBounds = false;
-                            cover = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, opts);
+                            cover = org.telegram.rawgram.player.CoverDecoder.decodeOr(bytes, opts); // rawGram: full-size cover for the new player
                             if (cover != null) {
                                 float scale = Math.max(cover.getWidth(), cover.getHeight()) / 120.0f;
                                 if (scale > 0) {

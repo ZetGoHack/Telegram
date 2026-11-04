@@ -36,7 +36,7 @@ public class OtherAudioInfo extends AudioInfo {
             composer = getString(MediaMetadataRetriever.METADATA_KEY_COMPOSER);
             byte[] coverBytes = r.getEmbeddedPicture();
             if (coverBytes != null) {
-                cover = BitmapFactory.decodeByteArray(coverBytes, 0, coverBytes.length);
+                cover = org.telegram.rawgram.player.CoverDecoder.decodeOr(coverBytes, null); // rawGram: full-size cover for the new player
             }
             if (cover != null) {
                 float scale = Math.max(cover.getWidth(), cover.getHeight()) / 120.0f;

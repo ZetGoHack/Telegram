@@ -31,6 +31,8 @@ import androidx.dynamicanimation.animation.DynamicAnimation;
 import androidx.dynamicanimation.animation.SpringAnimation;
 import org.telegram.rawgram.player.RawPlayerConfig;
 import org.telegram.rawgram.player.lyrics.Lyrics;
+import org.telegram.rawgram.player.motion.ArtworkRepository;
+import org.telegram.rawgram.player.motion.MotionCoverRepository;
 import org.telegram.rawgram.player.lyrics.LyricsRepository;
 import org.telegram.rawgram.player.rhythm.RhythmTap;
 import org.telegram.rawgram.player.ui.ExpressiveStateDrawable;
@@ -958,7 +960,8 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
             return null;
         }
         int i2 = 0;
-        int i3 = playingMessageObjectNum + ((i > 0) != SharedConfig.playOrderReversed ? -1 : 1);
+        boolean reversed = mediaController.currentSavedMusicList != null ? !SharedConfig.playOrderReversed : SharedConfig.playOrderReversed; // as MediaController.playNextMessageWithoutOrder
+        int i3 = playingMessageObjectNum + ((i > 0) != reversed ? -1 : 1);
         if (i3 < size) {
             i2 = i3 < 0 ? size - 1 : i3;
         }
@@ -1631,6 +1634,14 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
             }
 
             @Override
+            public void onMotionCoversChanged() {
+                MusicPlayerSheet.this.coverView.setMotionCover(MusicPlayerSheet.this.coverView.getMessageObject(), null);
+                MusicPlayerSheet.this.loadMotionCover(MusicPlayerSheet.this.coverView.getMessageObject());
+                MusicPlayerSheet.this.loadArtwork(MusicPlayerSheet.this.coverView.getMessageObject());
+                MusicPlayerSheet.this.coverView.refreshCover();
+            }
+
+            @Override
             public void onRhythmBackgroundChanged() {
                 MusicPlayerSheet.this.updateRhythm();
             }
@@ -1871,6 +1882,34 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
             this.queueView.scrollToCurrent(false);
         }
         applyTransitions();
+    }
+
+    /** Full-size cover from Apple Music for a track whose own cover is missing or tiny (only with the switch on). */
+    private void loadArtwork(final MessageObject messageObject) {
+        TrackQuery query = RawPlayerConfig.getPlayerMotionCovers() && PlayerCovers.needsArtwork(messageObject) ? TrackQuery.forMessage(messageObject) : null;
+        if (query == null || ArtworkRepository.isResolved(query)) {
+            return;
+        }
+        ArtworkRepository.fetch(query, url -> {
+            if (url != null && this.coverView.getMessageObject() == messageObject) {
+                this.coverView.refreshCover();
+            }
+        });
+    }
+
+    /** Animated album cover from Apple Music (only with the switch on); a newer request cancels the older one. */
+    private void loadMotionCover(final MessageObject messageObject) {
+        final int request = ++this.motionRequest;
+        TrackQuery query = RawPlayerConfig.getPlayerMotionCovers() ? TrackQuery.forMessage(messageObject) : null;
+        if (query == null) {
+            return;
+        }
+        Point display = AndroidUtilities.displaySize;
+        MotionCoverRepository.fetch(query, Math.min(display.x, display.y) - AndroidUtilities.dp(40.0f), path -> {
+            if (request == this.motionRequest && path != null) {
+                this.coverView.setMotionCover(messageObject, path);
+            }
+        });
     }
 
     public void loadLyrics(boolean z) {
@@ -2303,6 +2342,8 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
         updateRhythm();
         if (!z4) {
             this.coverView.setCover(playingMessageObject, z5, i);
+            loadMotionCover(playingMessageObject);
+            loadArtwork(playingMessageObject);
             this.titleView.setText(playingMessageObject.getMusicTitle(), z5);
             this.artistView.setText(playingMessageObject.getMusicAuthor(), z5);
             PlayerCovers.preloadNeighbors(this.currentAccount);

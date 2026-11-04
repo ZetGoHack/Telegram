@@ -89,7 +89,7 @@ public abstract class PlayerCovers {
         }
         AudioInfo playingAudioInfo = getPlayingAudioInfo(messageObject);
         String str = i + "_" + i;
-        String cached = null;
+        String cached = (z && RawPlayerConfig.getPlayerMotionCovers() && needsArtwork(messageObject)) ? org.telegram.rawgram.player.motion.ArtworkRepository.getCached(TrackQuery.forMessage(messageObject)) : null;
         if (cached != null) {
             if (playingAudioInfo != null && playingAudioInfo.getCover() != null) {
                 imageReceiver.setImage(ImageLocation.getForPath(cached), str, new BitmapDrawable(ApplicationLoader.applicationContext.getResources(), playingAudioInfo.getCover()), null, messageObject, 1);

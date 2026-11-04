@@ -22,7 +22,7 @@
     <string name="PlayerLyricsProgressInfo">Как заполняется текущая строка.</string>
     <string name="PlayerLyricsProgressHorizontal">Слева направо</string>
     <string name="PlayerLyricsProgress">Заполнение строки</string>
-    <string name="PlayerLyricsOnlineInfo">Искать текст на lrclib.net, если в файле его нет. Название и исполнитель уходят на этот сервер.</string>
+    <string name="PlayerLyricsOnlineInfo">Искать текст на lrclib.net и lrcmux.dev, если в файле его нет. Название и исполнитель уходят на эти серверы.</string>
     <string name="PlayerLyricsOnline">Тексты из интернета</string>
     <string name="PlayerLyrics">Тексты песен</string>
     <string name="PlayerInfoSampleRate">Частота дискретизации</string>
@@ -31,9 +31,11 @@
     <string name="PlayerCoverColorsMini">Мини-плеер</string>
     <string name="PlayerCoverColorsFull">Полный плеер</string>
     <string name="PlayerCoverColors">Цвета обложки</string>
+    <string name="PlayerMotionCovers">Обложки из Apple Music</string>
+    <string name="PlayerMotionCoversEnabled">Живые обложки альбомов и большие обложки для треков без своей. Название и исполнитель уходят в Apple Music.</string>
     <string name="PlayerCollapse">Свернуть плеер</string>
     <string name="LyricsOfferTitle">Найти текст?</string>
-    <string name="LyricsOfferText">Название и исполнитель будут отправлены на lrclib.net, не через Telegram. Это можно выключить в настройках плеера.</string>
+    <string name="LyricsOfferText">Название и исполнитель будут отправлены на lrclib.net и lrcmux.dev, не через Telegram. Это можно выключить в настройках плеера.</string>
     <string name="LyricsOfferButton">Искать текст</string>
     <string name="LyricsNotFoundTitle">Текст не найден</string>
     <string name="LyricsNotFoundTextOffline">В тегах файла текста нет. Поиск в интернете выключен в настройках плеера.</string>

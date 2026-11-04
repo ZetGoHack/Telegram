@@ -4030,9 +4030,9 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                             messageObject.audioProgress = seekToProgressPending = pos;
                         }
                         shouldSavePositionForCurrentAudio = name;
-                        if (Math.abs(currentMusicPlaybackSpeed - 1.0f) > 0.001f) {
-                            audioPlayer.setPlaybackSpeed(Math.round(currentMusicPlaybackSpeed * 10f) / 10f, org.telegram.rawgram.player.RawPlayerConfig.tapeSpeed()); // rawGram
-                        }
+                    }
+                    if ((org.telegram.rawgram.player.RawPlayerConfig.getNewPlayerStyle() || !TextUtils.isEmpty(name) && messageObject.getDuration() >= 10 * 60) &&Math.abs(currentMusicPlaybackSpeed - 1.0f) > 0.001f) { // rawGram: the new player keeps the speed for every track
+                        audioPlayer.setPlaybackSpeed(Math.round(currentMusicPlaybackSpeed * 10f) / 10f, org.telegram.rawgram.player.RawPlayerConfig.tapeSpeed());
                     }
                 }
                 if (messageObject.forceSeekTo >= 0) {

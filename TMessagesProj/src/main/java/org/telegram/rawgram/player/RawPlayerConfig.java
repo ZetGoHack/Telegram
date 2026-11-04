@@ -7,8 +7,8 @@ import org.telegram.messenger.ApplicationLoader;
 
 /**
  * Switches of the rawGram music player (SharedPreferences "rawgram_player", cached). The player section is ported from
- * exteraGram (exteraSquad, GPL-2.0-or-later). Everything is off by default, so stock Telegram behavior is unchanged
- * until the new player is turned on.
+ * exteraGram (exteraSquad, GPL-2.0-or-later). The new player is off by default, so stock Telegram behavior is unchanged
+ * until it is turned on; the other defaults follow exteraGram, except the network lookups, which stay off.
  */
 public final class RawPlayerConfig {
 
@@ -17,13 +17,14 @@ public final class RawPlayerConfig {
     private static boolean loaded;
     private static boolean newPlayerStyle;
     private static int playerMode;
-    private static boolean coverColors = true;
+    private static boolean coverColors;
     private static boolean miniCoverColors;
     private static boolean speedPitch;
     private static boolean particles;
-    private static boolean rhythmBackground;
+    private static boolean rhythmBackground = true;
+    private static boolean motionCovers;
     private static boolean lyricsOnline;
-    private static int lyricsProgress;
+    private static int lyricsProgress = 1;
 
     private RawPlayerConfig() {
     }
@@ -43,13 +44,14 @@ public final class RawPlayerConfig {
             SharedPreferences p = prefs();
             newPlayerStyle = p.getBoolean("newPlayerStyle", false);
             playerMode = p.getInt("playerMode", 0);
-            coverColors = p.getBoolean("coverColors", true);
+            coverColors = p.getBoolean("coverColors", false);
             miniCoverColors = p.getBoolean("miniCoverColors", false);
             speedPitch = p.getBoolean("speedPitch", false);
             particles = p.getBoolean("particles", false);
-            rhythmBackground = p.getBoolean("rhythmBackground", false);
+            rhythmBackground = p.getBoolean("rhythmBackground", true);
+            motionCovers = p.getBoolean("motionCovers", false);
             lyricsOnline = p.getBoolean("lyricsOnline", false);
-            lyricsProgress = p.getInt("lyricsProgress", 0);
+            lyricsProgress = p.getInt("lyricsProgress", 1);
             loaded = true;
         }
     }
@@ -146,7 +148,23 @@ public final class RawPlayerConfig {
         put("rhythmBackground", value);
     }
 
-    /** Look up synced lyrics on lrclib.net (sends artist, title and duration to that server). */
+    /**
+     * Covers from Apple Music, found by title and artist: the animated (motion) cover of the album when it has one,
+     * and a full-size picture for tracks whose own cover is missing or tiny. Off by default: it sends the track
+     * title and artist to Apple.
+     */
+    public static boolean getPlayerMotionCovers() {
+        load();
+        return motionCovers;
+    }
+
+    public static void setPlayerMotionCovers(boolean value) {
+        load();
+        motionCovers = value;
+        put("motionCovers", value);
+    }
+
+    /** Look up synced lyrics on lrclib.net and lrcmux.dev (sends artist, title, album and duration to them). */
     public static boolean getLyricsOnline() {
         load();
         return lyricsOnline;

@@ -53,6 +53,8 @@ public class PlayerSettingsSheet extends BottomSheetWithRecyclerListView {
 
         void onLyricsProgressChanged();
 
+        void onMotionCoversChanged();
+
 
         void onRhythmBackgroundChanged();
     }
@@ -242,13 +244,21 @@ public class PlayerSettingsSheet extends BottomSheetWithRecyclerListView {
         arrayList.add(UItem.asHeader(RawPlayerText.get(R.string.RawPlayerAppearance)));
         boolean playerCoverColors = RawPlayerConfig.getPlayerCoverColors();
         boolean playerMiniCoverColors = RawPlayerConfig.getPlayerMiniCoverColors();
-        arrayList.add(UItem.asRoundCheckbox(6, RawPlayerText.get(R.string.PlayerCoverColorsFull)).setChecked(playerCoverColors));
-        arrayList.add(UItem.asRoundCheckbox(7, RawPlayerText.get(R.string.PlayerCoverColorsMini)).setChecked(playerMiniCoverColors));
-        arrayList.add(UItem.asButtonCheck(5, RawPlayerText.get(R.string.PlayerRhythmBackground), RawPlayerText.get(R.string.PlayerRhythmBackgroundInfo)).setChecked(RawPlayerConfig.getPlayerRhythmBackground()));
-        arrayList.add(UItem.asButtonCheck(8, RawPlayerText.get(R.string.PlayerParticles), RawPlayerText.get(R.string.PlayerParticlesInfo)).setChecked(RawPlayerConfig.getPlayerParticles()));
+        final int coverColorsOn = (playerCoverColors ? 1 : 0) + (playerMiniCoverColors ? 1 : 0);
+        arrayList.add(UItem.asExpandableSwitch(1, RawPlayerText.get(R.string.PlayerCoverColors), coverColorsOn + "/2")
+                .setChecked(coverColorsOn > 0)
+                .setCollapsed(!this.coverColorsExpanded)
+                .setClickCallback(v -> setCoverColors(coverColorsOn == 0, coverColorsOn == 0)));
+        if (this.coverColorsExpanded) {
+            arrayList.add(UItem.asRoundCheckbox(6, RawPlayerText.get(R.string.PlayerCoverColorsFull)).setChecked(playerCoverColors).pad());
+            arrayList.add(UItem.asRoundCheckbox(7, RawPlayerText.get(R.string.PlayerCoverColorsMini)).setChecked(playerMiniCoverColors).pad());
+        }
+        arrayList.add(checkWithInfo(2, R.string.PlayerMotionCovers, R.string.PlayerMotionCoversEnabled, RawPlayerConfig.getPlayerMotionCovers(), true));
+        arrayList.add(checkWithInfo(5, R.string.PlayerRhythmBackground, R.string.PlayerRhythmBackgroundInfo, RawPlayerConfig.getPlayerRhythmBackground(), true));
+        arrayList.add(checkWithInfo(8, R.string.PlayerParticles, R.string.PlayerParticlesInfo, RawPlayerConfig.getPlayerParticles(), false));
         arrayList.add(UItem.asShadow(null));
         arrayList.add(UItem.asHeader(RawPlayerText.get(R.string.PlayerLyrics)));
-        arrayList.add(UItem.asButtonCheck(3, RawPlayerText.get(R.string.PlayerLyricsOnline), RawPlayerText.get(R.string.PlayerLyricsOnlineInfo)).setChecked(RawPlayerConfig.getLyricsOnline()));
+        arrayList.add(checkWithInfo(3, R.string.PlayerLyricsOnline, R.string.PlayerLyricsOnlineInfo, RawPlayerConfig.getLyricsOnline(), false));
         arrayList.add(UItem.asShadow(null));
         arrayList.add(UItem.asHeader(RawPlayerText.get(R.string.PlayerLyricsProgress)));
         arrayList.add(UItem.asSlideView(new String[]{RawPlayerText.get(R.string.RawPlayerLyricsProgressOff), RawPlayerText.get(R.string.PlayerLyricsProgressHorizontal), RawPlayerText.get(R.string.PlayerLyricsProgressVertical)}, RawPlayerConfig.getLyricsProgress(), new Utilities.Callback() {
@@ -260,6 +270,22 @@ public class PlayerSettingsSheet extends BottomSheetWithRecyclerListView {
         arrayList.add(UItem.asShadow(RawPlayerText.get(R.string.PlayerLyricsProgressInfo)));
     }
 
+    /**
+     * A switch row with a grey info line under it (exteraGram's asCheck with a value): a plain check item that the
+     * bind callback turns into the two-line TextCheckCell layout.
+     */
+    private static UItem checkWithInfo(int id, int title, int info, boolean checked, boolean divider) {
+        final String text = RawPlayerText.get(title);
+        final String value = RawPlayerText.get(info);
+        final UItem item = UItem.asCheck(id, text).setChecked(checked);
+        item.onBind(view -> {
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setTextAndValueAndCheck(text, value, item.checked, true, divider);
+            }
+        });
+        return item;
+    }
+
     private void lambda$fillItems$3(Integer num) {
         RawPlayerConfig.setLyricsProgress(num.intValue());
         this.delegate.onLyricsProgressChanged();
@@ -267,15 +293,28 @@ public class PlayerSettingsSheet extends BottomSheetWithRecyclerListView {
 
     private void onItemClick(UItem uItem, View view) {
         switch (uItem.id) {
+            case 1:
+                this.coverColorsExpanded = !this.coverColorsExpanded;
+                this.adapter.update(true);
+                break;
+            case 2:
+                boolean motion = !RawPlayerConfig.getPlayerMotionCovers();
+                RawPlayerConfig.setPlayerMotionCovers(motion);
+                uItem.setChecked(motion);
+                setChecked(view, motion);
+                this.delegate.onMotionCoversChanged();
+                break;
             case 3:
                 boolean z2 = !RawPlayerConfig.getLyricsOnline();
                 RawPlayerConfig.setLyricsOnline(z2);
+                uItem.setChecked(z2);
                 setChecked(view, z2);
                 this.delegate.onLyricsOnlineChanged();
                 break;
             case 5:
                 boolean z3 = !RawPlayerConfig.getPlayerRhythmBackground();
                 RawPlayerConfig.setPlayerRhythmBackground(z3);
+                uItem.setChecked(z3);
                 setChecked(view, z3);
                 this.delegate.onRhythmBackgroundChanged();
                 break;
@@ -288,6 +327,7 @@ public class PlayerSettingsSheet extends BottomSheetWithRecyclerListView {
             case 8:
                 boolean z4 = !RawPlayerConfig.getPlayerParticles();
                 RawPlayerConfig.setPlayerParticles(z4);
+                uItem.setChecked(z4);
                 setChecked(view, z4);
                 this.delegate.onRhythmBackgroundChanged();
                 break;

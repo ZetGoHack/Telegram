@@ -35,6 +35,7 @@ public class RawPlayerSettingsActivity extends RawPreferencesFragment {
     private static final int RHYTHM = 4;
     private static final int PARTICLES = 5;
     private static final int LYRICS_ONLINE = 6;
+    private static final int MOTION_COVERS = 7;
     private static final int LYRICS_PROGRESS = 20;
 
     private static final String[] PROGRESS_NAMES = {"Выкл.", "Слева направо", "Сверху вниз"};
@@ -81,6 +82,8 @@ public class RawPlayerSettingsActivity extends RawPreferencesFragment {
         check("Фон в ритм", RHYTHM);
         check("Частицы", PARTICLES);
         info("Фон и частицы реагируют на ритм музыки. Расходуют заряд, не работают на планшетах.");
+        check("Обложки из Apple Music", MOTION_COVERS);
+        info("Живые обложки альбомов и большие обложки для треков без своей. Название и исполнитель уходят в Apple Music.");
 
         header("Звук");
         check("Менять тон со скоростью", SPEED_PITCH);
@@ -88,7 +91,7 @@ public class RawPlayerSettingsActivity extends RawPreferencesFragment {
 
         header("Тексты песен");
         check("Тексты из интернета", LYRICS_ONLINE);
-        info("Текст ищется на lrclib.net, если его нет в тегах файла: туда уходят название, исполнитель и длительность. "
+        info("Текст ищется на lrclib.net и lrcmux.dev, если его нет в тегах файла: туда уходят название, исполнитель, альбом и длительность. "
                 + "Выкл: ничего не отправляется, берутся только теги и сохранённые тексты.");
         value("Заполнение строки", LYRICS_PROGRESS);
     }
@@ -101,6 +104,7 @@ public class RawPlayerSettingsActivity extends RawPreferencesFragment {
             case RHYTHM: return RawPlayerConfig.getPlayerRhythmBackground();
             case PARTICLES: return RawPlayerConfig.getPlayerParticles();
             case LYRICS_ONLINE: return RawPlayerConfig.getLyricsOnline();
+            case MOTION_COVERS: return RawPlayerConfig.getPlayerMotionCovers();
             default: return false;
         }
     }
@@ -116,6 +120,7 @@ public class RawPlayerSettingsActivity extends RawPreferencesFragment {
             case RHYTHM: RawPlayerConfig.setPlayerRhythmBackground(value); break;
             case PARTICLES: RawPlayerConfig.setPlayerParticles(value); break;
             case LYRICS_ONLINE: RawPlayerConfig.setLyricsOnline(value); break;
+            case MOTION_COVERS: RawPlayerConfig.setPlayerMotionCovers(value); break;
         }
     }
 

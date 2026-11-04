@@ -569,7 +569,7 @@ public class PlayerQueueCell extends FrameLayout implements DownloadController.F
             return;
         }
         if (i == 1) {
-            if (MediaController.getInstance().playMessage(this.messageObject)) {
+            if (MediaController.getInstance().pauseMessage(this.messageObject)) {
                 this.buttonState = 0;
                 setIcon(getIconForCurrentState(), false, true);
                 return;

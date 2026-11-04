@@ -22,6 +22,8 @@ rawGram is free software distributed under the **GNU General Public License v3.0
   Telegram→Solar replacement map were taken from Nagram, which ported them from exteraGram
 - **HiddenApiBypass** — LSPosed (Apache-2.0) — https://github.com/LSPosed/AndroidHiddenApiBypass;
   used only to call `Typeface.setDefault` when a custom font file is chosen
+- **material-color-utilities** — Google (Apache-2.0) — https://github.com/material-foundation/material-color-utilities;
+  the HCT colour space in `org.telegram.rawgram.player.util.hct` (player accent colours), as exteraGram uses it
 
 Original file headers and copyright notices of ported code are kept in place.
 rawGram is an unofficial client and is not affiliated with Telegram.

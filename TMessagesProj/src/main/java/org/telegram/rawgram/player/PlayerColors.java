@@ -143,13 +143,20 @@ public final class PlayerColors {
         return playerColors;
     }
 
-    /** Accent of a seed colour: tone 80 on dark surfaces, 40 on light ones. */
+    /** Accent role of a seed colour (Material's getColorRoles): HCT tone 80 on dark surfaces, 40 on light ones. */
     private static int accentOf(int seed, boolean dark) {
-        return ColorTones.withTone(seed, dark ? 80.0f : 40.0f, 60.0d) | 0xFF000000;
+        return hctTone(seed, dark ? 80 : 40);
     }
 
+    /** On-accent role of a seed colour: HCT tone 20 on dark surfaces, 100 on light ones. */
     private static int onAccentOf(int seed, boolean dark) {
-        return ColorTones.withTone(seed, dark ? 20.0f : 100.0f, 30.0d) | 0xFF000000;
+        return hctTone(seed, dark ? 20 : 100);
+    }
+
+    private static int hctTone(int color, int tone) {
+        org.telegram.rawgram.player.util.hct.Hct hct = org.telegram.rawgram.player.util.hct.Hct.fromInt(color);
+        hct.setTone(tone);
+        return hct.toInt();
     }
 
     private void setGlow(int i) {

@@ -23,13 +23,14 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 
 /**
- * Lyrics lookup: tags of the playing file, then the disk cache, then lrclib.net (only when the online switch is on).
- * Everything that is found is cached on disk and in memory.
+ * Lyrics lookup: tags of the playing file, then the disk cache, then lrclib.net and, when lrclib has no synced text,
+ * lrcmux.dev (only when the online switch is on). Synced lines from lrcmux get lrclib's spelling and punctuation when
+ * both texts agree on at least 90% of the words. Everything that is found is cached on disk and in memory.
  *
- * <p>Ported from exteraGram (exteraSquad, GPL-2.0-or-later); the HTTP part is rewritten on HttpURLConnection and the
- * second provider is dropped.
+ * <p>Ported from exteraGram (exteraSquad, GPL-2.0-or-later); the HTTP part is rewritten on HttpURLConnection.
  */
 public final class LyricsRepository {
 
@@ -38,6 +39,12 @@ public final class LyricsRepository {
     public static final int RESULT_ERROR = 2;
 
     private static final String PROVIDER = "LRCLIB";
+    private static final String PROVIDER_LRCMUX = "lrcmux";
+    /** lrcmux answers further off than this (seconds) are another recording. */
+    private static final int LRCMUX_DURATION_LIMIT = 5;
+    /** How far ahead in the plain text a word of a synced line is looked for. */
+    private static final int PUNCTUATE_LOOKAHEAD = 4;
+    private static final float PUNCTUATE_MIN_MATCH = 0.9f;
     private static final int CACHE_VERSION = 1;
     private static final int SOURCE_ONLINE = 1;
     private static final int MAX_RESPONSE = 2 * 1024 * 1024;
@@ -100,15 +107,33 @@ public final class LyricsRepository {
             int result = RESULT_OK;
             if (found == null) {
                 boolean failed = false;
+                Lyrics lrclib = null;
                 try {
-                    found = requestLrclib(query);
+                    lrclib = requestLrclib(query);
                 } catch (Throwable th) {
                     FileLog.e(th);
                     failed = true;
                 }
+                if (lrclib == null || !(lrclib.synced || lrclib.instrumental)) {
+                    Lyrics lrcmux = null;
+                    try {
+                        lrcmux = requestLrcmux(query);
+                    } catch (Throwable th) {
+                        FileLog.e(th);
+                        failed = true;
+                    }
+                    if (lrcmux != null && (lrcmux.synced || lrclib == null)) {
+                        Lyrics merged = lrclib != null ? punctuate(lrcmux, lrclib) : null;
+                        found = merged != null ? merged : lrcmux;
+                    } else {
+                        found = lrclib;
+                    }
+                } else {
+                    found = lrclib;
+                }
                 if (found == null) {
                     result = failed ? RESULT_ERROR : RESULT_NOT_FOUND;
-                } else {
+                } else if (!failed) {
                     writeDisk(key, found);
                 }
             }
@@ -197,6 +222,153 @@ public final class LyricsRepository {
         }
         Lyrics plain = Lyrics.parse(optString(object, "plainLyrics"), SOURCE_ONLINE, PROVIDER);
         return plain != null ? plain : synced;
+    }
+
+    private static Lyrics requestLrcmux(TrackQuery query) throws Exception {
+        Uri.Builder get = Uri.parse("https://api.lrcmux.dev/get").buildUpon()
+                .appendQueryParameter("title", query.title())
+                .appendQueryParameter("level", "line")
+                .appendQueryParameter("format", "json");
+        if (!TextUtils.isEmpty(query.artist())) {
+            get.appendQueryParameter("artist", query.artist());
+        }
+        if (!TextUtils.isEmpty(query.album())) {
+            get.appendQueryParameter("album", query.album());
+        }
+        if (query.duration() > 0) {
+            get.appendQueryParameter("duration", String.valueOf(query.duration()));
+        }
+        String body = get(get.build().toString());
+        if (body == null) {
+            return null;
+        }
+        JSONObject object = new JSONObject(body);
+        JSONObject track = object.optJSONObject("track");
+        JSONObject meta = object.optJSONObject("meta");
+        if (query.duration() > 0 && track != null) {
+            int duration = track.optInt("duration", 0);
+            if (duration > 0 && Math.abs(duration - query.duration()) > LRCMUX_DURATION_LIMIT) {
+                return null;
+            }
+        }
+        JSONObject source = meta != null ? meta.optJSONObject("source") : null;
+        String sourceName = source != null ? optString(source, "name") : null;
+        String provider = sourceName != null ? PROVIDER_LRCMUX + " · " + sourceName : PROVIDER_LRCMUX;
+        if (meta != null && meta.optBoolean("instrumental", false)) {
+            return Lyrics.instrumental(SOURCE_ONLINE, provider);
+        }
+        JSONArray lines = object.optJSONArray("lines");
+        if (lines == null || lines.length() == 0) {
+            return null;
+        }
+        if (meta == null || "none".equals(meta.optString("level"))) {
+            StringBuilder text = new StringBuilder();
+            for (int i = 0; i < lines.length(); i++) {
+                JSONObject line = lines.optJSONObject(i);
+                if (line != null) {
+                    text.append(line.optString("text", "")).append('\n');
+                }
+            }
+            return Lyrics.parse(text.toString(), SOURCE_ONLINE, provider);
+        }
+        ArrayList<Lyrics.Line> timed = new ArrayList<>(lines.length());
+        for (int i = 0; i < lines.length(); i++) {
+            JSONObject line = lines.optJSONObject(i);
+            if (line != null) {
+                timed.add(new Lyrics.Line(Math.max(0L, line.optLong("start", 0L)), line.optString("text", "").trim()));
+            }
+        }
+        return timed.isEmpty() ? null : Lyrics.fromTimedLines(timed, SOURCE_ONLINE, provider);
+    }
+
+    private static int firstLetter(String word) {
+        for (int i = 0; i < word.length(); i++) {
+            if (Character.isLetter(word.charAt(i))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** {@code word} with the case of the first letter of {@code like}. */
+    private static String withCase(String word, String like) {
+        int at = firstLetter(word);
+        int likeAt = firstLetter(like);
+        if (at < 0 || likeAt < 0) {
+            return word;
+        }
+        boolean upper = Character.isUpperCase(like.charAt(likeAt));
+        char c = word.charAt(at);
+        if (Character.isUpperCase(c) == upper) {
+            return word;
+        }
+        return word.substring(0, at) + (upper ? Character.toUpperCase(c) : Character.toLowerCase(c)) + word.substring(at + 1);
+    }
+
+    private static void appendWord(StringBuilder line, String word) {
+        if (word.isEmpty()) {
+            return;
+        }
+        if (line.length() > 0) {
+            line.append(' ');
+        }
+        line.append(word);
+    }
+
+    /**
+     * The synced lines with the words (spelling, punctuation) of the plain text, each word keeping the case of its
+     * first letter; null when fewer than 90% of the words could be matched.
+     */
+    private static Lyrics punctuate(Lyrics synced, Lyrics plain) {
+        ArrayList<String> words = new ArrayList<>();
+        ArrayList<String> keys = new ArrayList<>();
+        for (Lyrics.Line line : plain.lines) {
+            for (String word : line.text.split("\\s+")) {
+                String key = TrackQuery.normalize(word);
+                if (!key.isEmpty()) {
+                    words.add(word);
+                    keys.add(key);
+                }
+            }
+        }
+        if (keys.isEmpty()) {
+            return null;
+        }
+        ArrayList<Lyrics.Line> result = new ArrayList<>(synced.lines.size());
+        int total = 0;
+        int matched = 0;
+        int cursor = 0;
+        for (Lyrics.Line line : synced.lines) {
+            StringBuilder text = new StringBuilder();
+            for (String word : line.text.split("\\s+")) {
+                String key = TrackQuery.normalize(word);
+                if (key.isEmpty()) {
+                    appendWord(text, word);
+                    continue;
+                }
+                total++;
+                int end = Math.min(cursor + PUNCTUATE_LOOKAHEAD, keys.size());
+                int found = -1;
+                for (int j = cursor; j < end; j++) {
+                    if (keys.get(j).equals(key)) {
+                        found = j;
+                        break;
+                    }
+                }
+                if (found < 0) {
+                    appendWord(text, word);
+                } else {
+                    matched++;
+                    appendWord(text, withCase(words.get(found), word));
+                    cursor = found + 1;
+                }
+            }
+            result.add(new Lyrics.Line(line.time, text.toString()));
+        }
+        if (total == 0 || matched < total * PUNCTUATE_MIN_MATCH) {
+            return null;
+        }
+        return Lyrics.synced(result, synced.source, synced.provider + " + " + PROVIDER);
     }
 
     /** Null on 404, an exception on other failures. */
