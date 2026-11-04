@@ -77,6 +77,8 @@ public final class RawBadges {
     private static final String KEY_LAST_SYNC = "lastSync";
     private static final String KEY_LAST_FULL = "lastFull";
     private static final String KEY_LAST_FAILURE = "lastFailure";
+    /** Cache file format; 2 added the badge serial numbers, so an older cache is fetched again in full. */
+    private static final int CACHE_VERSION = 2;
 
     /** exteraGram's default badges (developer / supporter), used when a badge is reset. */
     public static final long DEV_BADGE_ID = 5359407509327085568L;
@@ -106,12 +108,15 @@ public final class RawBadges {
         final int status;
         final Badge badge;
         final boolean canChangeBadge;
+        /** Serial number of the badge: the holder's place among everyone who got one (0 when unknown). */
+        final int number;
 
-        Entry(int type, int status, Badge badge, boolean canChangeBadge) {
+        Entry(int type, int status, Badge badge, boolean canChangeBadge, int number) {
             this.type = type;
             this.status = status;
             this.badge = badge;
             this.canChangeBadge = canChangeBadge;
+            this.number = number;
         }
     }
 
@@ -167,6 +172,17 @@ public final class RawBadges {
     public static Badge get(long userId) {
         Entry e = entry(userId, TYPE_USER);
         return e == null ? null : e.badge;
+    }
+
+    /** Serial number of the badge (the API's {@code number}: who got it first is 1), or 0. */
+    public static int number(TLObject peer) {
+        Entry e = null;
+        if (peer instanceof TLRPC.User) {
+            e = entry(((TLRPC.User) peer).id, TYPE_USER);
+        } else if (peer instanceof TLRPC.Chat) {
+            e = entry(((TLRPC.Chat) peer).id, TYPE_CHAT);
+        }
+        return e == null || e.badge == null ? 0 : e.number;
     }
 
     public static boolean isDeveloper(long id, int type) {
@@ -477,32 +493,45 @@ public final class RawBadges {
 
     // ---------------------------------------------------------------- info bulletin
 
-    /** Shows the badge with its caption (or a default line) in a bulletin. */
+    /**
+     * Shows the badge with its caption (or exteraGram's default line) in a bulletin, plus the badge's serial number
+     * when the list has one. Texts follow exteraGram's BadgesController.showBadgeBulletin (Developer / Supporter /
+     * OfficialChannel strings).
+     */
     public static void showInfo(BaseFragment fragment, TLObject peer) {
         Badge badge = get(peer);
         if (fragment == null || badge == null) {
             return;
         }
-        CharSequence fallback;
+        String fallback;
         if (peer instanceof TLRPC.User) {
             TLRPC.User user = (TLRPC.User) peer;
             String name = UserObject.getFirstName(user);
-            fallback = isDeveloper(user.id, TYPE_USER) ? name + " — разработчик exteraGram" : name + " поддерживает exteraGram";
+            fallback = isDeveloper(user.id, TYPE_USER)
+                    ? "**" + name + "** — участник команды разработки **exteraGram**."
+                    : "**" + name + "** поддержал(а) разработку **exteraGram** и получил(а) уникальный бейдж.";
         } else {
             TLRPC.Chat chat = (TLRPC.Chat) peer;
-            fallback = isDeveloper(chat.id, TYPE_CHAT) ? chat.title + " — официальный канал exteraGram" : chat.title + " поддерживает exteraGram";
+            fallback = isDeveloper(chat.id, TYPE_CHAT)
+                    ? "**" + chat.title + "** — официальный ресурс **exteraGram**."
+                    : "**" + chat.title + "** поддержал(а) разработку **exteraGram** и получил(а) уникальный бейдж.";
         }
-        CharSequence text = badge.text != null ? linkUsernames(badge.text, fragment) : fallback;
+        SpannableStringBuilder text = new SpannableStringBuilder(badge.text != null ? linkUsernames(badge.text, fragment) : fallback);
+        int number = number(peer);
+        if (number > 0) {
+            text.append("\nБейдж **№").append(String.valueOf(number)).append("**");
+        }
+        CharSequence shown = text;
         if (text.toString().contains("**")) {
-            // **bold** in captions, as exteraGram's emoji bulletin does (links stay clickable)
-            text = org.telegram.messenger.AndroidUtilities.replaceTags(new android.text.SpannableStringBuilder(text));
+            // **bold**, as exteraGram's emoji bulletin does (links stay clickable)
+            shown = AndroidUtilities.replaceTags(text);
         }
         TLRPC.Document document = AnimatedEmojiDrawable.findDocument(fragment.getCurrentAccount(), badge.documentId);
         Bulletin bulletin;
         if (document != null) {
-            bulletin = BulletinFactory.of(fragment).createEmojiBulletin(document, text);
+            bulletin = BulletinFactory.of(fragment).createEmojiBulletin(document, shown);
         } else {
-            bulletin = BulletinFactory.of(fragment).createSimpleBulletin(org.telegram.messenger.R.raw.info, text);
+            bulletin = BulletinFactory.of(fragment).createSimpleBulletin(org.telegram.messenger.R.raw.info, shown);
         }
         bulletin.wrapContent();
         bulletin.show();
@@ -549,7 +578,7 @@ public final class RawBadges {
         if (old == null) {
             return;
         }
-        entries.put(userId, new Entry(old.type, old.status, badge, old.canChangeBadge));
+        entries.put(userId, new Entry(old.type, old.status, badge, old.canChangeBadge, old.number));
         queue().postRunnable(RawBadges::saveCache);
         notifyChanged();
     }
@@ -756,7 +785,8 @@ public final class RawBadges {
                 badge = new Badge(documentId, b.isNull("text") ? null : b.optString("text", null));
             }
         }
-        return new Entry(type, status, badge, o.optBoolean("canChangeBadge", false));
+        int number = o.isNull("number") ? 0 : Math.max(0, o.optInt("number", 0));
+        return new Entry(type, status, badge, o.optBoolean("canChangeBadge", false), number);
     }
 
     // ---------------------------------------------------------------- cache file
@@ -772,8 +802,12 @@ public final class RawBadges {
         }
         try {
             JSONObject root = new JSONObject(readBody(new FileInputStream(file)));
-            etag = root.isNull("etag") ? null : root.optString("etag", null);
-            since = root.isNull("since") ? null : root.optString("since", null);
+            boolean current = root.optInt("v") >= CACHE_VERSION;
+            etag = current && !root.isNull("etag") ? root.optString("etag", null) : null;
+            since = current && !root.isNull("since") ? root.optString("since", null) : null;
+            if (!current) {
+                prefs().edit().remove(KEY_LAST_SYNC).apply();
+            }
             JSONArray list = root.optJSONArray("profiles");
             if (list != null) {
                 for (int i = 0; i < list.length(); i++) {
@@ -784,7 +818,7 @@ public final class RawBadges {
                     long id = readLong(o, "id");
                     long documentId = readLong(o, "d");
                     Badge badge = documentId == 0 ? null : new Badge(documentId, o.isNull("x") ? null : o.optString("x", null));
-                    entries.put(id, new Entry(o.optInt("t"), o.optInt("s"), badge, o.optBoolean("c")));
+                    entries.put(id, new Entry(o.optInt("t"), o.optInt("s"), badge, o.optBoolean("c"), o.optInt("n")));
                 }
             }
             if (!entries.isEmpty()) {
@@ -801,6 +835,7 @@ public final class RawBadges {
     private static void saveCache() {
         try {
             JSONObject root = new JSONObject();
+            root.put("v", CACHE_VERSION);
             root.put("etag", etag == null ? JSONObject.NULL : etag);
             root.put("since", since == null ? JSONObject.NULL : since);
             JSONArray list = new JSONArray();
@@ -818,6 +853,9 @@ public final class RawBadges {
                 }
                 if (e.canChangeBadge) {
                     o.put("c", true);
+                }
+                if (e.number > 0) {
+                    o.put("n", e.number);
                 }
                 list.put(o);
             }
