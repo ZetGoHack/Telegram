@@ -1461,7 +1461,7 @@ public class EmojiPacksAlert extends BottomSheet implements NotificationCenter.N
         }
     }
 
-    private static final int RAWGRAM_RAW = 100;
+    private static final int RAWGRAM_RAW = 98; // rawGram: < 100, press and drag selects only such items
 
     private void onSubItemClick(int id) {
         if (customEmojiPacks == null || customEmojiPacks.stickerSets == null || customEmojiPacks.stickerSets.isEmpty()) {

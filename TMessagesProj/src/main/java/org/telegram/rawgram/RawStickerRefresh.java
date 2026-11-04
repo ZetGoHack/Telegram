@@ -17,7 +17,7 @@ import org.telegram.ui.ActionBar.BottomSheet;
  */
 public final class RawStickerRefresh {
 
-    public static final int MENU_REFRESH = 102;
+    public static final int MENU_REFRESH = 97; // < 100: ActionBarMenuItem selects only such items by press and drag
 
     private RawStickerRefresh() {
     }

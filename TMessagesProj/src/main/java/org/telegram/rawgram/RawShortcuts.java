@@ -37,7 +37,7 @@ import org.telegram.ui.ProfileActivity;
  */
 public class RawShortcuts {
 
-    public static final int MENU_SET_OWNER = 101;
+    public static final int MENU_SET_OWNER = 99; // < 100: ActionBarMenuItem selects only such items by press and drag
     public static final String SET_OWNER_TITLE = "Владелец набора";
 
     // ---- sticker / emoji set owner ----

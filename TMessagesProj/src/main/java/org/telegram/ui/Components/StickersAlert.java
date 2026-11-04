@@ -1331,7 +1331,7 @@ public class StickersAlert extends BottomSheet implements NotificationCenter.Not
         updateFields();
     }
 
-    private static final int RAWGRAM_RAW = 100;
+    private static final int RAWGRAM_RAW = 98; // rawGram: < 100, press and drag selects only such items
 
     private void onSubItemClick(int id) {
         if (stickerSet == null) {

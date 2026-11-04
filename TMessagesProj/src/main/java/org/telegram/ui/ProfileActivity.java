@@ -606,7 +606,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private final static int enable_no_forwards = 46;
     private final static int disable_no_forwards = 47;
     private final static int send_money = 48;
-    private final static int rawgram_raw = 9001; // rawGram: far from Telegram's own ids (48 is send_money since 13.0)
+    private final static int rawgram_raw = 95; // rawGram: above Telegram's own ids (48 is send_money since 13.0), below 100 for press and drag
 
     private Rect rect = new Rect();
 

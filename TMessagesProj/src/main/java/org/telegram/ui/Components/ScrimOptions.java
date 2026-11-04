@@ -209,12 +209,14 @@ public class ScrimOptions extends Dialog {
         super.show();
         prepareBlur(null);
         animateOpenTo(true, null);
+        if (options != null) options.installHoverReleaseListener(); // rawGram: press and drag (RawMenuHover)
     }
 
     @Override
     public void dismiss() {
         if (dismissing) return;
         dismissing = true;
+        if (options != null) options.clearHoverListener(); // rawGram
         animateOpenTo(false, () -> {
             AndroidUtilities.runOnUIThread(super::dismiss);
         });
@@ -224,6 +226,7 @@ public class ScrimOptions extends Dialog {
     public void dismissFast() {
         if (dismissing) return;
         dismissing = true;
+        if (options != null) options.clearHoverListener(); // rawGram
         animateOpenTo(false, 2f, () -> {
             AndroidUtilities.runOnUIThread(super::dismiss);
         });
