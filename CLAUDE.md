@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-rawGram: a developer-oriented fork of Telegram Android (base 13.0.2, package `dev.rawgram.app`, `.beta` for debug).
+rawGram: a developer-oriented fork of Telegram Android (base 13.1.1, package `dev.rawgram.app`, `.beta` for debug).
 GPLv3 (see `CREDITS.md`; code/ideas ported from Nagram/NekoX/exteraGram/AyuGram). `RAWGRAM.md` is the user-facing overview.
 
 API credentials are never committed: `RAWGRAM_API_ID` / `RAWGRAM_API_HASH` come from `local.properties` (git-ignored) or
