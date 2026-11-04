@@ -795,6 +795,7 @@ public class FiltersView extends RecyclerListView {
         public TLObject chat;
         public DateData dateData;
         public boolean removable = true;
+        public int iconSize; // rawGram: dp, 0 = the icon's own size
 
         public MediaFilterData(ReactionsLayoutInBubble.VisibleReaction reaction) {
             this.reaction = reaction;

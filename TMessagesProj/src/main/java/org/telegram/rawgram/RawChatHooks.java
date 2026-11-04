@@ -105,6 +105,16 @@ public class RawChatHooks {
         return ui;
     }
 
+    // media-type filter button of the chat search bar (RawChatSearchFilterButton)
+    private RawChatSearchFilterButton searchFilter;
+
+    public RawChatSearchFilterButton searchFilter() {
+        if (searchFilter == null) {
+            searchFilter = new RawChatSearchFilterButton(host);
+        }
+        return searchFilter;
+    }
+
     /** A tap on a row of the mentions list; true when rawGram handled it. */
     public boolean onMentionClick(Object item) {
         if (item instanceof RawUserInfo.Hint) {
@@ -186,6 +196,9 @@ public class RawChatHooks {
             RawRerollController.dismissActive(rerollHost);
         }
         RawInlineStash.removeListener(stashListener);
+        if (searchFilter != null) {
+            searchFilter.onDestroy();
+        }
     }
 
     // ---- chat list ----

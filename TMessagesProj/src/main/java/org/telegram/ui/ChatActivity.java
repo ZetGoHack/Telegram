@@ -235,6 +235,9 @@ import org.telegram.ui.ActionBar.theme.ThemeKey;
 import org.telegram.ui.Adapters.FiltersView;
 import org.telegram.ui.Adapters.MentionsAdapter;
 import org.telegram.rawgram.RawChatHooks;
+import org.telegram.rawgram.RawChatSearchFilter;
+import org.telegram.rawgram.RawChatSearchFilterButton;
+import org.telegram.rawgram.RawMessageEmojiPacks;
 import org.telegram.rawgram.RawgramConfig;
 import org.telegram.ui.Adapters.MessagesSearchAdapter;
 import org.telegram.ui.Business.BusinessBotButton;
@@ -3474,6 +3477,7 @@ public class ChatActivity extends BaseFragment implements
         super.onFragmentDestroy();
         rawgram.onDestroy();
         ReactionsEffectOverlay.removeForFragment(this); // rawGram: an overlay in the decor view holds the chat
+        MediaController.getInstance().clearRaiseChat(this); // rawGram: the singleton kept the closed chat
         if (messageMetricsView != null) {
             messageMetricsView.finish();
         }
@@ -10685,8 +10689,10 @@ public class ChatActivity extends BaseFragment implements
                     if (searchUserButton != null && searchUserButton.getVisibility() != GONE) {
                         leftMargin += 48;
                     }
+                    leftMargin += rawgram.searchFilter().countTextShift(); // rawGram
                     ((MarginLayoutParams) child.getLayoutParams()).leftMargin = AndroidUtilities.dp(leftMargin);
                 }
+                rawgram.searchFilter().onMeasureChild(child, searchCalendarButton, searchUserButton); // rawGram
                 super.measureChildWithMargins(child, parentWidthMeasureSpec, widthUsed, parentHeightMeasureSpec, heightUsed);
             }
         };
@@ -10784,6 +10790,7 @@ public class ChatActivity extends BaseFragment implements
                 }, themeDelegate).create());
             });
             searchCalendarButton.setContentDescription(LocaleController.getString(R.string.JumpToDate));
+            searchContainer.addView(rawgram.searchFilter().createButton(getContext(), searchItem, currentChat != null && (!ChatObject.isChannel(currentChat) || currentChat.megagroup), () -> { if (!searchingForUser) { getSearchItemListener().onSearchPressed(searchItem.getSearchField()); updateSearchUpDownButtonVisibility(true); } }), RawChatSearchFilterButton.layoutParams()); // rawGram: filter by type
         }
     }
 
@@ -24140,7 +24147,7 @@ public class ChatActivity extends BaseFragment implements
         } else if (id == NotificationCenter.chatSearchResultsLoading) {
             if (classGuid == (Integer) args[0]) {
                 if (searchItem != null) {
-                    searchItem.setShowSearchProgress(!TextUtils.isEmpty(searchingQuery) || searchingReaction != null);
+                    searchItem.setShowSearchProgress(!TextUtils.isEmpty(searchingQuery) || searchingReaction != null || rawgram.searchFilter().isSet()); // rawGram
                 }
                 onSearchLoadingUpdate(true);
                 if (messagesSearchAdapter != null) {
@@ -27447,9 +27454,9 @@ public class ChatActivity extends BaseFragment implements
             } else if (searchingFiltered) {
                 searchCountText.setText(LocaleController.formatPluralString("TaggedMessages", searchLastCount), animated);
             } else if (chatMode == MODE_SEARCH || isMessagesSearchListVisible()) {
-                searchCountText.setText(LocaleController.formatPluralString("SearchMessagesResultCount", searchLastCount, LocaleController.formatNumber(searchLastCount, ' ')), animated);
+                searchCountText.setText(LocaleController.formatPluralString("SearchMessagesResultCount", searchLastCount, RawChatSearchFilter.approximatePrefix(getMediaDataController()) + LocaleController.formatNumber(searchLastCount, ' ')), animated); // rawGram: approximate
             } else {
-                searchCountText.setText(LocaleController.formatString(R.string.Of, searchLastIndex + 1, searchLastCount), animated);
+                searchCountText.setText(RawChatSearchFilter.approximateOf(getMediaDataController(), LocaleController.formatString(R.string.Of, searchLastIndex + 1, searchLastCount), searchLastCount), animated); // rawGram: approximate
             }
         }
     }
@@ -32711,7 +32718,8 @@ public class ChatActivity extends BaseFragment implements
                     CharSequence caption = getMessageCaption(selectedObject, selectedObjectGroup);
                     AnimatedEmojiSpan[] animatedEmojiSpans2 = caption instanceof Spanned ? ((Spanned) caption).getSpans(0, caption.length(), AnimatedEmojiSpan.class) : null;
                     int animatedEmojiCount = (animatedEmojiSpans1 == null ? 0 : animatedEmojiSpans1.length) + (animatedEmojiSpans2 == null ? 0 : animatedEmojiSpans2.length);
-                    if (animatedEmojiCount > 0) {
+                    final ArrayList<TLRPC.InputStickerSet> rawExtraPacks = RawMessageEmojiPacks.collect(currentAccount, selectedObjectGroup != null ? selectedObjectGroup.findPrimaryMessageObject() : message); // rawGram: reactions, button icons
+                    if (animatedEmojiCount > 0 || !rawExtraPacks.isEmpty()) { // rawGram
                         ArrayList<TLRPC.InputStickerSet> stickerSets = new ArrayList<>();
                         int firstCount = (animatedEmojiSpans1 == null ? 0 : animatedEmojiSpans1.length);
                         for (int i = 0; i < animatedEmojiCount; ++i) {
@@ -32735,6 +32743,7 @@ public class ChatActivity extends BaseFragment implements
                                 stickerSets.add(stickerSet);
                             }
                         }
+                        RawMessageEmojiPacks.addAll(stickerSets, rawExtraPacks); // rawGram
 
                         if (stickerSets.size() > 0 && !getMessagesController().premiumFeaturesBlocked()) {
                             popupLayout.addView(new ActionBarPopupWindow.GapView(contentView.getContext(), themeDelegate), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8));
@@ -35643,6 +35652,7 @@ public class ChatActivity extends BaseFragment implements
         if (searchUserButton != null) {
             searchUserButton.setVisibility(View.GONE);
         }
+        rawgram.searchFilter().hideAndClear(); // rawGram: no type filter for hashtags
         if (channelHashtags || forcePublic || ChatObject.isChannelAndNotMegaGroup(currentChat) && ChatObject.isPublic(currentChat) && searchingHashtag != null) {
             defaultSearchPage = 2;
         } else {
@@ -38996,6 +39006,7 @@ public class ChatActivity extends BaseFragment implements
         @Override
         public void onSearchFilterCleared(FiltersView.MediaFilterData filterData) {
             super.onSearchFilterCleared(filterData);
+            if (rawgram.searchFilter().onFilterCleared(filterData)) return; // rawGram: the type filter chip
             if (actionBarSearchTags != null) {
                 actionBarSearchTags.clear();
             }
@@ -39016,6 +39027,7 @@ public class ChatActivity extends BaseFragment implements
             if (searchUserButton != null) {
                 searchUserButton.setVisibility(View.VISIBLE);
             }
+            rawgram.searchFilter().show(); // rawGram
             if (searchingForUser) {
                 mentionContainer.getAdapter().searchUsernameOrHashtag(null, 0, null, false, true);
                 searchingForUser = false;
@@ -39307,6 +39319,7 @@ public class ChatActivity extends BaseFragment implements
                 }
                 searchingUserMessages = null;
                 searchingChatMessages = null;
+                rawgram.searchFilter().onSenderCleared(); // rawGram: search again by type only
             }
         }
 

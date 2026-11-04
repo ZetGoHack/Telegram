@@ -3687,6 +3687,7 @@ public class MediaDataController extends BaseController {
     private boolean loadingMoreSearchMessages;
     private boolean loadingSearchLocal;
     private boolean loadedPredirectedSearchLocal;
+    public final org.telegram.rawgram.RawChatSearchFilter rawSearchFilter = new org.telegram.rawgram.RawChatSearchFilter(currentAccount); // rawGram: media-type filter of the chat search
 
     public void removeMessageFromResults(int id) {
         for (int i = 0; i < searchResultMessages.size(); ++i) {
@@ -3791,6 +3792,7 @@ public class MediaDataController extends BaseController {
     }
 
     public void clearFoundMessageObjects() {
+        rawSearchFilter.reset(); // rawGram
         searchResultMessages.clear();
         searchServerResultMessages.clear();
         searchLocalResultMessages.clear();
@@ -3835,6 +3837,11 @@ public class MediaDataController extends BaseController {
         return messagesSearchEndReached[0] && lastMergeDialogId == 0 && messagesSearchEndReached[1] || (loadingSearchLocal || loadedPredirectedSearchLocal);
     }
 
+    // rawGram: the total is an estimate while a type + sender search is filtered locally and not fully scanned
+    public boolean isSearchCountApproximate() {
+        return rawSearchFilter.isActive() && (!messagesSearchEndReached[0] || lastMergeDialogId != 0 && !messagesSearchEndReached[1]);
+    }
+
     public void loadMoreSearchMessages(boolean fromList) {
         if (loadingMoreSearchMessages || reqId != 0 || messagesSearchEndReached[0] && lastMergeDialogId == 0 && messagesSearchEndReached[1]) {
             return;
@@ -3854,9 +3861,14 @@ public class MediaDataController extends BaseController {
         int max_id = 0;
         long queryWithDialog = dialogId;
         boolean firstQuery = !internal;
+        if (query == null && direction == 1 && reqId != 0 && rawSearchFilter.isActive() && lastReturnedNum + 1 >= searchResultMessages.size()) {
+            return; // rawGram: a filtered page is still being scanned
+        }
+        final TLRPC.MessagesFilter rawTypeFilter = rawSearchFilter.begin(guid, query != null && !internal); // rawGram
         if (reqId != 0) {
             loadingMoreSearchMessages = false;
             getConnectionsManager().cancelRequest(reqId, true);
+            rawSearchFilter.cancel(); // rawGram
             reqId = 0;
         }
         if (mergeReqId != 0) {
@@ -3884,13 +3896,17 @@ public class MediaDataController extends BaseController {
                     firstQuery = false;
                     query = lastSearchQuery;
                     MessageObject messageObject = searchResultMessages.get(searchResultMessages.size() - 1);
+                    if (rawSearchFilter.isActive()) {
+                        getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsLoading, guid); // rawGram: the next filtered page may take several requests
+                    }
                     if (messageObject.getDialogId() == dialogId && !messagesSearchEndReached[0]) {
-                        max_id = messageObject.getId();
+                        max_id = rawSearchFilter.getOffsetId(org.telegram.rawgram.RawChatSearchFilter.SOURCE_MAIN, messageObject.getId()); // rawGram
                         queryWithDialog = dialogId;
                     } else {
                         if (messageObject.getDialogId() == mergeDialogId) {
                             max_id = messageObject.getId();
                         }
+                        max_id = rawSearchFilter.getOffsetId(org.telegram.rawgram.RawChatSearchFilter.SOURCE_MERGED, max_id); // rawGram
                         queryWithDialog = mergeDialogId;
                         messagesSearchEndReached[1] = false;
                     }
@@ -3920,6 +3936,8 @@ public class MediaDataController extends BaseController {
             searchServerResultMessagesMap[0].clear();
             searchServerResultMessagesMap[1].clear();
             getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsLoading, guid);
+            final String rawQuery = query; // rawGram: type + sender: wait until it's decided which one the server applies
+            if (rawSearchFilter.prepare(rawQuery, dialogId, replyMessageId, user, chat, reaction, rawTypeFilter, () -> searchMessagesInChat(rawQuery, dialogId, mergeDialogId, guid, direction, replyMessageId, internal, user, chat, jumpToMessage, reaction))) return;
         }
         final boolean isHashtag = query != null && (query.trim().startsWith("#") || query.trim().startsWith("$"));
         if (messagesSearchEndReached[0] && !messagesSearchEndReached[1] && mergeDialogId != 0) {
@@ -3956,7 +3974,8 @@ public class MediaDataController extends BaseController {
                     req.saved_reaction.add(reaction.toTLReaction());
                     req.flags |= 8;
                 }
-                req.filter = new TLRPC.TL_inputMessagesFilterEmpty();
+                org.telegram.rawgram.RawChatSearchFilter.putFilter(req, rawTypeFilter); // rawGram
+                rawSearchFilter.applyTo(req, false); // rawGram
                 mergeReqId = getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
                     if (lastMergeDialogId == mergeDialogId) {
                         mergeReqId = 0;
@@ -4005,7 +4024,7 @@ public class MediaDataController extends BaseController {
         loadedPredirectedSearchLocal = false;
         int currentReqId = ++lastReqId;
         final boolean isSaved = dialogId == getUserConfig().getClientUserId();
-        if (isSaved && reaction != null && firstQuery) {
+        if (isSaved && reaction != null && firstQuery && rawTypeFilter == null) { // rawGram: the local tag search knows no type filter
             lastReturnedNum = 0;
             searchServerResultMessages.clear();
             searchServerResultMessagesMap[0].clear();
@@ -4041,11 +4060,12 @@ public class MediaDataController extends BaseController {
             req.saved_reaction.add(reaction.toTLReaction());
             req.flags |= 8;
         }
-        req.filter = new TLRPC.TL_inputMessagesFilterEmpty();
+        org.telegram.rawgram.RawChatSearchFilter.putFilter(req, rawTypeFilter); // rawGram
+        rawSearchFilter.applyTo(req, true); // rawGram
         lastSearchQuery = query;
         long queryWithDialogFinal = queryWithDialog;
         String finalQuery = query;
-        reqId = getConnectionsManager().sendRequest(req, (response, error) -> {
+        reqId = rawSearchFilter.sendRequest(queryWithDialogFinal == dialogId ? 0 : 1, req, (response, error) -> { // rawGram: filtered and refilled while type + sender
             ArrayList<MessageObject> messageObjects = new ArrayList<>();
 
             if (error == null) {
@@ -4097,7 +4117,7 @@ public class MediaDataController extends BaseController {
                                 searchServerResultMessagesMap[queryWithDialogFinal == dialogId ? 0 : 1].put(messageObject.getId(), messageObject);
                             }
                             updateSearchResults();
-                            messagesSearchEndReached[queryWithDialogFinal == dialogId ? 0 : 1] = res.messages.size() < req.limit;
+                            messagesSearchEndReached[queryWithDialogFinal == dialogId ? 0 : 1] = rawSearchFilter.isEndReached(queryWithDialogFinal == dialogId ? 0 : 1, res.messages.size() < req.limit); // rawGram
                             messagesSearchCount[queryWithDialogFinal == dialogId ? 0 : 1] = res instanceof TLRPC.TL_messages_messagesSlice || res instanceof TLRPC.TL_messages_channelMessages ? res.count : res.messages.size();
                             if (searchServerResultMessages.isEmpty()) {
                                 getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, 0, getMask(), (long) 0, 0, 0, jumpToMessage);
@@ -4108,7 +4128,7 @@ public class MediaDataController extends BaseController {
                                     }
                                     MessageObject messageObject = searchResultMessages.get(lastReturnedNum);
                                     getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, messageObject.getId(), getMask(), messageObject.getDialogId(), lastReturnedNum, getSearchCount(), jumpToMessage);
-                                } else if (isSaved) {
+                                } else if (isSaved || rawSearchFilter.isActive()) { // rawGram: an empty filtered page still ends the loading
                                     getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, 0, getMask(), dialogId, lastReturnedNum, getSearchCount(), false);
                                 }
                             }
@@ -4129,6 +4149,7 @@ public class MediaDataController extends BaseController {
 
     public void portSavedSearchResults(int guid, ReactionsLayoutInBubble.VisibleReaction reaction, String query, ArrayList<MessageObject> local, ArrayList<MessageObject> loaded, int num, int count, boolean reached) {
         lastReaction = reaction;
+        rawSearchFilter.resetAll(); // rawGram
         lastSearchQuery = query;
         messagesSearchEndReached[0] = reached;
         messagesSearchEndReached[1] = true;

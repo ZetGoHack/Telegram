@@ -2313,6 +2313,7 @@ public class ActionBarMenuItem extends FrameLayout {
 
             titleView.setText(data.getTitle());
             thumbDrawable = Theme.createCircleDrawableWithIcon(AndroidUtilities.dp(32), data.iconResFilled);
+            if (data.iconSize > 0) ((CombinedDrawable) thumbDrawable).setIconSize(AndroidUtilities.dp(data.iconSize), AndroidUtilities.dp(data.iconSize)); // rawGram: outline menu icons in the chip
             Theme.setCombinedDrawableColor(thumbDrawable, getThemedColor(Theme.key_featuredStickers_addButton), false);
             Theme.setCombinedDrawableColor(thumbDrawable, getThemedColor(Theme.key_featuredStickers_buttonText), true);
             if (data.filterType == FiltersView.FILTER_TYPE_CHAT) {
