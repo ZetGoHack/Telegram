@@ -5441,6 +5441,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             fragmentSearchField.editText.setSelection(searchString.length());
         } else if (initialSearchString != null) {
             showSearch(true, false, false, true);
+            fragmentSearchFieldWatcher.toggleSearch(true); // 13.2 backport
             fragmentSearchField.editText.setText(initialSearchString);
             fragmentSearchField.editText.setSelection(initialSearchString.length());
             initialSearchString = null;
@@ -7497,6 +7498,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
     public void search(String query, boolean animated) {
         showSearch(true, false, animated);
+        if (fragmentSearchFieldWatcher != null) {
+            fragmentSearchFieldWatcher.toggleSearch(true); // 13.2 backport
+        }
         if (fragmentSearchField != null) {
             fragmentSearchField.editText.setText(query);
             fragmentSearchField.editText.setSelection(query.length());

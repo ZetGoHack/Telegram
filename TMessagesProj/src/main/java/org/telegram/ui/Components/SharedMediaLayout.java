@@ -1548,6 +1548,13 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
 
     private BaseFragment profileActivity;
 
+    public long getPlaylistTopicId() { // 13.2 backport
+        if (ChatObject.isForum(profileActivity.getCurrentAccount(), dialog_id)) {
+            return topicId;
+        }
+        return 0;
+    }
+
     private int startedTrackingPointerId;
     private boolean startedTracking;
     private boolean maybeStartTracking;
@@ -1695,7 +1702,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                             MediaController.getInstance().setVoiceMessagesPlaylist(result ? sharedMediaData[MediaDataController.MEDIA_MUSIC].messages : null, false);
                             return result;
                         } else if (messageObject.isMusic()) {
-                            return MediaController.getInstance().setPlaylist(sharedMediaData[MediaDataController.MEDIA_MUSIC].messages, messageObject, mergeDialogId);
+                            return MediaController.getInstance().setPlaylist(sharedMediaData[MediaDataController.MEDIA_MUSIC].messages, messageObject, mergeDialogId, true, null, getPlaylistTopicId()); // 13.2 backport
                         }
                         return false;
                     }
@@ -8223,7 +8230,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                                     MediaController.getInstance().setVoiceMessagesPlaylist(result ? sharedMediaData[currentType].messages : null, false);
                                     return result;
                                 } else if (messageObject.isMusic()) {
-                                    return MediaController.getInstance().setPlaylist(sharedMediaData[currentType].messages, messageObject, mergeDialogId);
+                                    return MediaController.getInstance().setPlaylist(sharedMediaData[currentType].messages, messageObject, mergeDialogId, true, null, getPlaylistTopicId()); // 13.2 backport
                                 }
                                 return false;
                             }
@@ -9539,7 +9546,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                             }
                             return result;
                         } else if (messageObject.isMusic()) {
-                            return MediaController.getInstance().setPlaylist(searchResult, messageObject, mergeDialogId);
+                            return MediaController.getInstance().setPlaylist(searchResult, messageObject, mergeDialogId, true, null, getPlaylistTopicId()); // 13.2 backport
                         }
                         return false;
                     }

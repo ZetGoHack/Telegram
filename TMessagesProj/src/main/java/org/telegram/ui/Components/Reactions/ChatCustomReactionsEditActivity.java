@@ -96,6 +96,7 @@ public class ChatCustomReactionsEditActivity extends BaseFragment implements Not
     private final HashMap<Long, AnimatedEmojiSpan> initialSelectedEmojis = new LinkedHashMap<>();
     private final List<TLRPC.TL_availableReaction> allAvailableReactions = new ArrayList<>();
     private boolean initialPaid;
+    private int savedSelectedType = -1; // 13.2 backport
 
     private final int maxReactionsCount = getMessagesController().boostsChannelLevelMax;
     private boolean emojiKeyboardVisible = false;
@@ -361,6 +362,7 @@ public class ChatCustomReactionsEditActivity extends BaseFragment implements Not
             }
 
             actionButton.setLoading(true);
+            savedSelectedType = selectedType; // 13.2 backport
             getMessagesController().setCustomChatReactions(chatId, selectedType, grabReactions(false), currentReactionsCount = reactionsCount, allowPaid, error -> {
                 if (isFinishing()) {
                     return;
@@ -461,6 +463,7 @@ public class ChatCustomReactionsEditActivity extends BaseFragment implements Not
         }
         initialSelectedEmojis.putAll(selectedEmojisMap);
         initialPaid = paid;
+        savedSelectedType = selectedType; // 13.2 backport
 
         fragmentView = rootLayout;
         return rootLayout;
@@ -721,7 +724,7 @@ public class ChatCustomReactionsEditActivity extends BaseFragment implements Not
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
         AndroidUtilities.cancelRunOnUIThread(checkAfterFastDeleteRunnable);
-        if (selectedType == SELECT_TYPE_NONE && reactionsCount != currentReactionsCount) {
+        if (selectedType == SELECT_TYPE_NONE && (reactionsCount != currentReactionsCount || savedSelectedType != SELECT_TYPE_NONE && !initialPaid && !paid)) { // 13.2 backport
             getMessagesController().setCustomChatReactions(chatId, selectedType, grabReactions(false), reactionsCount, null, null, null);
         }
         getNotificationCenter().removeObserver(this, NotificationCenter.dialogDeleted);

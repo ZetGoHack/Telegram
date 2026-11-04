@@ -5126,8 +5126,8 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
             final boolean attachedAgain = this.botWebViewContainer == null && botWebViewContainer != null;
             this.botWebViewContainer = botWebViewContainer;
             this.webViewScrollListener = webViewScrollListener;
-            if (attachedAgain) {
-                evaluateJS("window.__tg__postBackgroundChange()");
+            if (attachedAgain && !bot) { // 13.2 backport
+                evaluateJS("window.__tg__postBackgroundChange && window.__tg__postBackgroundChange()");
             }
         }
 

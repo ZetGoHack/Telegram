@@ -1084,6 +1084,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
     private boolean[] playlistEndReached = new boolean[]{false, false};
     private boolean loadingPlaylist;
     private long playlistMergeDialogId;
+    private long playlistTopicId; // 13.2 backport
     private int playlistClassGuid;
     private int[] playlistMaxId = new int[]{Integer.MAX_VALUE, Integer.MAX_VALUE};
 
@@ -1726,6 +1727,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         playlistClassGuid = 0;
         playlistEndReached[0] = playlistEndReached[1] = false;
         playlistMergeDialogId = 0;
+        playlistTopicId = 0; // 13.2 backport
         playlistMaxId[0] = playlistMaxId[1] = Integer.MAX_VALUE;
         loadingPlaylist = false;
         playlistGlobalSearchParams = null;
@@ -1910,7 +1912,8 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             }
         } else if (id == NotificationCenter.musicDidLoad) {
             long did = (Long) args[0];
-            if (playingMessageObject != null && playingMessageObject.isMusic() && playingMessageObject.getDialogId() == did && !playingMessageObject.scheduled) {
+            long topicId = args.length > 3 ? (Long) args[3] : 0; // 13.2 backport
+            if (playingMessageObject != null && playingMessageObject.isMusic() && playingMessageObject.getDialogId() == did && playlistTopicId == topicId && !playingMessageObject.scheduled) {
                 ArrayList<MessageObject> arrayListBegin = (ArrayList<MessageObject>) args[1];
                 ArrayList<MessageObject> arrayListEnd = (ArrayList<MessageObject>) args[2];
                 playlist.addAll(0, arrayListBegin);
@@ -2862,7 +2865,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         //TODO topics
         if (!playlistEndReached[0]) {
             loadingPlaylist = true;
-            AccountInstance.getInstance(playingMessageObject.currentAccount).getMediaDataController().loadMedia(playingMessageObject.getDialogId(), 50, playlistMaxId[0], 0, MediaDataController.MEDIA_MUSIC, 0, 1, playlistClassGuid, 0, null, null);
+            AccountInstance.getInstance(playingMessageObject.currentAccount).getMediaDataController().loadMedia(playingMessageObject.getDialogId(), 50, playlistMaxId[0], 0, MediaDataController.MEDIA_MUSIC, playlistTopicId, 1, playlistClassGuid, 0, null, null); // 13.2 backport: playlistTopicId
         } else if (playlistMergeDialogId != 0 && !playlistEndReached[1]) {
             loadingPlaylist = true;
             AccountInstance.getInstance(playingMessageObject.currentAccount).getMediaDataController().loadMedia(playlistMergeDialogId, 50, playlistMaxId[0], 0, MediaDataController.MEDIA_MUSIC, 0, 1, playlistClassGuid, 0, null, null);
@@ -2878,6 +2881,10 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
     }
 
     public boolean setPlaylist(ArrayList<MessageObject> messageObjects, MessageObject current, long mergeDialogId, boolean loadMusic, PlaylistGlobalSearchParams params) {
+        return setPlaylist(messageObjects, current, mergeDialogId, loadMusic, params, 0);
+    }
+
+    public boolean setPlaylist(ArrayList<MessageObject> messageObjects, MessageObject current, long mergeDialogId, boolean loadMusic, PlaylistGlobalSearchParams params, long topicId) { // 13.2 backport: topicId
         if (playingMessageObject == current) {
             int newIdx = playlist.indexOf(current);
             if (newIdx >= 0) {
@@ -2890,6 +2897,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         playMusicAgain = !playlist.isEmpty();
         clearPlaylist();
         playlistGlobalSearchParams = params;
+        playlistTopicId = topicId; // 13.2 backport
         boolean isSecretChat = !messageObjects.isEmpty() && DialogObject.isEncryptedDialog(messageObjects.get(0).getDialogId());
         int minId = Integer.MAX_VALUE;
         int maxId = Integer.MIN_VALUE;
@@ -2919,7 +2927,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             }
             if (loadMusic) {
                 if (playlistGlobalSearchParams == null) {
-                    MediaDataController.getInstance(current.currentAccount).loadMusic(current.getDialogId(), minId, maxId);
+                    MediaDataController.getInstance(current.currentAccount).loadMusic(current.getDialogId(), playlistTopicId, minId, maxId); // 13.2 backport
                 } else {
                     playlistClassGuid = ConnectionsManager.generateClassGuid();
                 }
@@ -2994,7 +3002,8 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             return;
         }
 
-        boolean last = traversePlaylist(currentPlayList, SharedConfig.playOrderReversed ? +1 : -1);
+        final boolean reversed = currentSavedMusicList != null ? !SharedConfig.playOrderReversed : SharedConfig.playOrderReversed; // 13.2 backport
+        boolean last = traversePlaylist(currentPlayList, reversed ? +1 : -1);
         if (last && byStop && SharedConfig.repeatMode == 0 && !forceLoopCurrentPlaylist) {
             if (audioPlayer != null || videoPlayer != null) {
                 if (audioPlayer != null) {
@@ -3055,7 +3064,8 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             return;
         }
 
-        traversePlaylist(currentPlayList, SharedConfig.playOrderReversed ? -1 : 1);
+        final boolean reversed = currentSavedMusicList != null ? !SharedConfig.playOrderReversed : SharedConfig.playOrderReversed; // 13.2 backport
+        traversePlaylist(currentPlayList, reversed ? -1 : 1);
         if (currentPlaylistNum >= currentPlayList.size()) {
             return;
         }
@@ -3132,7 +3142,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             return;
         }
         int nextIndex;
-        if (SharedConfig.playOrderReversed) {
+        if (currentSavedMusicList != null ? !SharedConfig.playOrderReversed : SharedConfig.playOrderReversed) { // 13.2 backport
             nextIndex = currentPlaylistNum + 1;
             if (nextIndex >= currentPlayList.size()) {
                 nextIndex = 0;

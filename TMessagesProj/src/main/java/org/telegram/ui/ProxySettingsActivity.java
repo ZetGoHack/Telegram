@@ -560,6 +560,15 @@ public class ProxySettingsActivity extends BaseFragment {
             String port = inputFields[FIELD_PORT].getText().toString();
             String secret = inputFields[FIELD_SECRET].getText().toString();
             String url;
+            if (currentType == ProxySettings.Type.WEB) { // 13.2 backport
+                showShareQr(context, ProxySettings.builder()
+                        .setType(ProxySettings.Type.WEB)
+                        .setAddress(address)
+                        .setSecret(secret)
+                        .build()
+                        .getLink());
+                return;
+            }
             try {
                 if (!TextUtils.isEmpty(address)) {
                     params.append("server=").append(URLEncoder.encode(address, "UTF-8"));
@@ -598,10 +607,7 @@ public class ProxySettingsActivity extends BaseFragment {
                 return;
             }
             String link = url + params.toString();
-            QRCodeBottomSheet alert = new QRCodeBottomSheet(context, LocaleController.getString(R.string.ShareQrCode), link, LocaleController.getString(R.string.QRCodeLinkHelpProxy), true);
-            Bitmap icon = SvgHelper.getBitmap(AndroidUtilities.readRes(R.raw.qr_dog), AndroidUtilities.dp(60), AndroidUtilities.dp(60), false);
-            alert.setCenterImage(icon);
-            showDialog(alert);
+            showShareQr(context, link);
         });
 
         sectionCell[1] = new ShadowSectionCell(context);
@@ -697,6 +703,13 @@ public class ProxySettingsActivity extends BaseFragment {
         }
     }
 
+    private void showShareQr(Context context, String link) {
+        QRCodeBottomSheet alert = new QRCodeBottomSheet(context, LocaleController.getString(R.string.ShareQrCode), link, LocaleController.getString(R.string.QRCodeLinkHelpProxy), true);
+        Bitmap icon = SvgHelper.getBitmap(AndroidUtilities.readRes(R.raw.qr_dog), AndroidUtilities.dp(60), AndroidUtilities.dp(60), false);
+        alert.setCenterImage(icon);
+        showDialog(alert);
+    }
+
     private void checkShareDone(boolean animated) {
         if (shareCell == null || doneItem == null || inputFields[FIELD_IP] == null || inputFields[FIELD_PORT] == null) {
             return;
@@ -779,7 +792,6 @@ public class ProxySettingsActivity extends BaseFragment {
                 ((View) inputFields[FIELD_PORT].getParent()).setVisibility(View.GONE);
                 inputFields[FIELD_PORT].setText("443");
             }
-            shareCell.setVisibility(currentType == ProxySettings.Type.WEB ? View.GONE : View.VISIBLE);
             typeCell[0].setChecked(currentType == ProxySettings.Type.SOCKS5, animated);
             typeCell[1].setChecked(currentType == ProxySettings.Type.MTPROTO, animated);
             typeCell[2].setChecked(currentType == ProxySettings.Type.WEB, animated);

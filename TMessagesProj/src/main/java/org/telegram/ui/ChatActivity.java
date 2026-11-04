@@ -25061,9 +25061,11 @@ public class ChatActivity extends BaseFragment implements
                 messageObject = ((ChatActionCell) view).getMessageObject();
                 padding = 0;
             } else {
+                a++; // 13.2 backport
                 continue;
             }
             if (messageObject == null) {
+                a++; // 13.2 backport
                 continue;
             }
 
@@ -29569,7 +29571,7 @@ public class ChatActivity extends BaseFragment implements
                 !getMessagesController().premiumFeaturesBlocked() && preferences.getInt("dialog_show_translate_count" + did, 5) <= 0
         ) || DEBUG_TOP_PANELS;
         boolean showAddProfilePicture = UserObject.isBot(currentUser) && currentUser.bot_can_edit && currentUser.photo == null;
-        boolean showBizBot = currentEncryptedChat == null && getUserConfig().isPremium() && preferences.getLong("dialog_botid" + did, 0) != 0 || DEBUG_TOP_PANELS;
+        boolean showBizBot = currentEncryptedChat == null && preferences.getLong("dialog_botid" + did, 0) != 0 || DEBUG_TOP_PANELS; // 13.2 backport: no premium check
         boolean showBotAd = currentUser != null && currentUser.bot && messages.size() >= 2 && botSponsoredMessage != null;
         if (showRestartTopic) {
             shownRestartTopic = true;
@@ -39918,7 +39920,7 @@ public class ChatActivity extends BaseFragment implements
                 MediaController.getInstance().setVoiceMessagesPlaylist(result ? createVoiceMessagesPlaylist(messageObject, false) : null, false);
                 return result;
             } else if (messageObject.isMusic()) {
-                return MediaController.getInstance().setPlaylist(chatAdapter.getMessages(), messageObject, mergeDialogId, !chatAdapter.isFiltered, null);
+                return MediaController.getInstance().setPlaylist(chatAdapter.getMessages(), messageObject, mergeDialogId, !chatAdapter.isFiltered, null, isTopic ? ChatActivity.this.getTopicId() : 0); // 13.2 backport
             }
             return false;
         }

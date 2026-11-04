@@ -106,6 +106,7 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
     AnimatedAvatarContainer animatedAvatarContainer;
 
     public boolean noChatTypes;
+    public boolean allowBotChats; // 13.2 backport
     public boolean allowSelf;
     public boolean doNotNewChats;
     private boolean isInclude;
@@ -1098,7 +1099,7 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                 usersStartRow = 0;
             }
 
-            final boolean allowBots = type != TYPE_PRIVATE;
+            final boolean allowBots = type != TYPE_PRIVATE || allowBotChats; // 13.2 backport
             final boolean allowChats = type != TYPE_PRIVATE;
 
             boolean hasSelf = false;
@@ -1459,7 +1460,7 @@ public class UsersSelectActivity extends BaseFragment implements NotificationCen
                 Utilities.searchQueue.cancelRunnable(searchRunnable);
                 searchRunnable = null;
             }
-            final boolean allowBots = type != TYPE_PRIVATE;
+            final boolean allowBots = type != TYPE_PRIVATE || allowBotChats; // 13.2 backport
             final boolean allowChats = type != TYPE_PRIVATE;
             if (query == null) {
                 searchResult.clear();

@@ -6163,6 +6163,9 @@ public class MessageObject {
     }
 
     public static CharSequence formatTextWithEntities(TLRPC.TL_textWithEntities text, boolean out, boolean photoViewer, TextPaint paint) {
+        if (text == null || text.text == null) { // 13.2 backport
+            return "";
+        }
         CharSequence taskText = new SpannableStringBuilder(text.text);
         addEntitiesToText(taskText, text.entities, out, false, photoViewer, false);
         taskText = Emoji.replaceEmoji(taskText, paint.getFontMetricsInt(), false);
@@ -6446,6 +6449,7 @@ public class MessageObject {
     }
 
     public static TLRPC.TL_textWithEntities removeLinks(TLRPC.TL_textWithEntities text) {
+        if (text == null) return null; // 13.2 backport
         final TLRPC.TL_textWithEntities newText = new TLRPC.TL_textWithEntities();
         newText.text = text.text;
         for (int i = 0; i < text.entities.size(); ++i) {

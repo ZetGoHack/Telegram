@@ -596,9 +596,15 @@ public class DeleteMessagesBottomSheet extends BottomSheetWithRecyclerListView {
         final int[] messageCount = {messages != null ? messages.size() : 0};
 
         if (participantMessageCounts != null && participantMessageCountsLoaded) {
-            deleteAll.forEachSelected((o, i) -> {
-                messageCount[0] += participantMessageCounts[i];
-            });
+            if (!isSingleUsersMode) { // 13.2 backport
+                deleteAll.forEachSelected((o, i) -> {
+                    messageCount[0] += participantMessageCounts[i];
+                });
+            } else if (restrictUserDeleteAllMessages) {
+                for (int count : participantMessageCounts) {
+                    messageCount[0] += count;
+                }
+            }
         }
 
         return LocaleController.formatPluralString("DeleteOptionsTitle", messageCount[0]);
