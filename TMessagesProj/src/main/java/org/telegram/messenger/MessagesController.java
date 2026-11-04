@@ -20742,6 +20742,8 @@ public class MessagesController extends BaseController implements NotificationCe
                         getMemberRequestsController().onPendingRequestsUpdated(update);
                     } else if (baseUpdate instanceof TL_update.TL_updateSavedRingtones) {
                         getMediaDataController().ringtoneDataStore.loadUserRingtones(true);
+                    } else if (baseUpdate instanceof TL_update.TL_updateLoginToken) {
+                        getNotificationCenter().postNotificationName(NotificationCenter.rawUpdateLoginToken); // rawGram: QR login (RawQrLogin)
                     } else if (baseUpdate instanceof TL_update.TL_updateTranscribeAudio) {
                         FileLog.e("Received legacy TL_updateTranscribeAudio update");
                     } else if (baseUpdate instanceof TL_update.TL_updateTranscribedAudio) {

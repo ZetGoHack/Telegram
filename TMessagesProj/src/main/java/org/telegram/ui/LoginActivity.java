@@ -258,7 +258,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             VIEW_CODE_FRAGMENT_SMS = 15,
             VIEW_CODE_WORD = 16,
             VIEW_CODE_PHRASE = 17,
-            VIEW_PAY = 18;
+            VIEW_PAY = 18,
+            VIEW_QR_LOGIN = 19; // rawGram: RawQrLogin
 
     public final static int COUNTRY_STATE_NOT_SET_OR_VALID = 0,
             COUNTRY_STATE_EMPTY = 1,
@@ -306,7 +307,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             VIEW_CODE_FRAGMENT_SMS,
             VIEW_CODE_WORD,
             VIEW_CODE_PHRASE,
-            VIEW_PAY
+            VIEW_PAY,
+            VIEW_QR_LOGIN
     })
     private @interface ViewNumber {}
 
@@ -319,7 +321,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
     @ViewNumber
     private int currentViewNum;
-    private final SlideView[] views = new SlideView[19];
+    private final SlideView[] views = new SlideView[20]; // rawGram: + VIEW_QR_LOGIN
+    private View rawLoginMenuButton; // rawGram: «⋮» with proxy settings and QR login
     private CustomPhoneKeyboardView keyboardView;
     private ValueAnimator keyboardAnimator;
     private boolean paid;
@@ -583,6 +586,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
                 marginLayoutParams = (MarginLayoutParams) proxyButtonView.getLayoutParams();
                 marginLayoutParams.topMargin = AndroidUtilities.dp(16) + statusBarHeight;
+                if (rawLoginMenuButton != null) ((MarginLayoutParams) rawLoginMenuButton.getLayoutParams()).topMargin = AndroidUtilities.dp(16) + statusBarHeight; // rawGram
 
                 marginLayoutParams = (MarginLayoutParams) radialProgressView.getLayoutParams();
                 marginLayoutParams.topMargin = AndroidUtilities.dp(16) + statusBarHeight;
@@ -685,6 +689,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         views[VIEW_CODE_WORD] = new LoginActivityPhraseView(context, AUTH_TYPE_WORD);
         views[VIEW_CODE_PHRASE] = new LoginActivityPhraseView(context, AUTH_TYPE_PHRASE);
         views[VIEW_PAY] = new LoginPayView(context);
+        views[VIEW_QR_LOGIN] = new org.telegram.rawgram.RawQrLogin.QrPage(context, currentAccount, rawQrHost()); // rawGram
 
         for (int a = 0; a < views.length; a++) {
             views[a].setVisibility(a == 0 ? View.VISIBLE : View.GONE);
@@ -695,7 +700,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         Bundle savedInstanceState = activityMode == MODE_LOGIN ? loadCurrentState(newAccount, currentAccount) : null;
         if (savedInstanceState != null) {
             int viewNum = savedInstanceState.getInt("currentViewNum", 0);
-            if (viewNum < 0 || viewNum >= views.length)
+            if (viewNum < 0 || viewNum >= views.length || viewNum == VIEW_QR_LOGIN) // rawGram: the QR page is not restored
                 savedInstanceState = null;
         }
         if (savedInstanceState != null) {
@@ -771,6 +776,12 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         proxyButtonView.setAlpha(0f);
         proxyButtonView.setVisibility(View.GONE);
         sizeNotifierFrameLayout.addView(proxyButtonView, LayoutHelper.createFrame(32, 32, Gravity.RIGHT | Gravity.TOP, 16, 16, 16, 16));
+        if (activityMode == MODE_LOGIN) { // rawGram: «⋮» (proxy settings, QR login) in the corner, the proxy status icon moves left of it
+            rawLoginMenuButton = org.telegram.rawgram.RawQrLogin.createMenuButton(context, this, () -> presentFragment(new ProxyListActivity()), () -> setPage(VIEW_QR_LOGIN, true, null, false));
+            sizeNotifierFrameLayout.addView(rawLoginMenuButton, LayoutHelper.createFrame(32, 32, Gravity.RIGHT | Gravity.TOP, 16, 16, 16, 16));
+            ((ViewGroup.MarginLayoutParams) proxyButtonView.getLayoutParams()).rightMargin = AndroidUtilities.dp(56);
+            rawLoginMenuButton.setVisibility(currentViewNum == VIEW_PHONE_INPUT ? View.VISIBLE : View.GONE);
+        }
         updateProxyButton(false, true);
 
         radialProgressView = new RadialProgressView(context);
@@ -1500,6 +1511,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
     }
 
     public void setPage(@ViewNumber int page, boolean animated, Bundle params, boolean back) {
+        if (rawLoginMenuButton != null) rawLoginMenuButton.setVisibility(page == VIEW_PHONE_INPUT ? View.VISIBLE : View.GONE); // rawGram
         boolean needFloatingButton = page == VIEW_PHONE_INPUT || page == VIEW_REGISTER || page == VIEW_PASSWORD ||
                 page == VIEW_NEW_PASSWORD_STAGE_1 || page == VIEW_NEW_PASSWORD_STAGE_2 || page == VIEW_ADD_EMAIL || page == VIEW_CODE_PHRASE || page == VIEW_CODE_WORD;
         if (page == currentViewNum) {
@@ -1645,6 +1657,51 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
     private void onAuthSuccess(TLRPC.TL_auth_authorization res) {
         onAuthSuccess(res, false);
+    }
+
+    /** rawGram: what the QR login page needs from this screen. */
+    private org.telegram.rawgram.RawQrLogin.Host rawQrHost() {
+        return new org.telegram.rawgram.RawQrLogin.Host() {
+            @Override
+            public BaseFragment fragment() {
+                return LoginActivity.this;
+            }
+
+            @Override
+            public boolean isQrPageShown() {
+                return currentViewNum == VIEW_QR_LOGIN;
+            }
+
+            @Override
+            public boolean testBackend() {
+                return testBackend;
+            }
+
+            @Override
+            public void onQrAuthorized(TLRPC.TL_auth_authorization authorization) {
+                onAuthSuccess(authorization);
+            }
+
+            @Override
+            public void openPasswordPage(Bundle params) {
+                setPage(VIEW_PASSWORD, true, params, false);
+            }
+
+            @Override
+            public void openPhonePage() {
+                setPage(VIEW_PHONE_INPUT, true, null, true);
+            }
+
+            @Override
+            public void showProgress(boolean show) {
+                showDoneButton(show, true);
+            }
+
+            @Override
+            public void showAlert(String text) {
+                needShowAlert(LocaleController.getString(R.string.AppName), text);
+            }
+        };
     }
 
     private boolean pendingSwitchingAccount;

@@ -386,6 +386,7 @@ public class NotificationCenter {
     public static final int communityPendingRequestsUpdate = totalEvents++;
     public static final int communitySwitchedCollapsed = totalEvents++;
     public static final int playerColorsChanged = totalEvents++; // rawGram
+    public static final int rawUpdateLoginToken = totalEvents++; // rawGram: QR login token accepted on another device
 
     public static boolean alreadyLogged;
 
