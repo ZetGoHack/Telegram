@@ -214,6 +214,14 @@ public final class AnimatedFileDrawable extends BitmapDrawable implements Animat
 
     @UiThread
     public void invalidateInternal() {
+        // rawGram: recycle() also runs on ImageLoader's cache threads, which get interrupted when a task is cancelled
+        // (scrolling the GIF tab of shared media); the parents' semaphore then threw IllegalStateException and crashed.
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            if (!parents.isEmpty()) {
+                AndroidUtilities.runOnUIThread(this::invalidateInternal);
+            }
+            return;
+        }
         for (ImageReceiver imageReceiver : parents) {
             imageReceiver.invalidate();
         }
