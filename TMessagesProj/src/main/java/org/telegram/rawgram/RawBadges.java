@@ -539,8 +539,8 @@ public final class RawBadges {
     // ---------------------------------------------------------------- info bulletin
 
     /**
-     * Shows the badge with its caption (or exteraGram's default line) in a bulletin, plus the badge's serial number
-     * when the list has one. Texts follow exteraGram's BadgesController.showBadgeBulletin (Developer / Supporter /
+     * Shows the badge with its caption (or exteraGram's default line) in a bulletin, without the serial number:
+     * the badge shows it next to the status and the supporter sheet has the full view. Texts follow exteraGram's BadgesController.showBadgeBulletin (Developer / Supporter /
      * OfficialChannel strings).
      */
     public static void showInfo(BaseFragment fragment, TLObject peer) {
@@ -569,10 +569,6 @@ public final class RawBadges {
         String holder = peer instanceof TLRPC.User ? UserObject.getUserName((TLRPC.User) peer) : ((TLRPC.Chat) peer).title;
         SpannableStringBuilder text = new SpannableStringBuilder(badge.text != null
                 ? linkUsernames(badge.text.replace("{name}", holder == null ? "" : holder), fragment) : fallback);
-        int number = org.telegram.rawgram.badges.RawSupporters.getNumber(peer);
-        if (number > 0) {
-            text.append("\nБейдж **").append(org.telegram.rawgram.badges.RawSupporters.formatNumber(number)).append("**");
-        }
         CharSequence shown = text;
         if (text.toString().contains("**")) {
             // **bold**, as exteraGram's emoji bulletin does (links stay clickable)
@@ -588,10 +584,6 @@ public final class RawBadges {
             bulletin = BulletinFactory.of(fragment).createSimpleBulletin(org.telegram.messenger.R.raw.info, shown, button, onButton);
         } else {
             bulletin = BulletinFactory.of(fragment).createSimpleBulletin(org.telegram.messenger.R.raw.info, shown);
-        }
-        if (number > 0 && bulletin.getLayout() instanceof Bulletin.LottieLayout) {
-            // the emoji bulletin stops at 3 lines; the caption plus the number line needs more
-            ((Bulletin.LottieLayout) bulletin.getLayout()).textView.setMaxLines(5);
         }
         if (onButton == null) {
             bulletin.wrapContent();
