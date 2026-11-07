@@ -18,7 +18,7 @@ import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory;
 import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable;
 import org.telegram.ui.Components.blur3.drawable.color.impl.BlurredBackgroundProviderImpl;
-import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceColor;
+import org.telegram.utils.glass.source.GlassSourceColor;
 
 import java.util.ArrayList;
 
@@ -36,7 +36,7 @@ public class RawFolderTabsPreview extends FrameLayout {
 
     private final int account;
     private final FilterTabsView tabsView;
-    private final BlurredBackgroundSourceColor backgroundSource = new BlurredBackgroundSourceColor();
+    private final GlassSourceColor backgroundSource = new GlassSourceColor();
     private final BlurredBackgroundDrawable background;
     private ArrayList<MessagesController.DialogFilter> filters = new ArrayList<>();
     private boolean sample;

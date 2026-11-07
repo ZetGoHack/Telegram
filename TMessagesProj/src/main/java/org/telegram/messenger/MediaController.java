@@ -628,15 +628,80 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         public int gradientTopColor, gradientBottomColor;
 
         public BitmapDrawable thumb;
-        private boolean parsedXmp;
+        private volatile boolean parsedXmp;
         public boolean isLivePhoto;
+        private boolean loadingLivePhoto;
+        private ArrayList<Runnable> onLivePhotoLoaded;
+
+        private static DispatchQueue livePhotoQueue;
 
         @Override
         public boolean isLivePhoto() {
-            if (isVideo || parsedXmp) return isLivePhoto;
-            parsedXmp = true;
+            if (parsedXmp) return isLivePhoto;
+            synchronized (this) {
+                if (!parsedXmp) {
+                    if (!isVideo) {
+                        parseXmp();
+                    }
+                    parsedXmp = true;
+                }
+            }
+            return isLivePhoto;
+        }
+
+        public boolean isLivePhotoLoaded() {
+            return parsedXmp || isVideo && !loadingLivePhoto;
+        }
+
+        // UI thread only: returns true if isLivePhoto() won't block, otherwise parses it once on a background queue and calls onLoaded on the UI thread
+        public boolean loadLivePhoto(Runnable onLoaded) {
+            if (isLivePhotoLoaded()) return true;
+            if (onLoaded != null) {
+                if (onLivePhotoLoaded == null) {
+                    onLivePhotoLoaded = new ArrayList<>();
+                }
+                if (!onLivePhotoLoaded.contains(onLoaded)) {
+                    onLivePhotoLoaded.add(onLoaded);
+                }
+            }
+            if (!loadingLivePhoto) {
+                loadingLivePhoto = true;
+                if (livePhotoQueue == null) {
+                    livePhotoQueue = new DispatchQueue("livePhotoQueue");
+                }
+                livePhotoQueue.postRunnable(() -> {
+                    isLivePhoto();
+                    AndroidUtilities.runOnUIThread(() -> {
+                        loadingLivePhoto = false;
+                        final ArrayList<Runnable> callbacks = onLivePhotoLoaded;
+                        onLivePhotoLoaded = null;
+                        if (callbacks != null) {
+                            for (int i = 0; i < callbacks.size(); ++i) {
+                                callbacks.get(i).run();
+                            }
+                        }
+                    });
+                });
+            }
+            return false;
+        }
+
+        private void parseXmp() {
             final long start = System.currentTimeMillis();
+            HeifMotionPhoto heif = null;
             try {
+                heif = HeifMotionPhoto.parse(new File(path));
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+            if (heif != null) {
+                if (heif.isMotionPhoto()) {
+                    isVideo = true;
+                    isLivePhoto = true;
+                    livePhotoVideoOffset = heif.videoOffset;
+                    livePhotoTimestampUs = heif.timestampUs;
+                }
+            } else try {
                 final ExifInterface ei = new ExifInterface(new File(path));
                 final String xmp = ei.getAttribute(ExifInterface.TAG_XMP);
                 if (xmp != null) {
@@ -672,7 +737,6 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 isLivePhoto = false;
             }
             FileLog.d("parsed isLivePhoto()="+isLivePhoto+" in " + (System.currentTimeMillis() - start) + "ms");
-            return isLivePhoto;
         }
 
         public PhotoEntry(int bucketId, int imageId, long dateTaken, String path, int orientationOrDuration, boolean isVideo, int width, int height, long size) {
@@ -1084,8 +1148,8 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
     private boolean[] playlistEndReached = new boolean[]{false, false};
     private boolean loadingPlaylist;
     private long playlistMergeDialogId;
-    private long playlistTopicId; // 13.2 backport
     private int playlistClassGuid;
+    private long playlistTopicId;
     private int[] playlistMaxId = new int[]{Integer.MAX_VALUE, Integer.MAX_VALUE};
 
     private Runnable setLoadingRunnable = new Runnable() {
@@ -1139,8 +1203,8 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
     private AudioRecordingSession.Result audioRecorderV2PendingResult;
 
     private Runnable recordStartRunnable;
-    private DispatchQueue recordQueue;
-    private DispatchQueue fileEncodingQueue;
+    private DispatchQueue2 recordQueue;
+    private DispatchQueue2 fileEncodingQueue;
     private Runnable recordRunnable = new Runnable() {
         @Override
         public void run() {
@@ -1435,9 +1499,9 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
     }
 
     public MediaController() {
-        recordQueue = new DispatchQueue("recordQueue");
+        recordQueue = new DispatchQueue2("recordQueue");
         recordQueue.setPriority(Thread.MAX_PRIORITY);
-        fileEncodingQueue = new DispatchQueue("fileEncodingQueue");
+        fileEncodingQueue = new DispatchQueue2("fileEncodingQueue");
         fileEncodingQueue.setPriority(Thread.MAX_PRIORITY);
 
         recordQueue.postRunnable(() -> {
@@ -1727,7 +1791,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         playlistClassGuid = 0;
         playlistEndReached[0] = playlistEndReached[1] = false;
         playlistMergeDialogId = 0;
-        playlistTopicId = 0; // 13.2 backport
+        playlistTopicId = 0;
         playlistMaxId[0] = playlistMaxId[1] = Integer.MAX_VALUE;
         loadingPlaylist = false;
         playlistGlobalSearchParams = null;
@@ -1912,7 +1976,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             }
         } else if (id == NotificationCenter.musicDidLoad) {
             long did = (Long) args[0];
-            long topicId = args.length > 3 ? (Long) args[3] : 0; // 13.2 backport
+            long topicId = (Long) args[3];
             if (playingMessageObject != null && playingMessageObject.isMusic() && playingMessageObject.getDialogId() == did && playlistTopicId == topicId && !playingMessageObject.scheduled) {
                 ArrayList<MessageObject> arrayListBegin = (ArrayList<MessageObject>) args[1];
                 ArrayList<MessageObject> arrayListEnd = (ArrayList<MessageObject>) args[2];
@@ -2029,8 +2093,12 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         }
     }
 
-    protected boolean isRecordingAudio() {
+    public boolean isRecordingAudio() {
         return recordStartRunnable != null || audioRecorderV2StartRunnable != null || recordingAudio != null;
+    }
+
+    public int getRecordingGuid() {
+        return recordingGuid;
     }
 
     private boolean isNearToSensor(float value) {
@@ -2863,10 +2931,9 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             }
             return;
         }
-        //TODO topics
         if (!playlistEndReached[0]) {
             loadingPlaylist = true;
-            AccountInstance.getInstance(playingMessageObject.currentAccount).getMediaDataController().loadMedia(playingMessageObject.getDialogId(), 50, playlistMaxId[0], 0, MediaDataController.MEDIA_MUSIC, playlistTopicId, 1, playlistClassGuid, 0, null, null); // 13.2 backport: playlistTopicId
+            AccountInstance.getInstance(playingMessageObject.currentAccount).getMediaDataController().loadMedia(playingMessageObject.getDialogId(), 50, playlistMaxId[0], 0, MediaDataController.MEDIA_MUSIC, playlistTopicId, 1, playlistClassGuid, 0, null, null);
         } else if (playlistMergeDialogId != 0 && !playlistEndReached[1]) {
             loadingPlaylist = true;
             AccountInstance.getInstance(playingMessageObject.currentAccount).getMediaDataController().loadMedia(playlistMergeDialogId, 50, playlistMaxId[0], 0, MediaDataController.MEDIA_MUSIC, 0, 1, playlistClassGuid, 0, null, null);
@@ -2885,7 +2952,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         return setPlaylist(messageObjects, current, mergeDialogId, loadMusic, params, 0);
     }
 
-    public boolean setPlaylist(ArrayList<MessageObject> messageObjects, MessageObject current, long mergeDialogId, boolean loadMusic, PlaylistGlobalSearchParams params, long topicId) { // 13.2 backport: topicId
+    public boolean setPlaylist(ArrayList<MessageObject> messageObjects, MessageObject current, long mergeDialogId, boolean loadMusic, PlaylistGlobalSearchParams params, long topicId) {
         if (playingMessageObject == current) {
             int newIdx = playlist.indexOf(current);
             if (newIdx >= 0) {
@@ -2898,7 +2965,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         playMusicAgain = !playlist.isEmpty();
         clearPlaylist();
         playlistGlobalSearchParams = params;
-        playlistTopicId = topicId; // 13.2 backport
+        playlistTopicId = topicId;
         boolean isSecretChat = !messageObjects.isEmpty() && DialogObject.isEncryptedDialog(messageObjects.get(0).getDialogId());
         int minId = Integer.MAX_VALUE;
         int maxId = Integer.MIN_VALUE;
@@ -2928,7 +2995,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             }
             if (loadMusic) {
                 if (playlistGlobalSearchParams == null) {
-                    MediaDataController.getInstance(current.currentAccount).loadMusic(current.getDialogId(), playlistTopicId, minId, maxId); // 13.2 backport
+                    MediaDataController.getInstance(current.currentAccount).loadMusic(current.getDialogId(), playlistTopicId, minId, maxId);
                 } else {
                     playlistClassGuid = ConnectionsManager.generateClassGuid();
                 }
@@ -3074,14 +3141,19 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
     }
     
     /**
-     * rawGram: from exteraGram. The step to the next track: saved music and reversed order as in 13.2; the shuffled
+     * rawGram: from exteraGram. The step to the next track, as in {@link #isPlaylistOrderReversed()}; the shuffled
      * list ends with the playing track, so shuffle always steps back (otherwise shuffle + another order stopped after one track).
      */
     public int getNextTrackDirection() {
         if (SharedConfig.shuffleMusic) {
             return -1;
         }
-        return (currentSavedMusicList == null) == SharedConfig.playOrderReversed ? 1 : -1;
+        return isPlaylistOrderReversed() ? 1 : -1;
+    }
+
+    // saved music lists are stored top to bottom, while chat playlists are stored oldest first
+    private boolean isPlaylistOrderReversed() {
+        return currentSavedMusicList != null ? !SharedConfig.playOrderReversed : SharedConfig.playOrderReversed;
     }
 
     private boolean traversePlaylist(ArrayList<MessageObject> playlist, int direction) {
@@ -3153,7 +3225,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
             return;
         }
         int nextIndex;
-        if (getNextTrackDirection() > 0) { // 13.2 backport; rawGram: shuffle fix
+        if (getNextTrackDirection() > 0) { // rawGram: shuffle fix
             nextIndex = currentPlaylistNum + 1;
             if (nextIndex >= currentPlayList.size()) {
                 nextIndex = 0;
@@ -4541,7 +4613,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         }
     }
 
-    private boolean shouldUseAudioRecorderV2(int account) {
+    public static boolean shouldUseAudioRecorderV2(int account) {
         return SharedSettings.audioRecorderV2Enabled.isSet() ?
             SharedSettings.audioRecorderV2Enabled.get() :
             !MessagesController.getInstance(account).config.audioRecorderV2Disabled.get();

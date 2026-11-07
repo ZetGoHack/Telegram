@@ -292,7 +292,7 @@ public class EditTextEffects extends EditText {
                 !Build.MANUFACTURER.toLowerCase().contains("honor") &&
                 !Build.MANUFACTURER.toLowerCase().contains("huawei") &&
                 !Build.MANUFACTURER.toLowerCase().contains("alps") &&
-                !Build.MANUFACTURER.toLowerCase().contains("vivo") // 13.2 backport
+                !Build.MANUFACTURER.toLowerCase().contains("vivo")
             ) && (
                 Build.MODEL == null ||
                 !Build.MODEL.toLowerCase().contains("mediapad")

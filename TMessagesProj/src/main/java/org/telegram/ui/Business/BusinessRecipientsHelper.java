@@ -458,8 +458,8 @@ public class BusinessRecipientsHelper {
         final ArrayList<Long> arrayList = include ? alwaysShow : neverShow;
         final UsersSelectActivity fragment = new UsersSelectActivity(include, arrayList, getFlags()).asPrivateChats();
         fragment.noChatTypes = bot && !exclude && !include;
-        fragment.allowBotChats = bot; // 13.2 backport
         fragment.allowSelf = false;
+        fragment.allowBots = bot;
         fragment.doNotNewChats = !include && doNotExcludeNewChats;
         fragment.setDelegate((ids, flags) -> {
             if (include) {
