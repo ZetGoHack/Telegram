@@ -146,6 +146,11 @@ android {
         // rawGram: API credentials come from local.properties or environment, never from the repo
         buildConfigField "int", "RAWGRAM_API_ID", getSecret("RAWGRAM_API_ID", "0")
         buildConfigField "String", "RAWGRAM_API_HASH", "\"" + getSecret("RAWGRAM_API_HASH", "") + "\""
+        // rawGram: own build identity shown in the settings (build number from rawgram-builds/build.ps1, git state)
+        buildConfigField "int", "RAWGRAM_BUILD", (project.findProperty("rawBuild") ?: "0").toString()
+        buildConfigField "String", "RAWGRAM_COMMIT", "\"" + rawGit(["rev-parse", "--short", "HEAD"]) +
+                (rawGit(["status", "--porcelain", "--", "src"]) ? "-dirty" : "") + "\""
+        buildConfigField "String", "RAWGRAM_BRANCH", "\"" + rawGit(["rev-parse", "--abbrev-ref", "HEAD"]) + "\""
 
         externalNativeBuild {
             cmake {
@@ -260,6 +265,16 @@ def getSecret(String name, String fallback) {
         value = System.getenv(name)
     }
     return (value == null || value.toString().isEmpty()) ? fallback : value.toString()
+}
+// rawGram: a git command's output in this module's folder, or "" when git is unavailable
+def rawGit(List<String> args) {
+    try {
+        def process = (["git"] + args).execute(null, projectDir)
+        def out = process.text.trim()
+        return process.waitFor() == 0 ? out : ""
+    } catch (Exception ignored) {
+        return ""
+    }
 }
 apply plugin: 'com.google.gms.google-services'
 

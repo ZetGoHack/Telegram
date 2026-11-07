@@ -150,16 +150,9 @@ public class RawgramSettingsActivity extends RawPreferencesFragment {
         RawBackup.onActivityResult(this, requestCode, resultCode, data);
     }
 
-    /** "12.10.6 (7112)": the version and build number, as exteraGram shows them under the app name. */
+    /** "build 123 · plugins · 17b5a183d": rawGram's own build under the app name (Telegram's version is in the footer). */
     private static String versionLine() {
-        StringBuilder text = new StringBuilder(BuildVars.BUILD_VERSION_STRING);
-        try {
-            Context context = ApplicationLoader.applicationContext;
-            PackageInfo info = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
-            text.append(" (").append(PackageInfoCompat.getLongVersionCode(info)).append(")");
-        } catch (Exception ignore) {
-        }
-        return text.toString();
+        return RawVersion.line();
     }
 
     private void showCredits() {
