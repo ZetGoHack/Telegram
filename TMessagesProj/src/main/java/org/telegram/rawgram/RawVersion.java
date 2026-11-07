@@ -26,15 +26,8 @@ public final class RawVersion {
         return BuildConfig.RAWGRAM_BRANCH.contains("plugins");
     }
 
-    /** "build 123 · plugins · 17b5a183d": the parts that are known, separated by dots. */
+    /** "build 124", as the version is shown in the settings (the commit and flavour stay in {@link #commit()} etc.). */
     public static String line() {
-        StringBuilder text = new StringBuilder(build() > 0 ? "build " + build() : "локальная сборка");
-        if (plugins()) {
-            text.append(" · plugins");
-        }
-        if (!TextUtils.isEmpty(commit())) {
-            text.append(" · ").append(commit());
-        }
-        return text.toString();
+        return build() > 0 ? "build " + build() : "локальная сборка";
     }
 }

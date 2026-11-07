@@ -228,7 +228,8 @@ final class RawDrawerHeaderView extends FrameLayout {
         if (!TextUtils.isEmpty(username)) {
             subtitleView.setText("@" + username);
         } else if (!TextUtils.isEmpty(user.phone)) {
-            subtitleView.setText(RawUiConfig.isHidePhone() ? "Номер скрыт" : PhoneFormat.getInstance().format("+" + user.phone));
+            String phone = RawUiConfig.isHidePhone() ? "Номер скрыт" : PhoneFormat.getInstance().format("+" + user.phone);
+            org.telegram.rawgram.RawUi.animatePhoneText(subtitleView, () -> subtitleView.setText(phone));
         } else {
             subtitleView.setText("Номер неизвестен");
         }

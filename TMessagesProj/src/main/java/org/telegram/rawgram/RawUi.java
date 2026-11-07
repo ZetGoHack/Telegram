@@ -83,6 +83,33 @@ public class RawUi {
         o.show();
     }
 
+    /** Screens rebind the phone text right after a toggle; within this window the change crossfades. */
+    private static final long PHONE_TOGGLE_WINDOW = 800;
+    private static long phoneToggleUntil;
+
+    /**
+     * Applies a phone text change: right after «Скрыть / Показать номер» the old text fades out with a small lift and the
+     * new one fades in from below; otherwise (normal binds, motion off) it is applied at once.
+     */
+    public static void animatePhoneText(android.view.View view, Runnable apply) {
+        if (view == null || android.os.SystemClock.uptimeMillis() > phoneToggleUntil || !RawMotion.active()
+                || !view.isAttachedToWindow() || view.getWidth() == 0) {
+            apply.run();
+            return;
+        }
+        float shift = AndroidUtilities.dp(6);
+        view.animate().cancel();
+        view.animate().alpha(0f).translationY(-shift).setDuration(140)
+                .setInterpolator(org.telegram.ui.Components.CubicBezierInterpolator.EASE_IN)
+                .withEndAction(() -> {
+                    apply.run();
+                    view.setTranslationY(shift);
+                    view.animate().alpha(1f).translationY(0f).setDuration(220)
+                            .setInterpolator(org.telegram.ui.Components.CubicBezierInterpolator.EASE_OUT_QUINT)
+                            .withEndAction(null).start();
+                }).start();
+    }
+
     private static boolean isOwn(TLRPC.User user) {
         return user != null && (user.self || user.id == UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId());
     }
@@ -103,6 +130,7 @@ public class RawUi {
      */
     public static void setPhoneHidden(boolean hide, boolean notify) {
         RawUiConfig.setHidePhone(hide);
+        phoneToggleUntil = android.os.SystemClock.uptimeMillis() + PHONE_TOGGLE_WINDOW;
         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
             if (UserConfig.getInstance(a).isClientActivated()) {
                 org.telegram.messenger.NotificationCenter.getInstance(a).postNotificationName(

@@ -563,7 +563,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         if (username != null) {
             sb.append(" • @").append(username);
         }
-        subtitleView.setText(sb);
+        org.telegram.rawgram.RawUi.animatePhoneText(subtitleView, () -> subtitleView.setText(sb)); // rawGram: hide phone (crossfade on toggle)
 
         versionView.setText(getVersionName());
     }
@@ -990,8 +990,8 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                     }
                     break;
             }
-            return "rawGram " + org.telegram.rawgram.RawVersion.line() + "\n" // rawGram: own build above Telegram's version
-                    + formatString(R.string.TelegramVersion, String.format(Locale.US, "v%s (%d)\n%s", pInfo.versionName, code, abi));
+            // rawGram: one line, as exteraGram shows it: rawGram's build next to Telegram's version
+            return "rawGram " + org.telegram.rawgram.RawVersion.line() + " · Telegram " + pInfo.versionName + " (" + code + ")";
         } catch (Exception e) {
             FileLog.e(e);
         }
