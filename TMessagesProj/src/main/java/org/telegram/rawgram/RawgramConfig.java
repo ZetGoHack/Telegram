@@ -492,6 +492,17 @@ public class RawgramConfig {
         nowPlaying.set(value);
     }
 
+    // rawGram updates from the @rwgrm chat (RawUpdates): a check at start, at most every few hours
+    private static final Flag updateCheck = new Flag("updateCheck", true);
+
+    public static boolean isUpdateCheck() {
+        return updateCheck.get();
+    }
+
+    public static void setUpdateCheck(boolean value) {
+        updateCheck.set(value);
+    }
+
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }

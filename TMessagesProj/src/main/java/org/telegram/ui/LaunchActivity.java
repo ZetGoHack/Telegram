@@ -504,6 +504,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
         frameLayout.addView(drawerLayoutContainer, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         org.telegram.rawgram.RawSideMenu.attach(this, frameLayout); // rawGram
+        org.telegram.rawgram.RawUpdates.checkOnStart(this); // rawGram: releases from @rwgrm
 
         themeSwitchSunView = new ImageView(this) {
             @Override

@@ -95,6 +95,15 @@ public class RawgramSettingsActivity extends RawPreferencesFragment {
         button(R.drawable.msg_retry, "Восстановить из файла", () -> RawBackup.pickRestore(this));
         rows.add(new Row(TYPE_INFO, 0, "Полный бекап — настройки и данные rawGram: отчёты о сбоях и диагностика. "
                 + "Удерживай его, чтобы сохранить всё приложение вместе с сессиями в зашифрованный файл.", null, null));
+        if (RawUpdates.supported()) {
+            button(R.drawable.msg_download, "Проверить обновления", () -> RawUpdates.checkNow(getParentActivity())).longAction = () -> {
+                boolean on = !RawgramConfig.isUpdateCheck();
+                RawgramConfig.setUpdateCheck(on);
+                RawNotify.show(R.drawable.msg_download, on ? "Проверка при запуске включена" : "Проверка при запуске выключена");
+            };
+            rows.add(new Row(TYPE_INFO, 0, "Новые сборки выходят в @rwgrm, rawGram проверяет их при запуске. "
+                    + "Удерживай кнопку, чтобы выключить или включить эту проверку.", null, null));
+        }
         button(R.drawable.msg_info, "Авторы и лицензии", this::showCredits);
         rows.add(new Row(TYPE_INFO, 0, "rawGram на основе Telegram " + BuildVars.BUILD_VERSION_STRING + " · GPLv3", null, null));
     }
