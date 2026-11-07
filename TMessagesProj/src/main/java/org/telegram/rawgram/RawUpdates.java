@@ -19,7 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * rawGram releases from the @rwgrm chat: posts in topic {@link #TOPIC} start with «rawGram &lt;build&gt; · Telegram
+ * rawGram releases from the @rwgrm chat: posts in topic {@link #TOPIC} carry the tag «rwgrm&lt;build&gt;» (e.g. rwgrm127), «Telegram
  * &lt;version&gt;» and list the changes on the next lines (with the APK or a link to it). The newest post with a build
  * number above {@link RawVersion#build()} is offered as an update; «Открыть» opens that post in the chat.
  * <p>
@@ -36,8 +36,8 @@ public final class RawUpdates {
     private static final int LIMIT = 20;
     /** The check at start runs at most this often. */
     private static final long AUTO_INTERVAL = 6 * 60 * 60 * 1000L;
-    /** «rawGram 127», «rawGram v127», «rawGram build 127» at the start of the post's first line. */
-    private static final Pattern HEADER = Pattern.compile("^\\s*rawgram\\s*(?:v|build\\s*)?(\\d+)", Pattern.CASE_INSENSITIVE);
+    /** The release tag «rwgrm127» anywhere in the post: the build number right after «rwgrm» (the chat's rule). */
+    private static final Pattern HEADER = Pattern.compile("(?<![\\w@/])rwgrm(\\d+)", Pattern.CASE_INSENSITIVE);
 
     private static boolean checking;
 
