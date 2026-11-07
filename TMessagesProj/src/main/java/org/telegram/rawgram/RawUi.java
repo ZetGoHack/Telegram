@@ -71,15 +71,45 @@ public class RawUi {
         }
     }
 
-    /** Menu for a tap / long press on a hidden phone row: «Скопировать номер» (the row keeps showing {@link #PHONE_HIDDEN}). */
+    /** Menu for a tap / long press on the own phone: «Скопировать номер» (the real one) and «Скрыть / Показать номер». */
     public static void showHiddenPhoneMenu(org.telegram.ui.ActionBar.BaseFragment fragment, android.view.View anchor, TLRPC.User user) {
         if (fragment == null || anchor == null || user == null || TextUtils.isEmpty(user.phone)) {
             return;
         }
-        org.telegram.ui.Components.ItemOptions.makeOptions(fragment, anchor)
+        org.telegram.ui.Components.ItemOptions o = org.telegram.ui.Components.ItemOptions.makeOptions(fragment, anchor)
                 .setLongPressSelectionEnabled(false)
-                .add(R.drawable.msg_copy, COPY_PHONE, () -> copyHiddenPhone(fragment, user))
-                .show();
+                .add(R.drawable.msg_copy, COPY_PHONE, () -> copyHiddenPhone(fragment, user));
+        addPhoneVisibilityItem(o, user);
+        o.show();
+    }
+
+    private static boolean isOwn(TLRPC.User user) {
+        return user != null && (user.self || user.id == UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId());
+    }
+
+    /** Adds «Скрыть номер» / «Показать номер» to a menu of the own phone row (nothing for other users). */
+    public static void addPhoneVisibilityItem(org.telegram.ui.Components.ItemOptions o, TLRPC.User user) {
+        if (o == null || !isOwn(user)) {
+            return;
+        }
+        boolean hidden = RawUiConfig.isHidePhone();
+        o.add(hidden ? R.drawable.msg_views : R.drawable.msg_stories_stealth, hidden ? "Показать номер" : "Скрыть номер",
+                () -> setPhoneHidden(!hidden, true));
+    }
+
+    /**
+     * Turns hiding of the own number on or off and refreshes every open screen that shows it (profile, settings,
+     * side menu, «Мой профиль») through the same update Telegram sends when a phone changes.
+     */
+    public static void setPhoneHidden(boolean hide, boolean notify) {
+        RawUiConfig.setHidePhone(hide);
+        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+            if (UserConfig.getInstance(a).isClientActivated()) {
+                org.telegram.messenger.NotificationCenter.getInstance(a).postNotificationName(
+                        org.telegram.messenger.NotificationCenter.updateInterfaces, org.telegram.messenger.MessagesController.UPDATE_MASK_PHONE);
+            }
+        }
+        if (notify) RawNotify.show(hide ? R.drawable.msg_stories_stealth : R.drawable.msg_views, hide ? "Номер скрыт" : "Номер снова виден");
     }
 
     // ---- chats list search field ----

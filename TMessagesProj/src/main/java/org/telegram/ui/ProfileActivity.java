@@ -7530,6 +7530,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     FileLog.e(e);
                 }
             });
+            if (position == phoneRow) org.telegram.rawgram.RawUi.addPhoneVisibilityItem(o, user); // rawGram: hide phone
             if (isFragmentPhoneNumber) {
                 final SpannableStringBuilder spanned = new SpannableStringBuilder(AndroidUtilities.replaceTags(LocaleController.getString(R.string.AnonymousNumberNotice)));
                 final int startIndex = TextUtils.indexOf(spanned, '*');
@@ -16567,6 +16568,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (org.telegram.rawgram.RawUi.hidePhone(user)) { // rawGram: hide phone (copy the real number)
                 itemOptions.add(R.drawable.msg_copy, org.telegram.rawgram.RawUi.COPY_PHONE, () -> org.telegram.rawgram.RawUi.copyHiddenPhone(this, user));
             }
+            org.telegram.rawgram.RawUi.addPhoneVisibilityItem(itemOptions, user); // rawGram: hide phone
             itemOptions.add(R.drawable.menu_storage_path, getString(R.string.ProfilePhoneEdit), () -> {
                 presentFragment(new ActionIntroActivity(ActionIntroActivity.ACTION_TYPE_CHANGE_PHONE_NUMBER));
             });

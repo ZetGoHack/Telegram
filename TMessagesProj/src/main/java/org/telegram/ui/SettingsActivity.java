@@ -482,7 +482,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         topView.addView(subtitleView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 168 - 12, 0, 0));
         subtitleView.setOnLongClickListener(v -> { // rawGram: hide phone (copy the real number)
             final org.telegram.tgnet.TLRPC.User u = getUserConfig().getCurrentUser();
-            if (!org.telegram.rawgram.RawUi.hidePhone(u)) return false;
+            if (u == null || android.text.TextUtils.isEmpty(u.phone)) return false;
             org.telegram.rawgram.RawUi.showHiddenPhoneMenu(this, v, u);
             return true;
         });

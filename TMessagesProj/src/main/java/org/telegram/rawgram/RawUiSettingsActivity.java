@@ -338,7 +338,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
             toggled(view, v);
         } else if (position == hidePhoneRow) {
             boolean v = !RawUiConfig.isHidePhone();
-            RawUiConfig.setHidePhone(v);
+            RawUi.setPhoneHidden(v, false);
             toggled(view, v);
         } else if (position == tabsHideTitlesRow) {
             boolean v = !RawUiConfig.mainTabsHideTitles();
