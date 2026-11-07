@@ -32,17 +32,16 @@ $env:JAVA_HOME='C:\Users\aleks\.jdks\jbr-21.0.11'
   `buildNNN_<date>_<commit>[-dirty].apk` with a `.patch`/`.new-files.zip` for uncommitted builds; `-List` shows the
   archive, `-Install N` rolls back to build N, `-NoInstall`, `-Repo ..\telegram-plugs -Tag plugins`).
 - Compile-only check (Java errors, no APK): `:TMessagesProj:compileDebugJavaWithJavac`.
-- Local, **never committed** edits that keep builds fast, in **both clones**: `abiFilters "arm64-v8a"` in
-  `TMessagesProj/build.gradle` (`externalNativeBuild.cmake`) and in the `afat` flavor of `TMessagesProj_App/build.gradle`.
-  Without the first one the native code is built for all four ABIs (about 4× slower). Stage commits with
-  `git add TMessagesProj/src ...` and leave these two files out; when a build.gradle change is real, stage only its hunk.
+- `build.ps1` passes `-PrawAbi=arm64-v8a`: native code and the APK for one ABI (about 4× faster). Without the property
+  (anyone building from the repo) all four ABIs are built, so never hard-code an ABI in the build.gradle files.
+  The plugins hooks (LSPlant/shadowhook) exist for both ARM ABIs; on x86 the app runs without them.
 - `build.ps1` also wires the host tools (machine-local, in `C:\Users\aleks\tools`): ccache through `ccache\ccwrap.py`
   (passed to CMake as `-PrawCcache`; the wrapper puts `-std=` in one place, because CMake orders it differently in the
   plugins clone, so both clones share one cache with `base_dir` = the projects folder), and `CHAQUOPY_PYTHON` = a portable
   Python 3.11 venv with Cython 3.0.11 (`chaquopy-venv311`) for the plugins branch's Chaquopy bridge.
-- A Java-only change builds in ~2–5 min. After native changes (upstream merges, CMake arguments) the main clone needs
-  ~25 min, then the plugins clone ~4 min from the shared cache. Avoid concurrent builds in both clones; build the main
-  clone first.
+- A Java-only change builds in ~1.5–2 min. After native changes (upstream merges, CMake arguments) the main clone needs
+  a few minutes with a warm ccache (13.2.1 with the new twidget engine: 2.5 min), the plugins clone then reuses the
+  cache. Avoid concurrent builds in both clones; build the main clone first.
 - There is no unit-test suite in use; verification is done on a device.
 
 ## Device testing conventions

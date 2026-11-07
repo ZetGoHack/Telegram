@@ -166,6 +166,10 @@ android {
                     arguments "-DCMAKE_C_COMPILER_LAUNCHER=${project.property('rawCcache')}", "-DCMAKE_CXX_COMPILER_LAUNCHER=${project.property('rawCcache')}"
                 }
                 targets 'tmessages.49'
+                // rawGram: -PrawAbi=arm64-v8a (rawgram-builds/build.ps1) builds one ABI for fast local builds
+                if (project.hasProperty('rawAbi')) {
+                    abiFilters(*project.property('rawAbi').toString().split(','))
+                }
             }
         }
     }
