@@ -646,7 +646,6 @@ public class FileRefController extends BaseController {
                     getConnectionsManager().sendRequest(req, (response, error) -> broadcastWaitersData(favStickersWaiter, response, error));
                 }
                 favStickersWaiter.add(new Waiter(locationKey, parentKey));
-            } else if ("update".equals(string) && org.telegram.rawgram.RawUpdates.refreshReference(currentAccount, (response, error) -> onRequestComplete(locationKey, parentKey, response, error, true, false))) { // rawGram: re-read the release post
             } else if ("update".equals(string)) {
                 TLRPC.TL_help_getAppUpdate req = new TLRPC.TL_help_getAppUpdate();
                 try {

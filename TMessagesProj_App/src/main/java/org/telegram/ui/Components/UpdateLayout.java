@@ -70,13 +70,13 @@ public class UpdateLayout extends IUpdateLayout {
                 return;
             }
             if (updateLayoutIcon.getIcon() == MediaActionDrawable.ICON_DOWNLOAD) {
-                FileLoader.getInstance(currentAccount).loadFile(SharedConfig.pendingAppUpdate.document, "update", FileLoader.PRIORITY_NORMAL, 1);
+                org.telegram.rawgram.RawUpdates.load(currentAccount, SharedConfig.pendingAppUpdate.document); // rawGram: through the release post, as in the chat
                 updateAppUpdateViews(currentAccount,  true);
             } else if (updateLayoutIcon.getIcon() == MediaActionDrawable.ICON_CANCEL) {
-                FileLoader.getInstance(currentAccount).cancelLoadFile(SharedConfig.pendingAppUpdate.document);
+                org.telegram.rawgram.RawUpdates.cancel(currentAccount, SharedConfig.pendingAppUpdate.document); // rawGram
                 updateAppUpdateViews(currentAccount, true);
             } else {
-                AndroidUtilities.openForView(SharedConfig.pendingAppUpdate.document, true, activity);
+                org.telegram.rawgram.RawUpdates.install(currentAccount, SharedConfig.pendingAppUpdate.document, activity); // rawGram: the file wherever it was downloaded
             }
         });
 
@@ -128,7 +128,7 @@ public class UpdateLayout extends IUpdateLayout {
             createUpdateUI(currentAccount);
 
             String fileName = FileLoader.getAttachFileName(SharedConfig.pendingAppUpdate.document);
-            File path = FileLoader.getInstance(currentAccount).getPathToAttach(SharedConfig.pendingAppUpdate.document, true);
+            File path = org.telegram.rawgram.RawUpdates.file(currentAccount, SharedConfig.pendingAppUpdate.document); // rawGram: also the copy downloaded in the chat
             boolean showSize;
             if (path.exists()) {
                 updateLayoutIcon.setIcon(MediaActionDrawable.ICON_UPDATE, true, animated);

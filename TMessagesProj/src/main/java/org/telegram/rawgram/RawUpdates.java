@@ -6,11 +6,13 @@ import android.content.SharedPreferences;
 import android.graphics.Paint;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
+import android.util.Base64;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.FileLoader;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
@@ -20,9 +22,12 @@ import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.RequestDelegate;
+import org.telegram.tgnet.SerializedData;
+import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.AlertDialog;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,9 +39,11 @@ import java.util.regex.Pattern;
  * <p>
  * A post with the APK attached becomes Telegram's own pending update ({@link SharedConfig#pendingAppUpdate}, a
  * {@code help.appUpdate} built from the post), so Telegram's standalone update sheet and update bar (copied into the
- * app flavour) download and install it. SharedConfig keeps it across restarts and asks {@link #isAvailable} instead of
- * comparing versionCodes (the same for all rawGram builds); the file reference is refreshed by re-reading the post
- * ({@link #refreshReference}). A post without the APK only offers to open it in the chat.
+ * app flavour) show it. SharedConfig keeps it across restarts and asks {@link #isAvailable} instead of comparing
+ * versionCodes (the same for all rawGram builds). The APK is downloaded, found and installed through the post itself,
+ * like a document in the chat ({@link #load}, {@link #file}, {@link #install}): a copy already downloaded in the chat
+ * counts, and the file reference is refreshed the usual way for messages. The post and its chat are kept here for that.
+ * A post without the APK only offers to open it in the chat.
  * <p>
  * Only plugins builds are released, so builds of the plain branch (their own numbering) don't check.
  */
@@ -55,6 +62,14 @@ public final class RawUpdates {
     private static final Pattern TAG_LINE = Pattern.compile("[ \\t]*(?:[·|—–-][ \\t]*)?#?(?<![\\w@/])rwgrm\\d+[ \\t]*(?=\\n|$)", Pattern.CASE_INSENSITIVE);
     /** Keys of the earlier own copy of the pending update and of the check interval. */
     private static final String[] OLD_KEYS = {"pendingBuild", "pendingAccount", "pendingMessage", "pendingChat", "lastCheck"};
+    private static final String KEY_POST = "post";
+    private static final String KEY_CHAT = "postChat";
+
+    /** The release post of the pending update and its chat, kept for the download (the post is its parent). */
+    private static TLRPC.Message post;
+    private static TLRPC.Chat postChat;
+    private static boolean postLoaded;
+    private static MessageObject postObject;
 
     private static boolean checking;
     /** The check at start runs once per process: LaunchActivity can be recreated. */
@@ -145,11 +160,17 @@ public final class RawUpdates {
             }
             return;
         }
-        TLRPC.TL_help_appUpdate update = apkOf(newest) != null ? updateOf(newestBuild, newest) : null;
-        if (update != null) {
-            SharedConfig.pendingAppUpdate = update;
-            SharedConfig.saveConfig();
-            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.appUpdateAvailable);
+        TLRPC.Document apk = apkOf(newest);
+        TLRPC.TL_help_appUpdate update = null;
+        if (apk != null) {
+            TLRPC.TL_help_appUpdate current = SharedConfig.pendingAppUpdate;
+            if (isSame(current, newestBuild, apk) && loadPost() != null) {
+                // the same release: the update, its post and a download in progress stay untouched
+                update = current;
+            } else {
+                update = updateOf(newestBuild, newest);
+                setPending(account, update, newest);
+            }
         } else {
             clearPending();
         }
@@ -229,13 +250,150 @@ public final class RawUpdates {
         return update;
     }
 
+    private static boolean isSame(TLRPC.TL_help_appUpdate update, int build, TLRPC.Document apk) {
+        return update != null && update.id == build && update.document != null && update.document.id == apk.id;
+    }
+
+    private static void setPending(int account, TLRPC.TL_help_appUpdate update, TLRPC.Message message) {
+        post = message;
+        postChat = message.peer_id != null && message.peer_id.channel_id != 0 ? MessagesController.getInstance(account).getChat(message.peer_id.channel_id) : null;
+        postLoaded = true;
+        postObject = null;
+        SharedPreferences.Editor editor = prefs().edit().putString(KEY_POST, encode(message));
+        if (postChat != null) {
+            editor.putString(KEY_CHAT, encode(postChat));
+        } else {
+            editor.remove(KEY_CHAT);
+        }
+        editor.apply();
+        SharedConfig.pendingAppUpdate = update;
+        SharedConfig.saveConfig();
+        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.appUpdateAvailable);
+    }
+
     private static void clearPending() {
+        dropPost();
         if (SharedConfig.pendingAppUpdate == null) {
             return;
         }
         SharedConfig.pendingAppUpdate = null;
         SharedConfig.saveConfig();
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.appUpdateAvailable);
+    }
+
+    private static void dropPost() {
+        post = null;
+        postChat = null;
+        postObject = null;
+        postLoaded = true;
+        if (prefs().contains(KEY_POST)) {
+            prefs().edit().remove(KEY_POST).remove(KEY_CHAT).apply();
+        }
+    }
+
+    /** The stored release post, or null. */
+    private static TLRPC.Message loadPost() {
+        if (postLoaded) {
+            return post;
+        }
+        postLoaded = true;
+        try {
+            SharedPreferences prefs = prefs();
+            String postData = prefs.getString(KEY_POST, null);
+            if (postData == null) {
+                return null;
+            }
+            SerializedData data = new SerializedData(Base64.decode(postData, Base64.DEFAULT));
+            post = TLRPC.Message.TLdeserialize(data, data.readInt32(false), false);
+            data.cleanup();
+            String chatData = prefs.getString(KEY_CHAT, null);
+            if (chatData != null) {
+                SerializedData chat = new SerializedData(Base64.decode(chatData, Base64.DEFAULT));
+                postChat = TLRPC.Chat.TLdeserialize(chat, chat.readInt32(false), false);
+                chat.cleanup();
+            }
+        } catch (Exception e) {
+            FileLog.e(e);
+            post = null;
+        }
+        return post;
+    }
+
+    /** The post as a MessageObject of {@code account}, with its chat known there (the file reference refresh needs it). */
+    private static MessageObject postObject(int account, TLRPC.Document document) {
+        TLRPC.Message message = loadPost();
+        TLRPC.Document apk = message == null ? null : apkOf(message);
+        if (apk == null || document == null || apk.id != document.id) {
+            return null;
+        }
+        if (postObject == null || postObject.currentAccount != account) {
+            MessagesController controller = MessagesController.getInstance(account);
+            if (postChat != null && controller.getChat(postChat.id) == null) {
+                controller.putChat(postChat, true);
+            }
+            postObject = new MessageObject(account, message, false, false);
+        }
+        return postObject;
+    }
+
+    private static String encode(TLObject object) {
+        SerializedData data = new SerializedData(object.getObjectSize());
+        object.serializeToStream(data);
+        String result = Base64.encodeToString(data.toByteArray(), Base64.DEFAULT);
+        data.cleanup();
+        return result;
+    }
+
+    // ---- download, file and install for the stock update bar and sheet ----
+
+    /**
+     * The downloaded APK: the post's own file (downloaded in the chat: documents folder or cache), else the cache copy
+     * of Telegram's update download. Never null, like getPathToAttach: check exists().
+     */
+    public static File file(int account, TLRPC.Document document) {
+        FileLoader loader = FileLoader.getInstance(account);
+        MessageObject parent = postObject(account, document);
+        if (parent != null) {
+            TLRPC.Message message = parent.messageOwner;
+            if (!TextUtils.isEmpty(message.attachPath)) {
+                File attach = new File(message.attachPath);
+                if (attach.exists()) {
+                    return attach;
+                }
+            }
+            File chatFile = loader.getPathToMessage(message);
+            if (chatFile != null && chatFile.exists()) {
+                return chatFile;
+            }
+        }
+        File plain = loader.getPathToAttach(document, false);
+        if (plain != null && plain.exists()) {
+            return plain;
+        }
+        return loader.getPathToAttach(document, true);
+    }
+
+    /** Starts the download the way the chat does for a document: the post as the parent, the documents folder. */
+    public static void load(int account, TLRPC.Document document) {
+        MessageObject parent = postObject(account, document);
+        if (parent != null) {
+            parent.putInDownloadsStore = true;
+            FileLoader.getInstance(account).loadFile(document, parent, FileLoader.PRIORITY_NORMAL_UP, 0);
+        } else {
+            FileLoader.getInstance(account).loadFile(document, "update", FileLoader.PRIORITY_NORMAL, 1);
+        }
+    }
+
+    public static void cancel(int account, TLRPC.Document document) {
+        FileLoader.getInstance(account).cancelLoadFile(document);
+    }
+
+    /** Opens the downloaded APK in the system installer. */
+    public static void install(int account, TLRPC.Document document, Activity activity) {
+        File apk = file(account, document);
+        if (apk.exists()) {
+            AndroidUtilities.openForView(apk, FileLoader.getAttachFileName(document), document.mime_type, activity, null, false);
+        }
     }
 
     // ---- hooks ----
@@ -247,51 +405,20 @@ public final class RawUpdates {
 
     /** SharedConfig.loadConfig: drops the saved release once this build has reached it. */
     public static void onConfigLoaded() {
-        if (supported() && SharedConfig.pendingAppUpdate != null && !isAvailable(SharedConfig.pendingAppUpdate)) {
+        if (!supported() || SharedConfig.pendingAppUpdate == null) {
+            return;
+        }
+        TLRPC.TL_help_appUpdate update = SharedConfig.pendingAppUpdate;
+        TLRPC.Message message = loadPost();
+        TLRPC.Document apk = message == null ? null : apkOf(message);
+        if (!isAvailable(update) || apk == null || apk.id != update.document.id) {
+            // reached by this build, or saved without its post
             SharedConfig.pendingAppUpdate = null;
-            AndroidUtilities.runOnUIThread(SharedConfig::saveConfig);
+            AndroidUtilities.runOnUIThread(() -> {
+                dropPost();
+                SharedConfig.saveConfig();
+            });
         }
-    }
-
-    /**
-     * FileRefController, parent «update»: instead of help.getAppUpdate (which knows nothing of rawGram builds) re-reads
-     * the release post and hands its fresh update object to {@code done}, the same path as Telegram's answer.
-     * Returns false when Telegram's own request should run.
-     */
-    public static boolean refreshReference(int account, RequestDelegate done) {
-        if (!supported()) {
-            return false;
-        }
-        TLRPC.TL_help_appUpdate current = SharedConfig.pendingAppUpdate;
-        fetchPosts(account, (res, err) -> {
-            TLRPC.Message post = null;
-            if (res instanceof TLRPC.messages_Messages) {
-                ArrayList<TLRPC.Message> messages = ((TLRPC.messages_Messages) res).messages;
-                if (current != null && current.document != null) {
-                    for (TLRPC.Message message : messages) {
-                        TLRPC.Document apk = apkOf(message);
-                        if (apk != null && apk.id == current.document.id) {
-                            post = message;
-                            break;
-                        }
-                    }
-                }
-                if (post == null) {
-                    post = newestRelease(messages, true);
-                }
-            }
-            if (post != null && buildOf(post.message) > 0) {
-                done.run(updateOf(buildOf(post.message), post), null);
-            } else {
-                TLRPC.TL_error error = err;
-                if (error == null) {
-                    error = new TLRPC.TL_error();
-                    error.text = "RAWGRAM_RELEASE_NOT_FOUND";
-                }
-                done.run(null, error);
-            }
-        });
-        return true;
     }
 
     /** UpdateAppAlertDialog: the changelog with emoji and custom emoji, without the release tag. */
