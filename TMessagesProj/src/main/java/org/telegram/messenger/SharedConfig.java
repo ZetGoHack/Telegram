@@ -569,7 +569,7 @@ public class SharedConfig {
                         data.cleanup();
                     }
                 }
-                if (pendingAppUpdate != null) {
+                if (pendingAppUpdate != null && !org.telegram.rawgram.RawUpdates.supported()) { // rawGram: RawUpdates.onConfigLoaded decides
                     long updateTime = 0;
                     int updateVersion = 0;
                     String updateVersionString = null;
@@ -591,6 +591,7 @@ public class SharedConfig {
                         AndroidUtilities.runOnUIThread(SharedConfig::saveConfig);
                     }
                 }
+                org.telegram.rawgram.RawUpdates.onConfigLoaded(); // rawGram: drops a release this build has reached
             } catch (Exception e) {
                 FileLog.e(e);
             }
@@ -782,6 +783,7 @@ public class SharedConfig {
     }
 
     public static boolean isAppUpdateAvailable() {
+        if (org.telegram.rawgram.RawUpdates.supported()) return org.telegram.rawgram.RawUpdates.isAvailable(pendingAppUpdate); // rawGram: build numbers, not versionCode
         if (pendingAppUpdate == null || pendingAppUpdate.document == null || !ApplicationLoader.isStandaloneBuild()) {
             return false;
         }

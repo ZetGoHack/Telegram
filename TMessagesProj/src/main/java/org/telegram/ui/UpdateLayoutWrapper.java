@@ -7,6 +7,7 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 
 import androidx.annotation.NonNull;
 import androidx.core.graphics.ColorUtils;
@@ -37,6 +38,24 @@ public class UpdateLayoutWrapper extends ViewGroup {
     }
 
     private boolean lastUpdateLayoutVisible;
+
+    // rawGram: the bar turning VISIBLE/INVISIBLE doesn't relayout this wrapper, so its height and the insets stayed
+    private final ViewTreeObserver.OnPreDrawListener rawVisibilityCheck = () -> {
+        if (lastUpdateLayoutVisible != isUpdateLayoutVisible()) requestLayout();
+        return true;
+    };
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        getViewTreeObserver().addOnPreDrawListener(rawVisibilityCheck); // rawGram
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        getViewTreeObserver().removeOnPreDrawListener(rawVisibilityCheck); // rawGram
+    }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {

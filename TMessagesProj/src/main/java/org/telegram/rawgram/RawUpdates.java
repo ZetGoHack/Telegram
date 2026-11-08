@@ -3,26 +3,27 @@ package org.telegram.rawgram;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Paint;
+import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
-import android.util.Base64;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.Emoji;
 import org.telegram.messenger.FileLoader;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
+import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.ConnectionsManager;
-import org.telegram.tgnet.SerializedData;
-import org.telegram.tgnet.TLObject;
+import org.telegram.tgnet.RequestDelegate;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.AlertDialog;
 
-import java.io.File;
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,10 +32,11 @@ import java.util.regex.Pattern;
  * &lt;version&gt;» and list the changes on the next lines (with the APK or a link to it). The newest post with a build
  * number above {@link RawVersion#build()} is offered as an update.
  * <p>
- * A post with the APK attached becomes the pending update: Telegram's own update sheet ({@link RawUpdateSheet}) and the
- * update bar over the bottom tabs ({@link RawUpdateLayout}) download and install it. The pending post is kept in the
- * preferences, so the bar survives a restart, and is dropped once this build reaches it. A post without the APK only
- * offers to open it in the chat.
+ * A post with the APK attached becomes Telegram's own pending update ({@link SharedConfig#pendingAppUpdate}, a
+ * {@code help.appUpdate} built from the post), so Telegram's standalone update sheet and update bar (copied into the
+ * app flavour) download and install it. SharedConfig keeps it across restarts and asks {@link #isAvailable} instead of
+ * comparing versionCodes (the same for all rawGram builds); the file reference is refreshed by re-reading the post
+ * ({@link #refreshReference}). A post without the APK only offers to open it in the chat.
  * <p>
  * Only plugins builds are released, so builds of the plain branch (their own numbering) don't check.
  */
@@ -47,42 +49,29 @@ public final class RawUpdates {
     private static final int TOPIC = 2;
     /** How many recent topic posts are read: enough to skip a few chat messages after the release. */
     private static final int LIMIT = 20;
-    /** The check at start runs at most this often. */
-    private static final long AUTO_INTERVAL = 6 * 60 * 60 * 1000L;
     /** The release tag «rwgrm127» anywhere in the post: the build number right after «rwgrm» (the chat's rule). */
     private static final Pattern HEADER = Pattern.compile("(?<![\\w@/])rwgrm(\\d+)", Pattern.CASE_INSENSITIVE);
     /** The tag (with an optional «#») on its own line or at the end of a line, with the spaces and a separator before it. */
     private static final Pattern TAG_LINE = Pattern.compile("[ \\t]*(?:[·|—–-][ \\t]*)?#?(?<![\\w@/])rwgrm\\d+[ \\t]*(?=\\n|$)", Pattern.CASE_INSENSITIVE);
-
-    private static final String KEY_BUILD = "pendingBuild";
-    private static final String KEY_ACCOUNT = "pendingAccount";
-    private static final String KEY_MESSAGE = "pendingMessage";
-    private static final String KEY_CHAT = "pendingChat";
+    /** Keys of the earlier own copy of the pending update and of the check interval. */
+    private static final String[] OLD_KEYS = {"pendingBuild", "pendingAccount", "pendingMessage", "pendingChat", "lastCheck"};
 
     private static boolean checking;
-
-    private static boolean pendingLoaded;
-    private static int pendingBuild;
-    private static int pendingAccount;
-    private static TLRPC.Message pendingMessage;
-    private static TLRPC.Chat pendingChat;
-    private static TLRPC.TL_help_appUpdate pendingUpdate;
-    private static MessageObject pendingParent;
+    /** The check at start runs once per process: LaunchActivity can be recreated. */
+    private static boolean checkedAtStart;
 
     /** Whether this build takes part (a numbered plugins build). */
     public static boolean supported() {
         return RawVersion.plugins() && RawVersion.build() > 0;
     }
 
-    /** At start (LaunchActivity): a quiet check, at most every {@link #AUTO_INTERVAL}; a newer build shows the sheet once. */
+    /** At start (LaunchActivity): a quiet check once per process; the sheet of a newer build shows once per build. */
     public static void checkOnStart(Activity activity) {
-        if (!supported() || !RawgramConfig.isUpdateCheck()) {
+        if (!supported() || !RawgramConfig.isUpdateCheck() || checkedAtStart) {
             return;
         }
-        long now = System.currentTimeMillis();
-        if (now - prefs().getLong("lastCheck", 0) < AUTO_INTERVAL) {
-            return;
-        }
+        checkedAtStart = true;
+        dropOldKeys();
         // after the first frame and the accounts' connection, not on the start path
         AndroidUtilities.runOnUIThread(() -> check(activity, false), 5000);
     }
@@ -98,63 +87,71 @@ public final class RawUpdates {
             return;
         }
         checking = true;
-        TLRPC.TL_contacts_resolveUsername resolve = new TLRPC.TL_contacts_resolveUsername();
-        resolve.username = CHAT;
-        ConnectionsManager.getInstance(account).sendRequest(resolve, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
-            if (!(res instanceof TLRPC.TL_contacts_resolvedPeer)) {
-                done(manual, "Не удалось открыть чат обновлений");
+        fetchPosts(account, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
+            checking = false;
+            if (!(res instanceof TLRPC.messages_Messages)) {
+                if (manual) {
+                    RawNotify.warn("Не удалось проверить обновления");
+                }
                 return;
             }
-            TLRPC.TL_contacts_resolvedPeer resolved = (TLRPC.TL_contacts_resolvedPeer) res;
-            MessagesController.getInstance(account).putUsers(resolved.users, false);
-            MessagesController.getInstance(account).putChats(resolved.chats, false);
-            TLRPC.TL_messages_getReplies req = new TLRPC.TL_messages_getReplies();
-            req.peer = MessagesController.getInstance(account).getInputPeer(resolved.peer);
-            req.msg_id = TOPIC;
-            req.limit = LIMIT;
-            ConnectionsManager.getInstance(account).sendRequest(req, (res2, err2) -> AndroidUtilities.runOnUIThread(() -> {
-                if (!(res2 instanceof TLRPC.messages_Messages)) {
-                    done(manual, "Не удалось проверить обновления");
-                    return;
-                }
-                checking = false;
-                prefs().edit().putLong("lastCheck", System.currentTimeMillis()).apply();
-                TLRPC.messages_Messages posts = (TLRPC.messages_Messages) res2;
-                MessagesController.getInstance(account).putChats(posts.chats, false);
-                onPosts(activity, account, posts, manual);
-            }));
+            TLRPC.messages_Messages posts = (TLRPC.messages_Messages) res;
+            MessagesController.getInstance(account).putUsers(posts.users, false);
+            MessagesController.getInstance(account).putChats(posts.chats, false);
+            onPosts(activity, account, posts, manual);
         }));
     }
 
-    private static void done(boolean manual, String failure) {
-        checking = false;
-        if (manual) {
-            RawNotify.warn(failure);
+    /** Reads the recent posts of the releases topic; {@code done} runs on the network thread with messages_Messages or null. */
+    private static void fetchPosts(int account, RequestDelegate done) {
+        TLRPC.TL_contacts_resolveUsername resolve = new TLRPC.TL_contacts_resolveUsername();
+        resolve.username = CHAT;
+        ConnectionsManager.getInstance(account).sendRequest(resolve, (res, err) -> {
+            TLRPC.InputPeer peer = res instanceof TLRPC.TL_contacts_resolvedPeer ? inputPeerOf((TLRPC.TL_contacts_resolvedPeer) res) : null;
+            if (peer == null) {
+                done.run(null, err);
+                return;
+            }
+            TLRPC.TL_messages_getReplies req = new TLRPC.TL_messages_getReplies();
+            req.peer = peer;
+            req.msg_id = TOPIC;
+            req.limit = LIMIT;
+            ConnectionsManager.getInstance(account).sendRequest(req, done);
+        });
+    }
+
+    private static TLRPC.InputPeer inputPeerOf(TLRPC.TL_contacts_resolvedPeer resolved) {
+        if (resolved.peer == null || resolved.peer.channel_id == 0) {
+            return null;
         }
+        for (TLRPC.Chat chat : resolved.chats) {
+            if (chat.id == resolved.peer.channel_id) {
+                TLRPC.TL_inputPeerChannel peer = new TLRPC.TL_inputPeerChannel();
+                peer.channel_id = chat.id;
+                peer.access_hash = chat.access_hash;
+                return peer;
+            }
+        }
+        return null;
     }
 
     private static void onPosts(Activity activity, int account, TLRPC.messages_Messages posts, boolean manual) {
-        TLRPC.Message newest = null;
-        int newestBuild = 0;
-        for (TLRPC.Message message : posts.messages) {
-            int build = buildOf(message.message);
-            if (build > newestBuild) {
-                newestBuild = build;
-                newest = message;
-            }
-        }
+        TLRPC.Message newest = newestRelease(posts.messages, false);
+        int newestBuild = newest == null ? 0 : buildOf(newest.message);
         if (newest == null || newestBuild <= RawVersion.build()) {
-            clearPending(true);
+            clearPending();
             if (manual) {
                 RawNotify.show(R.drawable.msg_select, newest == null ? "Выпусков пока нет" : "У тебя последняя версия");
             }
             return;
         }
-        TLRPC.Document apk = apkOf(newest);
-        if (apk != null) {
-            setPending(account, newestBuild, newest, chatOf(account, newest));
+        TLRPC.TL_help_appUpdate update = apkOf(newest) != null ? updateOf(newestBuild, newest) : null;
+        if (update != null) {
+            SharedConfig.pendingAppUpdate = update;
+            SharedConfig.saveConfig();
+            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.appUpdateAvailable);
         } else {
-            clearPending(true);
+            clearPending();
         }
         if (!manual) {
             // the sheet once per release, not on every start
@@ -163,11 +160,28 @@ public final class RawUpdates {
             }
             prefs().edit().putInt("shownBuild", newestBuild).apply();
         }
-        if (apk != null) {
-            showSheet(activity);
+        if (activity == null || activity.isFinishing()) {
+            return;
+        }
+        if (update != null) {
+            ApplicationLoader.applicationLoaderInstance.showUpdateAppPopup(activity, update, account);
         } else {
             showLink(activity, newestBuild, newest.message, newest.id);
         }
+    }
+
+    /** The post with the highest build tag (only those with the APK when {@code withApk}), or null. */
+    private static TLRPC.Message newestRelease(ArrayList<TLRPC.Message> messages, boolean withApk) {
+        TLRPC.Message newest = null;
+        int newestBuild = 0;
+        for (TLRPC.Message message : messages) {
+            int build = buildOf(message.message);
+            if (build > newestBuild && (!withApk || apkOf(message) != null)) {
+                newestBuild = build;
+                newest = message;
+            }
+        }
+        return newest;
     }
 
     /** The build number of a release post, or 0 when the text is not one. */
@@ -201,32 +215,100 @@ public final class RawUpdates {
         return apk ? document : null;
     }
 
-    private static TLRPC.Chat chatOf(int account, TLRPC.Message message) {
-        if (message.peer_id == null || message.peer_id.channel_id == 0) {
-            return null;
+    /** Telegram's update object for a release post: id = the build, version «build N», the post's text and APK. */
+    private static TLRPC.TL_help_appUpdate updateOf(int build, TLRPC.Message message) {
+        TLRPC.TL_help_appUpdate update = new TLRPC.TL_help_appUpdate();
+        update.id = build;
+        update.version = "build " + build;
+        update.text = message.message == null ? "" : message.message;
+        if (message.entities != null) {
+            update.entities.addAll(message.entities);
         }
-        return MessagesController.getInstance(account).getChat(message.peer_id.channel_id);
+        update.document = apkOf(message);
+        update.flags |= 2; // document
+        return update;
     }
 
-    /** The sheet of the pending update: Telegram's update sheet with the post's text. */
-    public static void showSheet(Activity activity) {
-        TLRPC.TL_help_appUpdate update = pendingUpdate();
-        if (update == null || activity == null || activity.isFinishing()) {
+    private static void clearPending() {
+        if (SharedConfig.pendingAppUpdate == null) {
             return;
         }
-        try {
-            new RawUpdateSheet(activity, update).show();
-        } catch (Exception e) {
-            FileLog.e(e);
+        SharedConfig.pendingAppUpdate = null;
+        SharedConfig.saveConfig();
+        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.appUpdateAvailable);
+    }
+
+    // ---- hooks ----
+
+    /** SharedConfig.isAppUpdateAvailable: a release with the APK and a build above this one. */
+    public static boolean isAvailable(TLRPC.TL_help_appUpdate update) {
+        return update != null && update.document != null && update.id > RawVersion.build();
+    }
+
+    /** SharedConfig.loadConfig: drops the saved release once this build has reached it. */
+    public static void onConfigLoaded() {
+        if (supported() && SharedConfig.pendingAppUpdate != null && !isAvailable(SharedConfig.pendingAppUpdate)) {
+            SharedConfig.pendingAppUpdate = null;
+            AndroidUtilities.runOnUIThread(SharedConfig::saveConfig);
         }
     }
+
+    /**
+     * FileRefController, parent «update»: instead of help.getAppUpdate (which knows nothing of rawGram builds) re-reads
+     * the release post and hands its fresh update object to {@code done}, the same path as Telegram's answer.
+     * Returns false when Telegram's own request should run.
+     */
+    public static boolean refreshReference(int account, RequestDelegate done) {
+        if (!supported()) {
+            return false;
+        }
+        TLRPC.TL_help_appUpdate current = SharedConfig.pendingAppUpdate;
+        fetchPosts(account, (res, err) -> {
+            TLRPC.Message post = null;
+            if (res instanceof TLRPC.messages_Messages) {
+                ArrayList<TLRPC.Message> messages = ((TLRPC.messages_Messages) res).messages;
+                if (current != null && current.document != null) {
+                    for (TLRPC.Message message : messages) {
+                        TLRPC.Document apk = apkOf(message);
+                        if (apk != null && apk.id == current.document.id) {
+                            post = message;
+                            break;
+                        }
+                    }
+                }
+                if (post == null) {
+                    post = newestRelease(messages, true);
+                }
+            }
+            if (post != null && buildOf(post.message) > 0) {
+                done.run(updateOf(buildOf(post.message), post), null);
+            } else {
+                TLRPC.TL_error error = err;
+                if (error == null) {
+                    error = new TLRPC.TL_error();
+                    error.text = "RAWGRAM_RELEASE_NOT_FOUND";
+                }
+                done.run(null, error);
+            }
+        });
+        return true;
+    }
+
+    /** UpdateAppAlertDialog: the changelog with emoji and custom emoji, without the release tag. */
+    public static CharSequence changelog(SpannableStringBuilder text, ArrayList<TLRPC.MessageEntity> entities, Paint paint) {
+        Paint.FontMetricsInt metrics = paint.getFontMetricsInt();
+        CharSequence withEmoji = Emoji.replaceEmoji(text, metrics, false);
+        SpannableStringBuilder builder = withEmoji instanceof SpannableStringBuilder ? (SpannableStringBuilder) withEmoji : new SpannableStringBuilder(withEmoji);
+        MessageObject.replaceAnimatedEmoji(builder, entities, metrics);
+        stripTag(builder);
+        return builder;
+    }
+
+    // ---- a post without the APK ----
 
     /** A release post without the APK: its text and «Открыть» to open it in the chat. */
     private static void showLink(Activity activity, int build, String text, int msgId) {
-        if (activity == null || activity.isFinishing()) {
-            return;
-        }
-        String shown = stripTag(text);
+        String shown = text == null ? "" : TAG_LINE.matcher(text).replaceAll("").trim();
         int lineEnd = shown.indexOf('\n');
         String title = lineEnd < 0 ? shown.trim() : shown.substring(0, lineEnd).trim();
         String changes = lineEnd < 0 ? "" : shown.substring(lineEnd + 1).trim();
@@ -246,13 +328,9 @@ public final class RawUpdates {
         Browser.openUrl(context, "https://t.me/" + CHAT + "/" + TOPIC + "/" + msgId);
     }
 
-    private static String stripTag(String text) {
-        return text == null ? "" : TAG_LINE.matcher(text).replaceAll("").trim();
-    }
-
     /** Removes the release tag from the shown changelog (on its own line or at a line end), keeping the spans. */
-    static void stripTag(android.text.SpannableStringBuilder text) {
-        java.util.ArrayList<int[]> ranges = new java.util.ArrayList<>();
+    static void stripTag(SpannableStringBuilder text) {
+        ArrayList<int[]> ranges = new ArrayList<>();
         Matcher m = TAG_LINE.matcher(text.toString());
         while (m.find()) {
             int start = m.start();
@@ -274,176 +352,20 @@ public final class RawUpdates {
         }
     }
 
-    // ---- pending update ----
-
-    /** The release offered for download, or null; built from the post (version «build N», its text and APK). */
-    public static TLRPC.TL_help_appUpdate pendingUpdate() {
-        loadPending();
-        if (pendingUpdate != null && (!supported() || RawVersion.build() >= pendingBuild)) {
-            // this build reached it: nothing showed it in this process yet, so no notification
-            clearPending(false);
-        }
-        return pendingUpdate;
-    }
-
-    /** The account that found the pending update (its access to the chat refreshes the file reference). */
-    public static int pendingAccount() {
-        loadPending();
-        if (pendingUpdate != null && UserConfig.getInstance(pendingAccount).isClientActivated()) {
-            return pendingAccount;
-        }
-        return UserConfig.selectedAccount;
-    }
-
-    /** The post of the pending update, the parent object of the download. */
-    private static MessageObject parent() {
-        if (pendingParent == null && pendingMessage != null) {
-            int account = pendingAccount();
-            MessagesController controller = MessagesController.getInstance(account);
-            if (pendingChat != null && controller.getChat(pendingChat.id) == null) {
-                controller.putChat(pendingChat, true);
-            }
-            pendingParent = new MessageObject(account, pendingMessage, false, false);
-        }
-        return pendingParent;
-    }
-
-    public static File pendingFile() {
-        TLRPC.TL_help_appUpdate update = pendingUpdate();
-        return update == null ? null : FileLoader.getInstance(pendingAccount()).getPathToAttach(update.document, true);
-    }
-
-    public static boolean isDownloaded() {
-        File file = pendingFile();
-        return file != null && file.exists();
-    }
-
-    public static boolean isDownloading() {
-        TLRPC.TL_help_appUpdate update = pendingUpdate();
-        return update != null && FileLoader.getInstance(pendingAccount()).isLoadingFile(FileLoader.getAttachFileName(update.document));
-    }
-
-    public static void download() {
-        TLRPC.TL_help_appUpdate update = pendingUpdate();
-        if (update == null) {
-            return;
-        }
-        FileLoader.getInstance(pendingAccount()).loadFile(update.document, parent(), FileLoader.PRIORITY_NORMAL, 1);
-        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.appUpdateLoading);
-    }
-
-    public static void cancelDownload() {
-        TLRPC.TL_help_appUpdate update = pendingUpdate();
-        if (update == null) {
-            return;
-        }
-        FileLoader.getInstance(pendingAccount()).cancelLoadFile(update.document);
-        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.appUpdateLoading);
-    }
-
-    /** Opens the downloaded APK in the system installer, as Telegram does. */
-    public static void install(Activity activity) {
-        TLRPC.TL_help_appUpdate update = pendingUpdate();
-        if (update != null && activity != null) {
-            AndroidUtilities.openForView(update.document, true, activity);
-        }
-    }
-
-    private static void setPending(int account, int build, TLRPC.Message message, TLRPC.Chat chat) {
-        loadPending();
-        boolean same = pendingUpdate != null && pendingBuild == build && pendingMessage != null && pendingMessage.id == message.id;
-        pendingBuild = build;
-        pendingAccount = account;
-        pendingMessage = message;
-        if (chat != null || !same) {
-            pendingChat = chat;
-        }
-        pendingUpdate = updateOf(build, message);
-        pendingParent = null;
-        SharedPreferences.Editor editor = prefs().edit()
-                .putInt(KEY_BUILD, build)
-                .putInt(KEY_ACCOUNT, account)
-                .putString(KEY_MESSAGE, encode(message));
-        if (pendingChat != null) {
-            editor.putString(KEY_CHAT, encode(pendingChat));
-        } else {
-            editor.remove(KEY_CHAT);
-        }
-        editor.apply();
-        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.appUpdateAvailable);
-    }
-
-    private static void clearPending(boolean notify) {
-        loadPending();
-        if (pendingUpdate == null && !prefs().contains(KEY_MESSAGE)) {
-            return;
-        }
-        pendingBuild = 0;
-        pendingMessage = null;
-        pendingChat = null;
-        pendingUpdate = null;
-        pendingParent = null;
-        prefs().edit().remove(KEY_BUILD).remove(KEY_ACCOUNT).remove(KEY_MESSAGE).remove(KEY_CHAT).apply();
-        if (notify) {
-            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.appUpdateAvailable);
-        }
-    }
-
-    private static void loadPending() {
-        if (pendingLoaded) {
-            return;
-        }
-        pendingLoaded = true;
+    private static void dropOldKeys() {
         SharedPreferences prefs = prefs();
-        int build = prefs.getInt(KEY_BUILD, 0);
-        if (build <= 0) {
-            return;
-        }
-        try {
-            byte[] bytes = Base64.decode(prefs.getString(KEY_MESSAGE, ""), Base64.DEFAULT);
-            if (bytes == null || bytes.length == 0) {
-                return;
+        SharedPreferences.Editor editor = null;
+        for (String key : OLD_KEYS) {
+            if (prefs.contains(key)) {
+                if (editor == null) {
+                    editor = prefs.edit();
+                }
+                editor.remove(key);
             }
-            SerializedData data = new SerializedData(bytes);
-            TLRPC.Message message = TLRPC.Message.TLdeserialize(data, data.readInt32(false), false);
-            data.cleanup();
-            if (message == null || apkOf(message) == null) {
-                return;
-            }
-            String chat = prefs.getString(KEY_CHAT, null);
-            if (chat != null) {
-                SerializedData chatData = new SerializedData(Base64.decode(chat, Base64.DEFAULT));
-                pendingChat = TLRPC.Chat.TLdeserialize(chatData, chatData.readInt32(false), false);
-                chatData.cleanup();
-            }
-            pendingBuild = build;
-            pendingAccount = prefs.getInt(KEY_ACCOUNT, UserConfig.selectedAccount);
-            pendingMessage = message;
-            pendingUpdate = updateOf(build, message);
-        } catch (Exception e) {
-            FileLog.e(e);
         }
-    }
-
-    private static TLRPC.TL_help_appUpdate updateOf(int build, TLRPC.Message message) {
-        TLRPC.TL_help_appUpdate update = new TLRPC.TL_help_appUpdate();
-        update.id = build;
-        update.version = "build " + build;
-        update.text = message.message == null ? "" : message.message;
-        if (message.entities != null) {
-            update.entities.addAll(message.entities);
+        if (editor != null) {
+            editor.apply();
         }
-        update.document = apkOf(message);
-        update.flags |= 2;
-        return update;
-    }
-
-    private static String encode(TLObject object) {
-        SerializedData data = new SerializedData(object.getObjectSize());
-        object.serializeToStream(data);
-        String result = Base64.encodeToString(data.toByteArray(), Base64.DEFAULT);
-        data.cleanup();
-        return result;
     }
 
     private static SharedPreferences prefs() {
