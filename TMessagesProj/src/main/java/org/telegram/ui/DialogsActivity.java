@@ -2909,8 +2909,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         }
 
         BirthdayController.getInstance(currentAccount).check();
-        additionNavigationBarHeight = hasMainTabs ? dp(MAIN_TABS_HEIGHT_WITH_MARGINS) : 0;
-        additionFloatingButtonOffset = hasMainTabs ? dp(DialogsActivity.MAIN_TABS_HEIGHT + DialogsActivity.MAIN_TABS_MARGIN) : 0;
+        additionNavigationBarHeight = hasMainTabs && !MainTabsActivity.RAW_NO_TABS ? dp(MAIN_TABS_HEIGHT_WITH_MARGINS) : 0; // rawGram: tabs may be hidden
+        additionFloatingButtonOffset = hasMainTabs && !MainTabsActivity.RAW_NO_TABS ? dp(DialogsActivity.MAIN_TABS_HEIGHT + DialogsActivity.MAIN_TABS_MARGIN) : 0;
 
         return true;
     }

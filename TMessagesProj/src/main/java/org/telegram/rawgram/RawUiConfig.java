@@ -62,6 +62,7 @@ public class RawUiConfig {
     private static boolean foldersAtBottom;
     private static boolean sideMenu;
     private static boolean sideMenuImmersive;
+    private static boolean hideMainTabs;
     private static boolean hideArchive;
     private static boolean galleryHoldFrame;
     private static boolean galleryPrefetch;
@@ -106,6 +107,7 @@ public class RawUiConfig {
             foldersAtBottom = p.getBoolean("foldersAtBottom", false);
             sideMenu = p.getBoolean("sideMenu", false);
             sideMenuImmersive = p.getBoolean("sideMenuImmersive", false);
+            hideMainTabs = p.getBoolean("hideMainTabs", false);
             hideArchive = p.getBoolean("hideArchive", false);
             galleryHoldFrame = p.getBoolean("galleryHoldFrame", true);
             galleryPrefetch = p.getBoolean("galleryPrefetch", true);
@@ -177,6 +179,10 @@ public class RawUiConfig {
     /** Side menu, exteraGram's «Immersive Animation»: the app slides out by the whole menu width and fades into the menu colour. */
     public static boolean sideMenuImmersive() { ensureLoaded(); return sideMenuImmersive; }
     public static void setSideMenuImmersive(boolean v) { ensureLoaded(); sideMenuImmersive = v; put("sideMenuImmersive", v); }
+    /** The switch itself; the tabs are hidden only while the side menu is on (it is then the way to the settings). */
+    public static boolean hideMainTabsSwitch() { ensureLoaded(); return hideMainTabs; }
+    public static void setHideMainTabs(boolean v) { ensureLoaded(); hideMainTabs = v; put("hideMainTabs", v); }
+    public static boolean mainTabsHidden() { ensureLoaded(); return sideMenu && hideMainTabs; }
     public static boolean hideArchive() { ensureLoaded(); return hideArchive; }
     public static void setHideArchive(boolean v) { ensureLoaded(); hideArchive = v; put("hideArchive", v); }
     public static boolean foldersAtBottom() { ensureLoaded(); return foldersAtBottom; }

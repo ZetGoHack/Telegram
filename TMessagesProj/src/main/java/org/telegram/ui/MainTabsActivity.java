@@ -100,6 +100,8 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     private static final boolean RAW_HIDE_CONTACTS = org.telegram.rawgram.RawUiConfig.mainTabsHideContacts();
     // rawGram: and the tabs can be reordered (RawMainTabs; slot 0 chats, 1 contacts, 2 calls / settings, 3 profile)
     private static final int[] RAW_POSITIONS = org.telegram.rawgram.RawMainTabs.positions(RAW_HIDE_CONTACTS);
+    // rawGram: the bottom tabs can be hidden altogether (the side menu then opens the other pages)
+    static final boolean RAW_NO_TABS = org.telegram.rawgram.RawUiConfig.mainTabsHidden();
     private static final int POSITION_CHATS = RAW_POSITIONS[0];
     private static final int POSITION_CONTACTS = RAW_POSITIONS[1];
     private static final int POSITION_CALLS_OR_SETTINGS = RAW_POSITIONS[2];
@@ -117,7 +119,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
     private static final int ANIMATOR_ID_TABS_VISIBLE = 0;
     private final BoolAnimator animatorTabsVisible = new BoolAnimator(ANIMATOR_ID_TABS_VISIBLE,
-        this, CubicBezierInterpolator.EASE_OUT_QUINT, 380, true);
+        this, CubicBezierInterpolator.EASE_OUT_QUINT, 380, !RAW_NO_TABS); // rawGram
 
 
     private IUpdateLayout updateLayout;
@@ -145,7 +147,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         Bulletin.Delegate delegate = new Bulletin.Delegate() {
             @Override
             public int getBottomOffset(int tag) {
-                return navigationBarHeight + dp(DialogsActivity.MAIN_TABS_HEIGHT + DialogsActivity.MAIN_TABS_MARGIN);
+                return navigationBarHeight + (RAW_NO_TABS ? 0 : dp(DialogsActivity.MAIN_TABS_HEIGHT + DialogsActivity.MAIN_TABS_MARGIN)); // rawGram
             }
         };
 
@@ -943,6 +945,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     }
 
     private boolean canScrollInternal(MotionEvent ev, boolean forward) {
+        if (RAW_NO_TABS) return false; // rawGram: no tabs, no paging to the hidden pages
         final BaseFragment fragment = getCurrentVisibleFragment();
         if (fragment instanceof TabFragmentDelegate) {
             final TabFragmentDelegate delegate = (TabFragmentDelegate) fragment;
@@ -1159,7 +1162,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     private class MainTabsActivityControllerImpl implements MainTabsActivityController {
         @Override
         public void setTabsVisible(boolean visible) {
-            animatorTabsVisible.setValue(visible, true);
+            animatorTabsVisible.setValue(visible && !RAW_NO_TABS, true); // rawGram
         }
     }
 
