@@ -3032,6 +3032,21 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         playNextMessageWithoutOrder(false);
     }
 
+    /** rawGram: the profile music list was put into the playlist from outside; point the index at the playing track
+     * (the old index stayed, so switching tracks did nothing and the neighbours showed the wrong covers). */
+    public void rawPlaylistReplaced(MessageObject current) {
+        sortPlaylist();
+        if (SharedConfig.shuffleMusic) {
+            buildShuffledPlayList();
+            return;
+        }
+        int index = playingMessageObject != null ? playlist.indexOf(playingMessageObject) : -1;
+        if (index < 0) {
+            index = playlist.indexOf(current);
+        }
+        currentPlaylistNum = Math.max(0, index);
+    }
+
     public boolean findMessageInPlaylistAndPlay(MessageObject messageObject) {
         int index = playlist.indexOf(messageObject);
         if (index == -1) {
