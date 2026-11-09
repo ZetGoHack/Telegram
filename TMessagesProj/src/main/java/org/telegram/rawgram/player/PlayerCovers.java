@@ -199,7 +199,7 @@ public abstract class PlayerCovers {
     private static void forEachNeighbor(org.telegram.messenger.Utilities.Callback<MessageObject> callback) {
         int playingMessageObjectNum;
         MediaController mediaController = MediaController.getInstance();
-        ArrayList<MessageObject> playlist = mediaController.getPlaylist();
+        ArrayList<MessageObject> playlist = mediaController.rawCurrentPlayList(); // the index points into the shuffled list while shuffling
         if (playlist.size() > 1 && (playingMessageObjectNum = mediaController.getPlayingMessageObjectNum()) >= 0 && playingMessageObjectNum < playlist.size()) {
             int size = (playingMessageObjectNum + 1) % playlist.size();
             int size2 = ((playingMessageObjectNum - 1) + playlist.size()) % playlist.size();

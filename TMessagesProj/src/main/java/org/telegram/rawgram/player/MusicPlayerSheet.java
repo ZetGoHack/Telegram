@@ -952,11 +952,8 @@ public class MusicPlayerSheet extends BottomSheet implements NotificationCenter.
     }
 
     public MessageObject getNeighborMessage(int i) {
-        if (SharedConfig.shuffleMusic) {
-            return null;
-        }
         MediaController mediaController = MediaController.getInstance();
-        ArrayList<MessageObject> playlist = mediaController.getPlaylist();
+        ArrayList<MessageObject> playlist = mediaController.rawCurrentPlayList(); // rawGram: the shuffled order too, its neighbours were placeholders
         int size = playlist.size();
         int playingMessageObjectNum = mediaController.getPlayingMessageObjectNum();
         if (size < 2 || playingMessageObjectNum < 0 || playingMessageObjectNum >= size) {

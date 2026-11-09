@@ -4569,6 +4569,11 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         return currentAspectRatioFrameLayout != null && currentAspectRatioFrameLayout.isDrawingReady();
     }
 
+    /** rawGram: the list the playlist index points into (the shuffled one while shuffling). */
+    public ArrayList<MessageObject> rawCurrentPlayList() {
+        return SharedConfig.shuffleMusic ? shuffledPlaylist : playlist;
+    }
+
     public ArrayList<MessageObject> getPlaylist() {
         return playlist;
     }
