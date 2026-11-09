@@ -7100,6 +7100,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         isActive = false;
         activeInstanceCount--;
         org.telegram.rawgram.RawSideMenu.detach(this); // rawGram
+        org.telegram.rawgram.RawLeaks.onActivityDestroyed(); // rawGram
         if (debugThemeReceiver != null) {
             unregisterReceiver(debugThemeReceiver);
             debugThemeReceiver = null;

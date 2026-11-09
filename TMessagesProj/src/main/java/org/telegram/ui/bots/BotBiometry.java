@@ -75,6 +75,11 @@ public class BotBiometry {
 
     private final static WeakHashMap<Pair<Integer, Long>, BotBiometry> instances = new WeakHashMap<>();
 
+    /** rawGram: the instances keep the context they were made with; dropped when that activity is destroyed. */
+    public static void rawClear() {
+        instances.clear();
+    }
+
     public static BotBiometry get(Context context, int currentAccount, long botId) {
         final Pair<Integer, Long> key = new Pair<>(currentAccount, botId);
         BotBiometry instance = instances.get(key);

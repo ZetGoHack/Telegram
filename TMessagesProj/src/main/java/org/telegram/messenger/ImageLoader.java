@@ -2873,9 +2873,7 @@ public class ImageLoader {
                 }
                 int TAG = imageReceiver.getTag(type);
                 if (TAG != 0) {
-                    if (a == 0) {
-                        removeFromWaitingForThumb(TAG, imageReceiver);
-                    }
+                    removeFromWaitingForThumb(TAG, imageReceiver); // rawGram: the quality-thumb wait is keyed by the image tag; kept for the thumb tag only, it pinned the closed chat
                     CacheImage ei = imageLoadingByTag.get(TAG);
                     if (ei != null) {
                         ei.removeImageReceiver(imageReceiver);

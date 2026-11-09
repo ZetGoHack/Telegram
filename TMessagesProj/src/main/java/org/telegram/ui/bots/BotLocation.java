@@ -79,6 +79,11 @@ public class BotLocation {
 
     private final static HashMap<Pair<Integer, Long>, BotLocation> instances = new HashMap<>();
 
+    /** rawGram: the instances keep the context they were made with; dropped when that activity is destroyed. */
+    public static void rawClear() {
+        instances.clear();
+    }
+
     public static BotLocation get(Context context, int currentAccount, long botId) {
         final Pair<Integer, Long> key = new Pair<>(currentAccount, botId);
         BotLocation instance = instances.get(key);

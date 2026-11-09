@@ -80,6 +80,11 @@ public class BotDownloads {
 
     private final static HashMap<Pair<Integer, Long>, BotDownloads> instances = new HashMap<>();
 
+    /** rawGram: the instances keep the context they were made with; dropped when that activity is destroyed. */
+    public static void rawClear() {
+        instances.clear();
+    }
+
     public static BotDownloads get(Context context, int currentAccount, long botId) {
         final Pair<Integer, Long> key = new Pair<>(currentAccount, botId);
         BotDownloads instance = instances.get(key);

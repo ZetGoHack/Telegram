@@ -2363,8 +2363,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         return !isPulledDown;
     }
 
+    private android.view.ViewTreeObserver.OnPreDrawListener rawHeaderPreDraw; // rawGram
+    private android.view.ViewTreeObserver rawHeaderPreDrawObserver;
+
     @Override
     public void onFragmentDestroy() {
+        org.telegram.rawgram.RawUi.removePreDraw(rawHeaderPreDrawObserver, fragmentView, rawHeaderPreDraw); // rawGram
         super.onFragmentDestroy();
         rawNowPlaying.onFragmentDestroy(); // rawGram
         if (sharedMediaLayout != null) {
@@ -8106,11 +8110,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         headerFadeView = new View(getContext());
         headerFadeView.setAlpha(0);
         // follows the media every frame: it stays at the top of the screen
-        contentView.getViewTreeObserver().addOnPreDrawListener(() -> {
+        rawHeaderPreDraw = () -> { // rawGram: kept to be removed, the window's observer held every closed profile
             updateHeaderBlurHeight();
             updateHeaderBlurViews();
             return true;
-        });
+        };
+        rawHeaderPreDrawObserver = contentView.getViewTreeObserver();
+        rawHeaderPreDrawObserver.addOnPreDrawListener(rawHeaderPreDraw);
         sharedMediaLayout.addPagesOverlay(headerFadeView, 0);
         headerFadeView.setBackground(glass.createActionBarFadeDrawable(headerFadeView));
         // the progressive blur of the simple screens over the rows, under the name and the buttons

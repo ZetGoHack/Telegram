@@ -3008,7 +3008,7 @@ public class StoryViewer implements NotificationCenter.NotificationCenterDelegat
         if (dialogId == 0 || storyItem == null) {
             return;
         }
-        replyDrafts.put(draftHash(dialogId, storyItem), text);
+        replyDrafts.put(draftHash(dialogId, storyItem), text == null ? null : new android.text.SpannableStringBuilder(text)); // rawGram: the live Editable kept the input field and its activity
     }
 
     public CharSequence getDraft(long dialogId, TL_stories.StoryItem storyItem) {

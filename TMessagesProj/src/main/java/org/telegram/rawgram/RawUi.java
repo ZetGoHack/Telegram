@@ -268,4 +268,20 @@ public class RawUi {
             title.setLineSpacing(0, 0.95f);
         }
     }
+
+    /** Removes a pre-draw listener from the observer it was added to (or the view's current one, if that one died). */
+    public static void removePreDraw(android.view.ViewTreeObserver observer, android.view.View view, android.view.ViewTreeObserver.OnPreDrawListener listener) {
+        if (listener == null) {
+            return;
+        }
+        try {
+            if (observer != null && observer.isAlive()) {
+                observer.removeOnPreDrawListener(listener);
+            }
+            if (view != null && view.getViewTreeObserver().isAlive()) {
+                view.getViewTreeObserver().removeOnPreDrawListener(listener);
+            }
+        } catch (Throwable ignore) {
+        }
+    }
 }
