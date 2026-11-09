@@ -192,8 +192,8 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
         tabsOrderRow = rowCount++;
         tabsSearchRow = rowCount++;
         sideMenuRow = rowCount++;
-        hideMainTabsRow = RawUiConfig.sideMenu() ? rowCount++ : -1; // right under the side menu: without it the tabs are the way back
-        sideMenuImmersiveRow = RawUiConfig.sideMenu() ? rowCount++ : -1;
+        hideMainTabsRow = rowCount++; // right under the side menu: without it the tabs are the way back; grey while it is off
+        sideMenuImmersiveRow = rowCount++;
         bottomTabsInfoRow = rowCount++;
 
         // exteraGram's avatar corners card: the titled slider first, the live preview under it
@@ -390,16 +390,10 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
             boolean v = !RawUiConfig.sideMenu();
             RawUiConfig.setSideMenu(v);
             toggled(view, v);
-            updateRows();
-            if (adapter != null) {
-                adapter.notifyItemChanged(sideMenuRow);
-                if (v) {
-                    adapter.notifyItemRangeInserted(hideMainTabsRow, 2);
-                } else {
-                    adapter.notifyItemRangeRemoved(sideMenuRow + 1, 2);
-                }
-            }
+            animateSideMenuOptions(v);
             showRestartNotice(this);
+        } else if ((position == sideMenuImmersiveRow || position == hideMainTabsRow) && !RawUiConfig.sideMenu()) {
+            // greyed out: they only work with the side menu
         } else if (position == sideMenuImmersiveRow) {
             boolean v = !RawUiConfig.sideMenuImmersive();
             RawUiConfig.setSideMenuImmersive(v);
@@ -487,6 +481,29 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
         super.onResume();
         if (adapter != null && nowPlayingSetupRow != -1) {
             adapter.notifyItemChanged(nowPlayingSetupRow);
+        }
+    }
+
+    /** The options under the side menu fade to grey (or back) instead of appearing and vanishing. */
+    private void animateSideMenuOptions(boolean enabled) {
+        if (listView == null) {
+            return;
+        }
+        java.util.ArrayList<android.animation.Animator> animators = new java.util.ArrayList<>();
+        for (int row : new int[]{hideMainTabsRow, sideMenuImmersiveRow}) {
+            RecyclerView.ViewHolder holder = listView.findViewHolderForAdapterPosition(row);
+            if (holder != null && holder.itemView instanceof TextCheckCell) {
+                ((TextCheckCell) holder.itemView).setEnabled(enabled, animators);
+            } else if (adapter != null) {
+                adapter.notifyItemChanged(row);
+            }
+        }
+        if (!animators.isEmpty()) {
+            android.animation.AnimatorSet set = new android.animation.AnimatorSet();
+            set.playTogether(animators);
+            set.setDuration(200);
+            set.setInterpolator(org.telegram.ui.Components.CubicBezierInterpolator.DEFAULT);
+            set.start();
         }
     }
 
@@ -857,6 +874,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                 }
                 case TYPE_CHECK: {
                     TextCheckCell cell = (TextCheckCell) holder.itemView;
+                    cell.setEnabled(position != hideMainTabsRow && position != sideMenuImmersiveRow || RawUiConfig.sideMenu(), null);
                     if (position == galleryHoldRow) {
                         cell.setTextAndCheck("Держать кадр до загрузки", RawUiConfig.galleryHoldFrame(), true);
                     } else if (position == galleryPrefetchRow) {
@@ -908,7 +926,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                     } else if (position == tabsSearchRow) {
                         cell.setTextAndCheck("Кнопка поиска", RawUiConfig.mainTabsSearch(), true);
                     } else if (position == sideMenuRow) {
-                        cell.setTextAndCheck("Боковое меню", RawUiConfig.sideMenu(), hideMainTabsRow != -1);
+                        cell.setTextAndCheck("Боковое меню", RawUiConfig.sideMenu(), true);
                     } else if (position == hideMainTabsRow) {
                         cell.setTextAndCheck("Скрыть нижние вкладки", RawUiConfig.hideMainTabsSwitch(), true);
                     } else if (position == sideMenuImmersiveRow) {
