@@ -192,8 +192,8 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
         tabsOrderRow = rowCount++;
         tabsSearchRow = rowCount++;
         sideMenuRow = rowCount++;
+        hideMainTabsRow = RawUiConfig.sideMenu() ? rowCount++ : -1; // right under the side menu: without it the tabs are the way back
         sideMenuImmersiveRow = RawUiConfig.sideMenu() ? rowCount++ : -1;
-        hideMainTabsRow = RawUiConfig.sideMenu() ? rowCount++ : -1;
         bottomTabsInfoRow = rowCount++;
 
         // exteraGram's avatar corners card: the titled slider first, the live preview under it
@@ -394,7 +394,7 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
             if (adapter != null) {
                 adapter.notifyItemChanged(sideMenuRow);
                 if (v) {
-                    adapter.notifyItemRangeInserted(sideMenuImmersiveRow, 2);
+                    adapter.notifyItemRangeInserted(hideMainTabsRow, 2);
                 } else {
                     adapter.notifyItemRangeRemoved(sideMenuRow + 1, 2);
                 }
@@ -908,11 +908,11 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                     } else if (position == tabsSearchRow) {
                         cell.setTextAndCheck("Кнопка поиска", RawUiConfig.mainTabsSearch(), true);
                     } else if (position == sideMenuRow) {
-                        cell.setTextAndCheck("Боковое меню", RawUiConfig.sideMenu(), sideMenuImmersiveRow != -1);
-                    } else if (position == sideMenuImmersiveRow) {
-                        cell.setTextAndCheck("Погружающая анимация", RawUiConfig.sideMenuImmersive(), true);
+                        cell.setTextAndCheck("Боковое меню", RawUiConfig.sideMenu(), hideMainTabsRow != -1);
                     } else if (position == hideMainTabsRow) {
-                        cell.setTextAndCheck("Скрыть нижние вкладки", RawUiConfig.hideMainTabsSwitch(), false);
+                        cell.setTextAndCheck("Скрыть нижние вкладки", RawUiConfig.hideMainTabsSwitch(), true);
+                    } else if (position == sideMenuImmersiveRow) {
+                        cell.setTextAndCheck("Погружающая анимация", RawUiConfig.sideMenuImmersive(), false);
                     } else if (position == hideArchiveRow) {
                         cell.setTextAndCheck("Скрыть архив", RawUiConfig.hideArchive(), true);
                     } else if (position == foldersBottomRow) {
@@ -997,8 +997,8 @@ public class RawUiSettingsActivity extends RawPreferencesFragment {
                     } else if (position == bottomTabsInfoRow) {
                         cell.setText("Кнопка поиска — круглая кнопка справа от вкладок, открывает поиск по чатам. "
                                 + "Боковое меню — аккаунты, ночной режим и быстрые пункты; открывается кнопкой ☰ в списке чатов или свайпом от левого края. "
-                                + "Погружающая анимация — экран уезжает вправо целиком и растворяется в цвете меню. "
                                 + "Без нижних вкладок остаётся только список чатов, а контакты, звонки и настройки открываются из бокового меню. "
+                                + "Погружающая анимация — экран уезжает вправо целиком и растворяется в цвете меню. "
                                 + "Скрытие «Контактов» и нижних вкладок, порядок вкладок, кнопка поиска и боковое меню применяются после перезапуска.");
                     } else if (position == avatarInfoRow) {
                         cell.setText("100% — круглые, как в Telegram. Действует в списке чатов, группах и шапке чата.");
