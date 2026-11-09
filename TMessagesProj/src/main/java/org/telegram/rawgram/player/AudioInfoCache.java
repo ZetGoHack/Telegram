@@ -41,7 +41,7 @@ public final class AudioInfoCache {
         String key = key(file);
         synchronized (cache) {
             AudioInfo cached = cache.get(key);
-            if (cached != null) {
+            if (cached != null && !recycled(cached)) {
                 return cached;
             }
         }
@@ -52,6 +52,11 @@ public final class AudioInfoCache {
             }
         }
         return info;
+    }
+
+    /** A cover that someone recycled (a parsed file is then read again). */
+    private static boolean recycled(AudioInfo info) {
+        return info.getCover() != null && info.getCover().isRecycled() || info.getSmallCover() != null && info.getSmallCover().isRecycled();
     }
 
     /** Parses the tags of a downloaded music file on a background queue. */

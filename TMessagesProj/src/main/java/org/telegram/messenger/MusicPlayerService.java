@@ -432,6 +432,8 @@ public class MusicPlayerService extends Service implements NotificationCenter.No
                 contentText = LocaleController.getString(R.string.AttachRound);
             }
         }
+        albumArt = org.telegram.rawgram.RawMediaArt.alive(albumArt); // rawGram: a recycled cover crashes the notification
+        fullAlbumArt = org.telegram.rawgram.RawMediaArt.alive(fullAlbumArt);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             boolean isPlaying = !MediaController.getInstance().isMessagePaused();
 
@@ -673,7 +675,7 @@ public class MusicPlayerService extends Service implements NotificationCenter.No
                 metadataEditor.putLong(MediaMetadataRetriever.METADATA_KEY_DURATION, MediaController.getInstance().getPlayingMessageObject().audioPlayerDuration * 1000L);
                 if (fullAlbumArt != null) {
                     try {
-                        metadataEditor.putBitmap(RemoteControlClient.MetadataEditor.BITMAP_KEY_ARTWORK, fullAlbumArt);
+                        metadataEditor.putBitmap(RemoteControlClient.MetadataEditor.BITMAP_KEY_ARTWORK, org.telegram.rawgram.RawMediaArt.own(fullAlbumArt)); // rawGram: later edits reuse it after the shared cover is recycled
                     } catch (Throwable e) {
                         FileLog.e(e);
                     }

@@ -144,7 +144,7 @@ public abstract class PlayerCovers {
     private static Bitmap embeddedCover(ImageReceiver imageReceiver, MessageObject messageObject) {
         final String key = messageObject.getDialogId() + "_" + messageObject.getId();
         Bitmap cached = EMBEDDED.get(key);
-        if (cached != null) {
+        if (cached != null && !cached.isRecycled()) {
             return cached;
         }
         if (NO_EMBEDDED.contains(key) || messageObject.messageOwner == null) {
