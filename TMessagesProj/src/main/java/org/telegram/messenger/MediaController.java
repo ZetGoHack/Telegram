@@ -2811,6 +2811,25 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         return currentPlaylistNum;
     }
 
+    /** rawGram: the playing track's position in the unshuffled playlist (or the playlist index when it is not there). */
+    private int rawPlayingIndex() {
+        if (playingMessageObject != null) {
+            int index = playlist.indexOf(playingMessageObject);
+            if (index < 0) {
+                for (int i = 0; i < playlist.size(); i++) {
+                    if (isSamePlayingMessage(playlist.get(i))) {
+                        index = i;
+                        break;
+                    }
+                }
+            }
+            if (index >= 0) {
+                return index;
+            }
+        }
+        return currentPlaylistNum;
+    }
+
     private void buildShuffledPlayList() {
         if (playlist.isEmpty()) {
             return;
@@ -2819,9 +2838,10 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         shuffledPlaylist.clear();
 
         MessageObject messageObject = null;
-        if (currentPlaylistNum >= 0 && currentPlaylistNum < playlist.size()) {
-            messageObject = playlist.get(currentPlaylistNum);
-            all.remove(currentPlaylistNum);
+        int currentIndex = rawPlayingIndex(); // rawGram: currentPlaylistNum may already index the old shuffled list
+        if (currentIndex >= 0 && currentIndex < playlist.size()) {
+            messageObject = playlist.get(currentIndex);
+            all.remove(currentIndex);
         }
 
         int count = all.size();
